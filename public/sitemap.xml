@@ -3,22 +3,11 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
-    <loc>http://coderatwork.cn/</loc>
-    <lastmod>2020-01-30T17:58:33+08:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>http://coderatwork.cn/posts/my-first-post/</loc>
-    <lastmod>2020-01-30T17:58:33+08:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>http://coderatwork.cn/posts/</loc>
-    <lastmod>2020-01-30T17:58:33+08:00</lastmod>
-  </url>
-  
-  <url>
     <loc>http://coderatwork.cn/categories/</loc>
+  </url>
+  
+  <url>
+    <loc>http://coderatwork.cn/</loc>
   </url>
   
   <url>
