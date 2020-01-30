@@ -1,0 +1,4 @@
+baseURL = "http://coderatwork.cn/"
+languageCode = "en-us"
+title = "kikimo"
+theme = "contrast-hugo"
