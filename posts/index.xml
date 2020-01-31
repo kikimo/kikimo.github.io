@@ -23,14 +23,5 @@
  CNAME records are handled specially in the domain name system, and have several restrictions on their use.</description>
     </item>
     
-    <item>
-      <title>My First Post</title>
-      <link>https://coderatwork.cn/posts/my-first-post/</link>
-      <pubDate>Thu, 30 Jan 2020 17:58:33 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/my-first-post/</guid>
-      <description></description>
-    </item>
-    
   </channel>
 </rss>
