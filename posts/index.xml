@@ -6,10 +6,21 @@
     <description>Recent content in Posts on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Fri, 31 Jan 2020 21:02:45 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 01 Feb 2020 14:55:06 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>ICMP 和 ping</title>
+      <link>https://coderatwork.cn/posts/icmp-and-ping/</link>
+      <pubDate>Sat, 01 Feb 2020 14:55:06 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/icmp-and-ping/</guid>
+      <description>ICMP(internet control management protocol) 是四层的协议。 根据 Understanding LINUX NETWORK INTERNALS Chapter 25 中的介绍，ICMP 的主要作用是交换控制信息：
+ The Internet Control Message Protocol (ICMP) is a transport protocol used by Internet hosts to exchange control messages, notably error notifications and information requests.
+ Linux 内核的协议栈中包含了 ICMP， 不过这个协议比较有意思， 它的实现是一半在内核态一半在用户态。 我们经常使用 ping 指令来测试某个节点是否在线， ping 指令用的便是 ICMP 协议， 它向目标机器发送 ICMP echo request 报文，并等待目标机器发回的 ICMP echo response 报文， 这些操作都是在用户态下完成的。 目标节点接收到 ICMP echo request 报文后会自动发送 ICMP echo response 报文， 基本上没人听说过 ping server 应用，因为接收报文和回应报文的操作是内核中的 ICMP 协议自动完成的。</description>
+    </item>
     
     <item>
       <title>为什么 DNS 中应该避免 CNAME 记录和 MX 记录共存</title>
