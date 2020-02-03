@@ -1,7 +1,7 @@
 ---
-title: "Linux 中的 cmpxchg"
+title: "Linux 中的 cmpxchg 宏"
 date: 2020-02-02T23:51:12+08:00
-draft: true
+draft: false
 ---
 
 cmpxchg 是在 intel CPU 指令集中的一条指令，
@@ -10,16 +10,27 @@ cmpxchg 是在 intel CPU 指令集中的一条指令，
 
 > Compares the value in the AL, AX, EAX, or RAX register with the first operand (destination operand). If the two values are equal, the second operand (source operand) is loaded into the destination operand. Otherwise, the destination operand is loaded into the AL, AX, EAX or RAX register. RAX register is available only in 64-bit mode.
 
+注：AT&T 风格的汇编预发中，第一个操作数是源操作数，第二个操作数是目的操作数。
+
 > This instruction can be used with a LOCK prefix to allow the instruction to be executed atomically. To simplify the interface to the processor’s bus, the destination operand receives a write cycle without regard to the result of the comparison. The destination operand is written back if the comparison fails; otherwise, the source operand is written into the destination. (The processor never produces a locked read without also producing a locked write.)
 
 可以看到 cmpxchg 指令有两个操作数，
 同时还使用了 AX 寄存器。
 首先，它将第一个操作数（目的操作数）和 AX 寄存器相比较，
-如果相同则把第二个操作数（源操作数）的值加载到第一个操作数上，
-否则将第一个操作数的值加载到 AX 寄存器上。
+如果相同则把第二个操作数（源操作数）赋值给第一个操作数，
+否则将第一个操作数赋值给 AX 寄存器。
 在多核环境中，一般还在指令前加上 LOCK 前缀，来保证指令执行的原子性（LOCK 前缀的主要功能应该是锁内存总线）。
+`cmpxchg` 指令的操作具有原子性，可以用以下伪代码来表示：
 
-Linux 内核代码中使用宏来封装 cmpxchg 的操作，相关源码在[这里](https://elixir.bootlin.com/linux/latest/source/tools/arch/x86/include/asm/cmpxchg.h#L86):
+```C
+if (dst == %ax) {
+    dst = src;
+} else {
+    ax = dst
+}
+```
+
+Linux 内核代码中使用宏来封装`cmpxchg`指令操作，相关源码在[这里](https://elixir.bootlin.com/linux/latest/source/tools/arch/x86/include/asm/cmpxchg.h#L86):
 
 ```C
 /* SPDX-License-Identifier: GPL-2.0 */
@@ -114,23 +125,59 @@ extern void __cmpxchg_wrong_size(void)
 #endif	/* TOOLS_ASM_X86_CMPXCHG_H */
 ```
 
-从源码中可以看到，主体代码为宏```__raw_cmpxchg```，
+从源码中可以看到，主体封装代码为宏```__raw_cmpxchg```，
 它使用内联汇编来调用```cmpxchg```指令。
-Linux C 的内联汇编格式如下：
+代码中包含了对不同字长参数的处理，
+只要分析一种情况即可：
 
 ```C
-asm ( assembler template
-    : output operands                   (optional)
-    : input operands                    (optional)
-    : clobbered registers list          (optional)
-    );
+__typeof__(*(ptr)) __ret;                   \
+__typeof__(*(ptr)) __old = (old);               \
+__typeof__(*(ptr)) __new = (new);               \
+switch (size) {                         \
+...
+case __X86_CASE_W:                      \
+{                               \
+    volatile u16 *__ptr = (volatile u16 *)(ptr);        \
+    asm volatile(lock "cmpxchgw %2,%1"          \
+             : "=a" (__ret), "+m" (*__ptr)      \
+             : "r" (__new), "0" (__old)         \
+             : "memory");               \
+    break;                          \
+}
+...
 ```
-output operands 和inpupt operands 指定输入和输出参数，
-参数从做到右排列，可以使用数字编号来引用，编号从 0 开始。
-例如在```__raw_cmpxchg```宏中，%0 对应 ```__ret``` 变量，%1 对应 ```*__ptr```。
-```m```表示操作数在内存中。
 
-```=a```表示把结果写入到寄存器中，```a```指代```AX```寄存器。
-```+m```表示TODO；
+这段代码展开后等价于：
+```asm
+cmpxchg(ptr, old, new)
+{
+    %ax = __old;
+    cmpxchgw __new, *__ptr
+    if (*ptr == __old) {
+        *__ptr = __new;
+        // return __old;
+    } else {
+        %ax = *__ptr;
+        // return *__ptr;
+    }
+
+    __ret = %ax;
+    return __ret;
+}
 ```
 
+去掉中间寄存器：
+```asm
+cmpxchg(ptr, old, new)
+{
+    if (*ptr == __old) {
+        *ptr == __new;
+        return __old;
+    } else {
+        return __new;
+    }
+}
+```
+
+到这里，`cmpxchg`宏的作用就一目了然了。

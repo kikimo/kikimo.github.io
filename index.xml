@@ -35,6 +35,18 @@ asm ( assembler template : output operands (optional) : input operands (optional
     </item>
     
     <item>
+      <title>Linux 中的 cmpxchg 宏</title>
+      <link>https://coderatwork.cn/posts/linux-cmpxchg/</link>
+      <pubDate>Sun, 02 Feb 2020 23:51:12 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/linux-cmpxchg/</guid>
+      <description>cmpxchg 是在 intel CPU 指令集中的一条指令， 这条指令经常用来实现原子锁， 我们来看 intel 文档中对这条指令的介绍：
+ Compares the value in the AL, AX, EAX, or RAX register with the first operand (destination operand). If the two values are equal, the second operand (source operand) is loaded into the destination operand. Otherwise, the destination operand is loaded into the AL, AX, EAX or RAX register. RAX register is available only in 64-bit mode.
+ 注：AT&amp;amp;T 风格的汇编预发中，第一个操作数是源操作数，第二个操作数是目的操作数。
+ This instruction can be used with a LOCK prefix to allow the instruction to be executed atomically.</description>
+    </item>
+    
+    <item>
       <title>ICMP 和 ping</title>
       <link>https://coderatwork.cn/posts/icmp-and-ping/</link>
       <pubDate>Sat, 01 Feb 2020 14:55:06 +0800</pubDate>
