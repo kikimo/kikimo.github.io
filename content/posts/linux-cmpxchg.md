@@ -26,7 +26,7 @@ cmpxchg 是在 intel CPU 指令集中的一条指令，
 if (dst == %ax) {
     dst = src;
 } else {
-    ax = dst
+    %ax = dst
 }
 ```
 

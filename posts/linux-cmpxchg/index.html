@@ -41,7 +41,7 @@
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">if</span> (dst <span style="color:#f92672">=</span><span style="color:#f92672">=</span> <span style="color:#f92672">%</span>ax) {
     dst <span style="color:#f92672">=</span> src;
 } <span style="color:#66d9ef">else</span> {
-    ax <span style="color:#f92672">=</span> dst
+    <span style="color:#f92672">%</span>ax <span style="color:#f92672">=</span> dst
 }
 </code></pre></div><p>Linux 内核代码中使用宏来封装<code>cmpxchg</code>指令操作，相关源码在<a href="https://elixir.bootlin.com/linux/latest/source/tools/arch/x86/include/asm/cmpxchg.h#L86">这里</a>:</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* SPDX-License-Identifier: GPL-2.0 */</span>
