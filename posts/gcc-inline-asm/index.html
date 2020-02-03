@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>GCC 内联汇编 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/gcc-inline-asm/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>GCC 内联汇编</h1>
+    <time datetime="2020-02-03T19:55:21&#43;08:00">February 03, 2020</time>
+  </header>
+  <p>本文主要根据<a href="https://www.ibm.com/developerworks/library/l-ia/index.html">Inline assembly for x86 in Linux</a>一文的内容整理。</p>
+<p>GCC 支持内联汇编，
+格式如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-asm" data-lang="asm"><span style="color:#a6e22e">asm</span> ( <span style="color:#66d9ef">assembler</span> <span style="color:#66d9ef">template</span>
+    <span style="color:#960050;background-color:#1e0010">:</span> <span style="color:#a6e22e">output</span> <span style="color:#66d9ef">operands</span>               (<span style="color:#66d9ef">optional</span>)
+    <span style="color:#960050;background-color:#1e0010">:</span> <span style="color:#a6e22e">input</span> <span style="color:#66d9ef">operands</span>                (<span style="color:#66d9ef">optional</span>)
+    <span style="color:#960050;background-color:#1e0010">:</span> <span style="color:#a6e22e">list</span> <span style="color:#66d9ef">of</span> <span style="color:#66d9ef">clobbered</span> <span style="color:#66d9ef">registers</span>       (<span style="color:#66d9ef">optional</span>)
+    <span style="color:#960050;background-color:#1e0010">)</span><span style="color:#75715e">;
+</span></code></pre></div><p><code>asm</code> 又可以写作 <code>__asm__</code>,
+<code>__asm__</code>主要用来避免命名冲突。
+<code>assembler template</code> 就是内联的汇编代码，
+<code>output operands</code>, <code>input operands</code>, <code>list of clobbered registers</code>分别指代
+输入操作数，输入操作数，修饰寄存器列表。
+参数的顺序从左到右使用数字序号来引用，
+例如<code>%0</code>表示第一个参数。
+以下是几个 GCC 内联汇编的例子：</p>
+<h2 id="1-内存操作数memory-operand-constraintm">1. 内存操作数(Memory operand constraint(m))</h2>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C">__asm__(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">sidt %0</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">:</span> <span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">m</span><span style="color:#e6db74">&#34;</span>(loc));
+</code></pre></div><p>以上代码的作用等同于<code>*loc = idt</code>（idt 表示中断向量表）,
+<code>&quot;m&quot;</code>表示操作数位于内存中，
+其中<code>%0</code>表示第一个参数也就是<code>loc</code>。</p>
+<h2 id="2-参数序号引用matchingdigit-constraints">2. 参数序号引用(Matching(Digit) constraints)</h2>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C">__asm__(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">incl %0</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">=a</span><span style="color:#e6db74">&#34;</span>(var)<span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">0</span><span style="color:#e6db74">&#34;</span>(var));
+</code></pre></div><p>在这个例子中<code>var</code>既用作输入参数由用作输出参数，
+<code>=a</code>（似乎 output operand 都需要加一个<code>=</code>符号）表示使用<code>eax</code>寄存器来存放变量<code>var</code>，
+&ldquo;0&quot;表示使用和第一个参数一样的存储来作为输出来源，
+在这里就是<code>eax</code>寄存器。
+这段代码展开后等价于：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-asm" data-lang="asm"><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">var</span> %eax
+<span style="color:#a6e22e">incl</span> %eax
+<span style="color:#a6e22e">mov</span> %eax, <span style="color:#66d9ef">var</span>
+</code></pre></div><h2 id="3-常用寄存器的代号">3. 常用寄存器的代号</h2>
+<p>我们知道<code>a</code>代表<code>eax</code>寄存器，x86 还有多种可用的寄存器，代号如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">a %eax
+b     %ebx
+c     %ecx
+d     %edx
+S %esi
+D %edi
+</code></pre></div><p>还有一个特殊的代号<code>r</code>表示由 GCC 来选择可用的寄存器。</p>
+<h2 id="4-修饰寄存器clobbered-register">4. 修饰寄存器(clobbered register)</h2>
+<p>修饰寄存器可以理解为保留的不可用的寄存器。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">asm</span> (<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">movl $count, %%ecx;</span>
+      up: lodsl;
+      stosl;
+      loop up;<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span>
+    <span style="color:#f92672">:</span>           <span style="color:#75715e">/* no output */</span>
+    <span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">S</span><span style="color:#e6db74">&#34;</span>(src), <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">D</span><span style="color:#e6db74">&#34;</span>(dst) <span style="color:#75715e">/* input */</span>
+    <span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%ecx</span><span style="color:#e6db74">&#34;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%eax</span><span style="color:#e6db74">&#34;</span> );  <span style="color:#75715e">/* clobbered list */</span>
+</code></pre></div><p><code>lodsl</code>和<code>stosl</code>会隐式的使用<code>eax</code>和<code>ecx</code>寄存器。
+但是 GCC 并不知道这一点，
+所以它可能会在展开的代码中使用这两个寄存器，
+为了避免这种情况我们需要把<code>eax</code>和<code>ecx</code>添加到修饰寄存器列表中。</p>
+<h2 id="5-内联汇编的综合例子">5. 内联汇编的综合例子</h2>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>(<span style="color:#66d9ef">void</span>)
+{
+    <span style="color:#66d9ef">int</span> x <span style="color:#f92672">=</span> <span style="color:#ae81ff">10</span>, y;
+
+    <span style="color:#66d9ef">asm</span> (<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">movl %1, %%eax;</span>
+         <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">movl %%eax, %0;</span><span style="color:#e6db74">&#34;</span>
+        <span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">=r</span><span style="color:#e6db74">&#34;</span>(y)    <span style="color:#75715e">/* y is output operand */</span>
+        <span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;</span>(x)     <span style="color:#75715e">/* x is input operand */</span>
+        <span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%eax</span><span style="color:#e6db74">&#34;</span>);   <span style="color:#75715e">/* %eax is clobbered register */</span>
+}
+</code></pre></div><p>以上代码展开后就是：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-asm" data-lang="asm">    main:
+        <span style="color:#a6e22e">pushl</span> %ebp
+        <span style="color:#a6e22e">movl</span> %esp,%ebp
+        <span style="color:#a6e22e">subl</span> <span style="color:#66d9ef">$8</span>,%esp
+        <span style="color:#a6e22e">movl</span> <span style="color:#66d9ef">$10</span>,-<span style="color:#ae81ff">4</span>(%ebp)
+        <span style="color:#a6e22e">movl</span> -<span style="color:#ae81ff">4</span>(%ebp),%edx  <span style="color:#960050;background-color:#1e0010">/</span>* <span style="color:#66d9ef">x</span><span style="color:#960050;background-color:#1e0010">=</span><span style="color:#ae81ff">10</span> <span style="color:#66d9ef">is</span> <span style="color:#66d9ef">stored</span> <span style="color:#66d9ef">in</span> %edx *<span style="color:#960050;background-color:#1e0010">/</span>
+<span style="color:#75715e">#APP    /* asm starts here */
+</span><span style="color:#75715e"></span>        <span style="color:#a6e22e">movl</span> %edx, %eax     <span style="color:#960050;background-color:#1e0010">/</span>* <span style="color:#66d9ef">x</span> <span style="color:#66d9ef">is</span> <span style="color:#66d9ef">moved</span> <span style="color:#66d9ef">to</span> %eax *<span style="color:#960050;background-color:#1e0010">/</span>
+        <span style="color:#a6e22e">movl</span> %eax, %edx     <span style="color:#960050;background-color:#1e0010">/</span>* <span style="color:#66d9ef">y</span> <span style="color:#66d9ef">is</span> <span style="color:#66d9ef">allocated</span> <span style="color:#66d9ef">in</span> <span style="color:#66d9ef">edx</span> <span style="color:#66d9ef">and</span> <span style="color:#66d9ef">updated</span> *<span style="color:#960050;background-color:#1e0010">/</span>
+
+<span style="color:#75715e">#NO_APP /* asm ends here */
+</span><span style="color:#75715e"></span>        <span style="color:#a6e22e">movl</span> %edx,-<span style="color:#ae81ff">8</span>(%ebp)  <span style="color:#960050;background-color:#1e0010">/</span>* <span style="color:#66d9ef">value</span> <span style="color:#66d9ef">of</span> <span style="color:#66d9ef">y</span> <span style="color:#66d9ef">in</span> <span style="color:#66d9ef">stack</span> <span style="color:#66d9ef">is</span> <span style="color:#66d9ef">updated</span> <span style="color:#66d9ef">with</span>
+                   <span style="color:#a6e22e">the</span> <span style="color:#66d9ef">value</span> <span style="color:#66d9ef">in</span> %edx *<span style="color:#960050;background-color:#1e0010">/</span>
+</code></pre></div><p><code>eax</code>在修饰集群器列表中，
+所以我们看到内联汇编展开的代码中没有再引用<code>eax</code>寄存器。
+可以看到变量<code>x</code>和<code>y</code>都使用<code>edx</code>寄存器存储，
+有时候需要保证输入、输出变量使用不同的寄存器，
+这个是可以使用<code>&amp;</code>修饰符：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C">    <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>(<span style="color:#66d9ef">void</span>)
+{
+    <span style="color:#66d9ef">int</span> x <span style="color:#f92672">=</span> <span style="color:#ae81ff">10</span>, y;
+
+    <span style="color:#66d9ef">asm</span> (<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">movl %1, %%eax;</span>
+         <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">movl %%eax, %0;</span><span style="color:#e6db74">&#34;</span>
+        <span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">=&amp;r</span><span style="color:#e6db74">&#34;</span>(y)   <span style="color:#75715e">/* y is output operand, note the
+</span><span style="color:#75715e">                   &amp; constraint modifier. */</span>
+        <span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;</span>(x)     <span style="color:#75715e">/* x is input operand */</span>
+        <span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%eax</span><span style="color:#e6db74">&#34;</span>);   <span style="color:#75715e">/* %eax is clobbered register */</span>
+}
+</code></pre></div><p>展开后的代码是：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-asm" data-lang="asm">    main:
+        <span style="color:#a6e22e">pushl</span> %ebp
+        <span style="color:#a6e22e">movl</span> %esp,%ebp
+        <span style="color:#a6e22e">subl</span> <span style="color:#66d9ef">$8</span>,%esp
+        <span style="color:#a6e22e">movl</span> <span style="color:#66d9ef">$10</span>,-<span style="color:#ae81ff">4</span>(%ebp)
+        <span style="color:#a6e22e">movl</span> -<span style="color:#ae81ff">4</span>(%ebp),%ecx  <span style="color:#960050;background-color:#1e0010">/</span>* <span style="color:#66d9ef">x</span>, <span style="color:#66d9ef">the</span> <span style="color:#66d9ef">input</span> <span style="color:#66d9ef">is</span> <span style="color:#66d9ef">in</span> %ecx *<span style="color:#960050;background-color:#1e0010">/</span>
+<span style="color:#75715e">#APP
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">movl</span> %ecx, %eax
+    <span style="color:#a6e22e">movl</span> %eax, %edx     <span style="color:#960050;background-color:#1e0010">/</span>* <span style="color:#66d9ef">y</span>, <span style="color:#66d9ef">the</span> <span style="color:#66d9ef">output</span> <span style="color:#66d9ef">is</span> <span style="color:#66d9ef">in</span> %edx *<span style="color:#960050;background-color:#1e0010">/</span>
+
+<span style="color:#75715e">#NO_APP
+</span><span style="color:#75715e"></span>        <span style="color:#a6e22e">movl</span> %edx,-<span style="color:#ae81ff">8</span>(%ebp)
+</code></pre></div><p>可以看到现在<code>x</code>存在于<code>ecx</code>寄存器，
+而<code>y</code>存放于<code>edx</code>寄存器。</p>
+
+</article>
+
+
+
+</html>
