@@ -42,8 +42,8 @@ read(6,
 可以看到`ps aux`似乎是卡在`/proc/181134/cmdline`文件的读取上。
 执行`cat /proc/181134/cmdline`，果然又卡住。
 再登陆机器，执行`top`指令，谢天谢地，`top`没 hang 死，
-搜索`ps`指令，看到`ps`进程处于`D（uninterruptible sleep）`状态，
-cat /proc/181134/cmdline`命令也是：
+搜索`ps`指令，看到`ps`进程处于`D`（uninterruptible sleep）状态，
+`cat /proc/181134/cmdline`命令也是：
 
 ```txt
 ...
