@@ -10,7 +10,7 @@ cmpxchg 是在 intel CPU 指令集中的一条指令，
 
 > Compares the value in the AL, AX, EAX, or RAX register with the first operand (destination operand). If the two values are equal, the second operand (source operand) is loaded into the destination operand. Otherwise, the destination operand is loaded into the AL, AX, EAX or RAX register. RAX register is available only in 64-bit mode.
 
-注：AT&T 风格的汇编预发中，第一个操作数是源操作数，第二个操作数是目的操作数。
+注：AT&T 风格的汇编语法中，第一个操作数是源操作数，第二个操作数是目的操作数。
 
 > This instruction can be used with a LOCK prefix to allow the instruction to be executed atomically. To simplify the interface to the processor’s bus, the destination operand receives a write cycle without regard to the result of the comparison. The destination operand is written back if the comparison fails; otherwise, the source operand is written into the destination. (The processor never produces a locked read without also producing a locked write.)
 
