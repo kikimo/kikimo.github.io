@@ -144,6 +144,7 @@ index 9298324..44b6f8f 100644
 <code>down_read(&amp;mm-&gt;mmap_sem)</code>看起来应该是和信号量相关的函数操作，
 不过为什么<code>down_read(&amp;mm-&gt;mmap_sem)</code>会死锁呢?
 <code>mm-&gt;mmap_sem</code>应该是个信号量，可能是这个信号量异常导致<code>ps</code>，<code>cat</code>指令都死锁了。
+真正导致死锁的应该不是<code>ps</code>, <code>cat</code>指令，它们应该是受害者，
 查看系统日志，发现有 Java 进程 hang 死的日志：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">{timestamp} {hostname} kernel: INFO: task java:181134 blocked for more than 120 seconds.
 {timestamp} {hostname} kernel: &#34;echo 0 &gt; /proc/sys/kernel/hung_task_timeout_secs&#34; disables this message.
