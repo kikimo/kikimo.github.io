@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>ps 指令 hang 死原因分析（一） | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/analysis-of-ps-hang-01/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>ps 指令 hang 死原因分析（一）</h1>
+    <time datetime="2020-02-03T14:35:42&#43;08:00">February 03, 2020</time>
+  </header>
+  <p>一台 cassandra 服务器出了问题，
+登陆上去执行<code>ps aux</code>命令没有响应，
+<code>ctrl + c</code>也无法退出。
+重新登陆机器执行<code>ps aux</code>又挂住没法操作了。
+只能再登陆机器，
+跑<code>strace ps aux</code>观察，又卡住了：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># strace ps aux
+stat(&#34;/proc/180944&#34;, {st_mode=S_IFDIR|0555, st_size=0, ...}) = 0
+open(&#34;/proc/180944/stat&#34;, O_RDONLY)     = 6
+read(6, &#34;180944 (ps) D 1 180804 31034 0 -&#34;..., 2048) = 330
+close(6)                                = 0
+open(&#34;/proc/180944/status&#34;, O_RDONLY)   = 6
+read(6, &#34;Name:\tps\nUmask:\t0022\nState:\tD (d&#34;..., 2048) = 1205
+close(6)                                = 0
+open(&#34;/proc/180944/cmdline&#34;, O_RDONLY)  = 6
+read(6, &#34;ps\0-ef\0&#34;, 131072)            = 7
+read(6, &#34;&#34;, 131065)                     = 0
+close(6)                                = 0
+stat(&#34;/etc/localtime&#34;, {st_mode=S_IFREG|0644, st_size=388, ...}) = 0
+stat(&#34;/etc/localtime&#34;, {st_mode=S_IFREG|0644, st_size=388, ...}) = 0
+write(1, &#34;root     180944  0.0  0.0 155328&#34;..., 73root     180944  0.0  0.0 155328   424 ?        D    Jan29   0:00 ps -ef
+) = 73
+stat(&#34;/proc/181134&#34;, {st_mode=S_IFDIR|0555, st_size=0, ...}) = 0
+open(&#34;/proc/181134/stat&#34;, O_RDONLY)     = 6
+read(6, &#34;181134 (java) D 1 177157 31034 0&#34;..., 2048) = 333
+close(6)                                = 0
+open(&#34;/proc/181134/status&#34;, O_RDONLY)   = 6
+read(6, &#34;Name:\tjava\nUmask:\t0022\nState:\tD &#34;..., 2048) = 1207
+close(6)                                = 0
+open(&#34;/proc/181134/cmdline&#34;, O_RDONLY)  = 6
+read(6,
+</code></pre></div><p>可以看到<code>ps aux</code>似乎是卡在<code>/proc/181134/cmdline</code>文件的读取上。
+执行<code>cat /proc/181134/cmdline</code>，果然又卡住。
+再登陆机器，执行<code>top</code>指令，谢天谢地，<code>top</code>没 hang 死，
+搜索<code>ps</code>指令，看到<code>ps</code>进程处于<code>D（uninterruptible sleep）</code>状态，
+cat /proc/181134/cmdline`命令也是：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">...
+   PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND
+ 38042 root      20   0  155328   1900   1484 D   0.0  0.0   0:00.09 ps
+ 38111 root      20   0  154624   5352   4036 S   0.0  0.0   0:00.22 sshd
+ 38116 tdops     20   0  154624   2876   1548 S   0.0  0.0   0:00.01 sshd
+ 38118 tdops     20   0  115436   1968   1600 S   0.0  0.0   0:00.02 bash
+ 38156 root      20   0  241112   4536   3376 S   0.0  0.0   0:00.01 sudo
+ 38159 root      20   0  193928   2412   1772 S   0.0  0.0   0:00.01 su
+ 38160 root      20   0  115436   2068   1656 S   0.0  0.0   0:00.05 bash
+...
+</code></pre></div><p><strong>不过这里有一点比较奇怪的是：<code>ps</code>和<code>cat</code>会进入<code>D</code>状态，但是<code>strace</code>只是进入<code>S</code>（sleep）状态，它还能 kill，why？</strong></p>
+<p>检查<code>cat</code> 进程的堆栈，发现进程挂在内核中一个函数<code>call_rwsem_down_read_failed()</code>上：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># cat /proc/38042/stack
+[&lt;ffffffff81331ad8&gt;] call_rwsem_down_read_failed+0x18/0x30
+[&lt;ffffffff812739d2&gt;] proc_pid_cmdline_read+0xb2/0x560
+[&lt;ffffffff81200b9c&gt;] vfs_read+0x9c/0x170
+[&lt;ffffffff81201a5f&gt;] SyS_read+0x7f/0xe0
+[&lt;ffffffff816b4fc9&gt;] system_call_fastpath+0x16/0x1b
+[&lt;ffffffffffffffff&gt;] 0xffffffffffffffff
+</code></pre></div><p>google 搜索 &ldquo;读取<code>/proc/pid/cmdline</code> hang 死&quot;的信息，
+看到一个 <a href="https://lkml.org/lkml/2018/2/20/576">2018 年出的内核补丁</a>，
+主题是 <strong>[PATCH] fs: proc: use down_read_killable in proc_pid_cmdline_read()</strong>，
+看起来高度相关，</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">From	Yang Shi &lt;&gt;
+Subject	[PATCH] fs: proc: use down_read_killable in proc_pid_cmdline_read()
+Date	Wed, 21 Feb 2018 03:49:29 +0800
+share
+When running vm-scalability with large memory (&gt; 300GB), the below hung
+task issue happens occasionally.
+
+INFO: task ps:14018 blocked for more than 120 seconds.
+       Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+ &#34;echo 0 &gt; /proc/sys/kernel/hung_task_timeout_secs&#34; disables this message.
+ ps              D    0 14018      1 0x00000004
+  ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+  ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+  00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+ Call Trace:
+  [&lt;ffffffff817154d0&gt;] ? __schedule+0x250/0x730
+  [&lt;ffffffff817159e6&gt;] schedule+0x36/0x80
+  [&lt;ffffffff81718560&gt;] rwsem_down_read_failed+0xf0/0x150
+  [&lt;ffffffff81390a28&gt;] call_rwsem_down_read_failed+0x18/0x30
+  [&lt;ffffffff81717db0&gt;] down_read+0x20/0x40
+  [&lt;ffffffff812b9439&gt;] proc_pid_cmdline_read+0xd9/0x4e0
+  [&lt;ffffffff81253c95&gt;] ? do_filp_open+0xa5/0x100
+  [&lt;ffffffff81241d87&gt;] __vfs_read+0x37/0x150
+  [&lt;ffffffff812f824b&gt;] ? security_file_permission+0x9b/0xc0
+  [&lt;ffffffff81242266&gt;] vfs_read+0x96/0x130
+  [&lt;ffffffff812437b5&gt;] SyS_read+0x55/0xc0
+  [&lt;ffffffff8171a6da&gt;] entry_SYSCALL_64_fastpath+0x1a/0xc5
+
+When manipulating a large mapping, the process may hold the mmap_sem for
+long time, so reading /proc/&lt;pid&gt;/cmdline may be blocked in
+uninterruptible state for long time.
+
+down_read_trylock() sounds too aggressive, and we already have killable
+version APIs for semaphore, here use down_read_killable() to improve the
+responsiveness.
+
+Signed-off-by: Yang Shi &lt;yang.shi@linux.alibaba.com&gt;
+Cc: Alexey Dobriyan &lt;adobriyan@gmail.com&gt;
+---
+ fs/proc/base.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 9298324..44b6f8f 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -242,7 +242,9 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
+ 		goto out_mmput;
+ 	}
+
+-	down_read(&amp;mm-&gt;mmap_sem);
++	rv = down_read_killable(&amp;mm-&gt;mmap_sem);
++	if (rv)
++		goto out_mmput;
+ 	arg_start = mm-&gt;arg_start;
+ 	arg_end = mm-&gt;arg_end;
+ 	env_start = mm-&gt;env_start;
+--
+1.8.3.1
+</code></pre></div><p>看补丁，主要是把<code>down_read()</code>函数替换成<code>down_read_killable()</code>，
+这个函数可以避免读取<code>/proc/pid/cmdline</code>文件时发生死锁，
+<code>down_read(&amp;mm-&gt;mmap_sem)</code>看起来应该是和信号量相关的函数操作，
+不过为什么<code>down_read(&amp;mm-&gt;mmap_sem)</code>会死锁呢?
+<code>mm-&gt;mmap_sem</code>应该是个信号量，可能是这个信号量异常导致<code>ps</code>，<code>cat</code>指令都死锁了。
+查看系统日志，发现有 Java 进程 hang 死的日志：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">{timestamp} {hostname} kernel: INFO: task java:181134 blocked for more than 120 seconds.
+{timestamp} {hostname} kernel: &#34;echo 0 &gt; /proc/sys/kernel/hung_task_timeout_secs&#34; disables this message.
+{timestamp} {hostname} kernel: java            D ffff881269bd7c00     0 181134      1 0x00000084
+{timestamp} {hostname} kernel: ffff881269bd7bd8 0000000000000082 ffff882037e04f10 ffff881269bd7fd8
+{timestamp} {hostname} kernel: ffff881269bd7fd8 ffff881269bd7fd8 ffff882037e04f10 ffff882037e04f10
+{timestamp} {hostname} kernel: ffff88203c9abef8 ffffffffffffffff ffff88203c9abf00 ffff881269bd7c00
+{timestamp} {hostname} kernel: Call Trace:
+{timestamp} {hostname} kernel: [&lt;ffffffff816a94c9&gt;] schedule+0x29/0x70
+{timestamp} {hostname} kernel: [&lt;ffffffff816aaafd&gt;] rwsem_down_read_failed+0x10d/0x1a0
+{timestamp} {hostname} kernel: [&lt;ffffffff81331ad8&gt;] call_rwsem_down_read_failed+0x18/0x30
+{timestamp} {hostname} kernel: [&lt;ffffffff816a8760&gt;] down_read+0x20/0x40
+{timestamp} {hostname} kernel: [&lt;ffffffff8108d8b9&gt;] do_exit+0x189/0xa40
+{timestamp} {hostname} kernel: [&lt;ffffffff81327a16&gt;] ? plist_del+0x46/0x70
+{timestamp} {hostname} kernel: [&lt;ffffffff810f49fc&gt;] ? __unqueue_futex+0x2c/0x60
+{timestamp} {hostname} kernel: [&lt;ffffffff810f5d8f&gt;] ? futex_wait+0x11f/0x280
+{timestamp} {hostname} kernel: [&lt;ffffffff8108e1ef&gt;] do_group_exit+0x3f/0xa0
+{timestamp} {hostname} kernel: [&lt;ffffffff8109e31e&gt;] get_signal_to_deliver+0x1ce/0x5e0
+{timestamp} {hostname} kernel: [&lt;ffffffff8102a467&gt;] do_signal+0x57/0x6c0
+{timestamp} {hostname} kernel: [&lt;ffffffff810c4149&gt;] ? wake_up_new_task+0x119/0x190
+{timestamp} {hostname} kernel: [&lt;ffffffff81086ac7&gt;] ? do_fork+0x107/0x320
+{timestamp} {hostname} kernel: [&lt;ffffffff8102ab2f&gt;] do_notify_resume+0x5f/0xb0
+{timestamp} {hostname} kernel: [&lt;ffffffff816b527d&gt;] int_signal+0x12/0x17
+</code></pre></div><p>可以看到 Java 进程<code>java:181134</code> 也卡死在<code>rwsem_down_read_failed()</code>函数上，
+估计当前版本的内核存在死锁的 bug，
+google 发现<a href="https://bugs.centos.org/view.php?id=15252">centos 官方的 bug 记录</a>，发现问题高度类似：
+其中有个回复提及到修复补丁：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">this issue seam is the resem wakeup loss, would be fix by patch below:
+Wed Mar 20 2019 Jan Stancek &lt;jstancek@redhat.com&gt; [3.10.0-957.12.1.el7]
+- [kernel] locking/rwsem: Fix (possible) missed wakeup (Waiman Long) [1690323 1547078]
+- [kernel] futex: Fix (possible) missed wakeup (Waiman Long) [1690323 1547078]
+- [kernel] futex: Use smp_store_release() in mark_wake_futex() (Waiman Long) [1690323 1547078]
+- [kernel] sched/wake_q: Fix wakeup ordering for wake_q (Waiman Long) [1690323 1547078]
+- [kernel] sched/wake_q: Document wake_q_add() (Waiman Long) [1690323 1547078]
+</code></pre></div><p>还看到<a href="https://lore.kernel.org/lkml/20181203053130.gwkw6kg72azt2npb@linux-r8p5/T/">内核邮件组对<code>rwsem</code>（这个应该就是我们前面提到的信号量）死锁问题的讨论</a>，
+估计就是内核信号量的 bug 了（未完待续）。</p>
+
+</article>
+
+
+
+</html>
