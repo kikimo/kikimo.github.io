@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en-us">
-<title>Linux wake_q_add() 函数 | kikimo</title>
+<title>Linux 中的 wake_q_add() 函数 | kikimo</title>
 <meta charset="utf-8">
 <meta name="generator" content="Hugo 0.63.2" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,10 +18,11 @@
 
 <article>
   <header>
-    <h1>Linux wake_q_add() 函数</h1>
+    <h1>Linux 中的 wake_q_add() 函数</h1>
     <time datetime="2020-02-04T11:14:56&#43;08:00">February 04, 2020</time>
   </header>
-  <p><code>wake_q_add()</code>是 <a href="https://elixir.bootlin.com/linux/latest/source/kernel/sched/core.c#L450">Linux 内代码中的一个函数</a>：</p>
+  <p><code>wake_q_add()</code>是 <a href="https://elixir.bootlin.com/linux/latest/source/kernel/sched/core.c#L450">Linux 内代码中的一个函数</a>，
+它尝试将一个系统进程放置到等待唤醒的队列中：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">bool</span> <span style="color:#a6e22e">__wake_q_add</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head, <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>task)
 {
 	<span style="color:#66d9ef">struct</span> wake_q_node <span style="color:#f92672">*</span>node <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>task<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>wake_q;
@@ -62,6 +63,51 @@
 {
 	<span style="color:#66d9ef">if</span> (__wake_q_add(head, task))
 		get_task_struct(task);
+}
+
+<span style="color:#75715e">/**
+</span><span style="color:#75715e"> * wake_q_add_safe() - safely queue a wakeup for &#39;later&#39; waking.
+</span><span style="color:#75715e"> * @head: the wake_q_head to add @task to
+</span><span style="color:#75715e"> * @task: the task to queue for &#39;later&#39; wakeup
+</span><span style="color:#75715e"> *
+</span><span style="color:#75715e"> * Queue a task for later wakeup, most likely by the wake_up_q() call in the
+</span><span style="color:#75715e"> * same context, _HOWEVER_ this is not guaranteed, the wakeup can come
+</span><span style="color:#75715e"> * instantly.
+</span><span style="color:#75715e"> *
+</span><span style="color:#75715e"> * This function must be used as-if it were wake_up_process(); IOW the task
+</span><span style="color:#75715e"> * must be ready to be woken at this location.
+</span><span style="color:#75715e"> *
+</span><span style="color:#75715e"> * This function is essentially a task-safe equivalent to wake_q_add(). Callers
+</span><span style="color:#75715e"> * that already hold reference to @task can call the &#39;safe&#39; version and trust
+</span><span style="color:#75715e"> * wake_q to do the right thing depending whether or not the @task is already
+</span><span style="color:#75715e"> * queued for wakeup.
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">void</span> <span style="color:#a6e22e">wake_q_add_safe</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head, <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>task)
+{
+	<span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>__wake_q_add(head, task))
+		put_task_struct(task);
+}
+
+<span style="color:#66d9ef">void</span> <span style="color:#a6e22e">wake_up_q</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head)
+{
+	<span style="color:#66d9ef">struct</span> wake_q_node <span style="color:#f92672">*</span>node <span style="color:#f92672">=</span> head<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>first;
+
+	<span style="color:#66d9ef">while</span> (node <span style="color:#f92672">!</span><span style="color:#f92672">=</span> WAKE_Q_TAIL) {
+		<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>task;
+
+		task <span style="color:#f92672">=</span> container_of(node, <span style="color:#66d9ef">struct</span> task_struct, wake_q);
+		BUG_ON(<span style="color:#f92672">!</span>task);
+		<span style="color:#75715e">/* Task can safely be re-inserted now: */</span>
+		node <span style="color:#f92672">=</span> node<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>next;
+		task<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>wake_q.next <span style="color:#f92672">=</span> NULL;
+
+		<span style="color:#75715e">/*
+</span><span style="color:#75715e">		 * wake_up_process() executes a full barrier, which pairs with
+</span><span style="color:#75715e">		 * the queueing in wake_q_add() so as not to miss wakeups.
+</span><span style="color:#75715e">		 */</span>
+		wake_up_process(task);
+		put_task_struct(task);
+	}
 }
 </code></pre></div><p>它的原形定义在 <a href="https://elixir.bootlin.com/linux/latest/source/include/linux/sched/wake_q.h">wake_q.h</a> 中：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* SPDX-License-Identifier: GPL-2.0 */</span>
@@ -140,6 +186,14 @@
 <p>如果<code>task</code>不在某个<code>wake_q</code>中，进一步将<code>task</code>添加到<code>head</code>指向的<code>wait_q</code>中，注意到这里的指针操作，它使用了 Linus 提到过的二级队列二级指针操作技巧。</p>
 </li>
 </ol>
+<p><code>wake_q_add()</code>如果成功吧<code>task</code>添加到唤醒队列后会增加<code>task</code>的引用，
+所以在调用<code>wake_q_add()</code>之前调用方应该未持有<code>task</code>的引用(<code>get_task_struct(task);</code>);
+<code>wake_q_add_safe()</code>函数作用类似，
+只不过如果它添加对队列失败，
+它会释放<code>task</code>的引用(<code>put_task_struct(task);</code>)，
+所以调用方在调用前应该已经持有<code>task</code>的引用。</p>
+<p>和<code>wake_q</code>相关的还有一个<code>wake_up_q()</code>函数，
+这个函数将所有<code>head</code>队列中的进程唤醒。</p>
 
 </article>
 

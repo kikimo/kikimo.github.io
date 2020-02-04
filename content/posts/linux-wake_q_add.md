@@ -1,10 +1,11 @@
 ---
-title: "Linux wake_q_add() 函数"
+title: "Linux 中的 wake_q_add() 函数"
 date: 2020-02-04T11:14:56+08:00
 draft: false
 ---
 
-`wake_q_add()`是 [Linux 内代码中的一个函数](https://elixir.bootlin.com/linux/latest/source/kernel/sched/core.c#L450)：
+`wake_q_add()`是 [Linux 内代码中的一个函数](https://elixir.bootlin.com/linux/latest/source/kernel/sched/core.c#L450)，
+它尝试将一个系统进程放置到等待唤醒的队列中：
 
 ```C
 static bool __wake_q_add(struct wake_q_head *head, struct task_struct *task)
@@ -47,6 +48,51 @@ void wake_q_add(struct wake_q_head *head, struct task_struct *task)
 {
 	if (__wake_q_add(head, task))
 		get_task_struct(task);
+}
+
+/**
+ * wake_q_add_safe() - safely queue a wakeup for 'later' waking.
+ * @head: the wake_q_head to add @task to
+ * @task: the task to queue for 'later' wakeup
+ *
+ * Queue a task for later wakeup, most likely by the wake_up_q() call in the
+ * same context, _HOWEVER_ this is not guaranteed, the wakeup can come
+ * instantly.
+ *
+ * This function must be used as-if it were wake_up_process(); IOW the task
+ * must be ready to be woken at this location.
+ *
+ * This function is essentially a task-safe equivalent to wake_q_add(). Callers
+ * that already hold reference to @task can call the 'safe' version and trust
+ * wake_q to do the right thing depending whether or not the @task is already
+ * queued for wakeup.
+ */
+void wake_q_add_safe(struct wake_q_head *head, struct task_struct *task)
+{
+	if (!__wake_q_add(head, task))
+		put_task_struct(task);
+}
+
+void wake_up_q(struct wake_q_head *head)
+{
+	struct wake_q_node *node = head->first;
+
+	while (node != WAKE_Q_TAIL) {
+		struct task_struct *task;
+
+		task = container_of(node, struct task_struct, wake_q);
+		BUG_ON(!task);
+		/* Task can safely be re-inserted now: */
+		node = node->next;
+		task->wake_q.next = NULL;
+
+		/*
+		 * wake_up_process() executes a full barrier, which pairs with
+		 * the queueing in wake_q_add() so as not to miss wakeups.
+		 */
+		wake_up_process(task);
+		put_task_struct(task);
+	}
 }
 ```
 
@@ -126,3 +172,13 @@ extern void wake_up_q(struct wake_q_head *head);
 这个流程使用宏`cmpxchg`保证操作的原子性。
 
 2. 如果`task`不在某个`wake_q`中，进一步将`task`添加到`head`指向的`wait_q`中，注意到这里的指针操作，它使用了 Linus 提到过的二级队列二级指针操作技巧。
+
+`wake_q_add()`如果成功吧`task`添加到唤醒队列后会增加`task`的引用，
+所以在调用`wake_q_add()`之前调用方应该未持有`task`的引用(`get_task_struct(task);`);
+`wake_q_add_safe()`函数作用类似，
+只不过如果它添加对队列失败，
+它会释放`task`的引用(`put_task_struct(task);`)，
+所以调用方在调用前应该已经持有`task`的引用。
+
+和`wake_q`相关的还有一个`wake_up_q()`函数，
+这个函数将所有`head`队列中的进程唤醒。
