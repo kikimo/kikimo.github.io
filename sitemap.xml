@@ -3,17 +3,22 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
-    <loc>https://coderatwork.cn/posts/gcc-inline-asm/</loc>
-    <lastmod>2020-02-03T19:55:21+08:00</lastmod>
+    <loc>https://coderatwork.cn/</loc>
+    <lastmod>2020-02-04T11:14:56+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/</loc>
-    <lastmod>2020-02-03T19:55:21+08:00</lastmod>
+    <loc>https://coderatwork.cn/posts/linux-wake_q_add/</loc>
+    <lastmod>2020-02-04T11:14:56+08:00</lastmod>
   </url>
   
   <url>
     <loc>https://coderatwork.cn/posts/</loc>
+    <lastmod>2020-02-04T11:14:56+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://coderatwork.cn/posts/gcc-inline-asm/</loc>
     <lastmod>2020-02-03T19:55:21+08:00</lastmod>
   </url>
   
