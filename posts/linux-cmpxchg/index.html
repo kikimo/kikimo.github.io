@@ -21,27 +21,27 @@
     <h1>Linux 中的 cmpxchg 宏</h1>
     <time datetime="2020-02-02T23:51:12&#43;08:00">February 02, 2020</time>
   </header>
-  <p>cmpxchg 是在 intel CPU 指令集中的一条指令，
+  <p>cmpxchg 是 intel CPU 指令集中的一条指令，
 这条指令经常用来实现原子锁，
-我们来看 intel 文档中对这条指令的介绍：</p>
+我们来看 <a href="https://www.felixcloutier.com/x86/cmpxchg">intel 文档</a>中对这条指令的介绍：</p>
 <blockquote>
-<p>Compares the value in the AL, AX, EAX, or RAX register with the first operand (destination operand). If the two values are equal, the second operand (source operand) is loaded into the destination operand. Otherwise, the destination operand is loaded into the AL, AX, EAX or RAX register. RAX register is available only in 64-bit mode.</p>
-</blockquote>
-<p>注：AT&amp;T 风格的汇编语法中，第一个操作数是源操作数，第二个操作数是目的操作数。</p>
-<blockquote>
-<p>This instruction can be used with a LOCK prefix to allow the instruction to be executed atomically. To simplify the interface to the processor’s bus, the destination operand receives a write cycle without regard to the result of the comparison. The destination operand is written back if the comparison fails; otherwise, the source operand is written into the destination. (The processor never produces a locked read without also producing a locked write.)</p>
+<p>Compares the value in the AL, AX, EAX, or RAX register with the first operand (destination operand). If the two values are equal, the second operand (source operand) is loaded into the destination operand. Otherwise, the destination operand is loaded into the AL, AX, EAX or RAX register. RAX register is available only in 64-bit mode.
+This instruction can be used with a LOCK prefix to allow the instruction to be executed atomically. To simplify the interface to the processor’s bus, the destination operand receives a write cycle without regard to the result of the comparison. The destination operand is written back if the comparison fails; otherwise, the source operand is written into the destination. (The processor never produces a locked read without also producing a locked write.)</p>
 </blockquote>
 <p>可以看到 cmpxchg 指令有两个操作数，
 同时还使用了 AX 寄存器。
 首先，它将第一个操作数（目的操作数）和 AX 寄存器相比较，
-如果相同则把第二个操作数（源操作数）赋值给第一个操作数，
-否则将第一个操作数赋值给 AX 寄存器。
-在多核环境中，一般还在指令前加上 LOCK 前缀，来保证指令执行的原子性（LOCK 前缀的主要功能应该是锁内存总线）。
-<code>cmpxchg</code> 指令的操作具有原子性，可以用以下伪代码来表示：</p>
+如果相同则把第二个操作数（源操作数）赋值给第一个操作数，ZF 寄存器置一，
+否则将第一个操作数赋值给 AX 寄存器且 ZF 寄存器置零。
+在多核环境中，一般还在指令前加上 LOCK 前缀，来保证指令执行的原子性（LOCK 前缀的主要功能应该是锁内存总线）。</p>
+<p>注：AT&amp;T 风格的汇编语法中，第一个操作数是源操作数，第二个操作数是目的操作数。</p>
+<p><code>cmpxchg</code> 指令的操作具有原子性，可以用以下伪代码来表示：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">if</span> (dst <span style="color:#f92672">=</span><span style="color:#f92672">=</span> <span style="color:#f92672">%</span>ax) {
     dst <span style="color:#f92672">=</span> src;
+    ZF <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
 } <span style="color:#66d9ef">else</span> {
     <span style="color:#f92672">%</span>ax <span style="color:#f92672">=</span> dst
+    ZF <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
 }
 </code></pre></div><p>Linux 内核代码中使用宏来封装<code>cmpxchg</code>指令操作，相关源码在<a href="https://elixir.bootlin.com/linux/latest/source/tools/arch/x86/include/asm/cmpxchg.h#L86">这里</a>:</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* SPDX-License-Identifier: GPL-2.0 */</span>

@@ -4,29 +4,31 @@ date: 2020-02-02T23:51:12+08:00
 draft: false
 ---
 
-cmpxchg 是在 intel CPU 指令集中的一条指令，
+cmpxchg 是 intel CPU 指令集中的一条指令，
 这条指令经常用来实现原子锁，
-我们来看 intel 文档中对这条指令的介绍：
+我们来看 [intel 文档](https://www.felixcloutier.com/x86/cmpxchg)中对这条指令的介绍：
 
 > Compares the value in the AL, AX, EAX, or RAX register with the first operand (destination operand). If the two values are equal, the second operand (source operand) is loaded into the destination operand. Otherwise, the destination operand is loaded into the AL, AX, EAX or RAX register. RAX register is available only in 64-bit mode.
-
-注：AT&T 风格的汇编语法中，第一个操作数是源操作数，第二个操作数是目的操作数。
-
 > This instruction can be used with a LOCK prefix to allow the instruction to be executed atomically. To simplify the interface to the processor’s bus, the destination operand receives a write cycle without regard to the result of the comparison. The destination operand is written back if the comparison fails; otherwise, the source operand is written into the destination. (The processor never produces a locked read without also producing a locked write.)
 
 可以看到 cmpxchg 指令有两个操作数，
 同时还使用了 AX 寄存器。
 首先，它将第一个操作数（目的操作数）和 AX 寄存器相比较，
-如果相同则把第二个操作数（源操作数）赋值给第一个操作数，
-否则将第一个操作数赋值给 AX 寄存器。
+如果相同则把第二个操作数（源操作数）赋值给第一个操作数，ZF 寄存器置一，
+否则将第一个操作数赋值给 AX 寄存器且 ZF 寄存器置零。
 在多核环境中，一般还在指令前加上 LOCK 前缀，来保证指令执行的原子性（LOCK 前缀的主要功能应该是锁内存总线）。
+
+注：AT&T 风格的汇编语法中，第一个操作数是源操作数，第二个操作数是目的操作数。
+
 `cmpxchg` 指令的操作具有原子性，可以用以下伪代码来表示：
 
 ```C
 if (dst == %ax) {
     dst = src;
+    ZF = 1;
 } else {
     %ax = dst
+    ZF = 0;
 }
 ```
 
