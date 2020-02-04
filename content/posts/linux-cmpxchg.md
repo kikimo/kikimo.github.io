@@ -183,4 +183,7 @@ cmpxchg(ptr, old, new)
 }
 ```
 
-到这里，`cmpxchg`宏的作用就一目了然了。
+现在，`cmpxchg`宏的作用就一目了然了。
+如果 `ptr` 值和 `old`相等，
+则将`new`赋值给`ptr`且返回`old`，
+否则返回`new`。

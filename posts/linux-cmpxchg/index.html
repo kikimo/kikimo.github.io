@@ -181,7 +181,10 @@ __typeof__(<span style="color:#f92672">*</span>(ptr)) __new <span style="color:#
         <span style="color:#a6e22e">return</span> <span style="color:#66d9ef">__new</span><span style="color:#75715e">;
 </span><span style="color:#75715e"></span>    <span style="color:#960050;background-color:#1e0010">}</span>
 <span style="color:#960050;background-color:#1e0010">}</span>
-</code></pre></div><p>到这里，<code>cmpxchg</code>宏的作用就一目了然了。</p>
+</code></pre></div><p>现在，<code>cmpxchg</code>宏的作用就一目了然了。
+如果 <code>ptr</code> 值和 <code>old</code>相等，
+则将<code>new</code>赋值给<code>ptr</code>且返回<code>old</code>，
+否则返回<code>new</code>。</p>
 
 </article>
 
