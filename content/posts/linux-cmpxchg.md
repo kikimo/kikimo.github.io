@@ -9,6 +9,7 @@ cmpxchg 是 intel CPU 指令集中的一条指令，
 我们来看 [intel 文档](https://www.felixcloutier.com/x86/cmpxchg)中对这条指令的介绍：
 
 > Compares the value in the AL, AX, EAX, or RAX register with the first operand (destination operand). If the two values are equal, the second operand (source operand) is loaded into the destination operand. Otherwise, the destination operand is loaded into the AL, AX, EAX or RAX register. RAX register is available only in 64-bit mode.
+
 > This instruction can be used with a LOCK prefix to allow the instruction to be executed atomically. To simplify the interface to the processor’s bus, the destination operand receives a write cycle without regard to the result of the comparison. The destination operand is written back if the comparison fails; otherwise, the source operand is written into the destination. (The processor never produces a locked read without also producing a locked write.)
 
 可以看到 cmpxchg 指令有两个操作数，
