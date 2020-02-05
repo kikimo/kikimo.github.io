@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>原码、反码与补码 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/binary-form/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>原码、反码与补码</h1>
+    <time datetime="2020-02-05T19:41:04&#43;08:00">February 05, 2020</time>
+  </header>
+  <p>二进制数的表示形式有三种：原码、补码和反码。
+任意形式的二进制数，
+最高位（MSB）都表示符号位，<code>0</code> 表示正数，<code>1</code> 标致负数。
+例如原码总：<code>00000001b</code>表示正一，<code>10000001b</code>表示负一。
+任意形式的二进制数的正数表示法都一样，他们差别在于对负数的表示上，以<code>-1</code>为例：</p>
+<ol>
+<li><code>-1</code>的原码的表示为<code>10000001b</code></li>
+<li><code>-1</code>的反码表示为<code>11111110b</code>，它是在原码的基础上，符号位不变，其余位取反</li>
+<li><code>-1</code>的补码表示为<code>11111111b</code>，它的计算方法是将<code>-1</code>的反码加一</li>
+</ol>
+<p>反码的主要作用就是用来快速计算补码，而补码的意义在于统一正数的加减法操作：<code>a - b</code>可以直接用<code>a + (b的补码)</code>表示。</p>
+
+</article>
+
+
+
+</html>
