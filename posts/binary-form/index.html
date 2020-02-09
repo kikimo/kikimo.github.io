@@ -32,6 +32,27 @@
 <li><code>-1</code>的补码表示为<code>11111111b</code>，它的计算方法是将<code>-1</code>的反码加一</li>
 </ol>
 <p>反码的主要作用就是用来快速计算补码，而补码的意义在于统一正数的加减法操作：<code>a - b</code>可以直接用<code>a + (b的补码)</code>表示。</p>
+<h2 id="补码运算的原理">补码运算的原理</h2>
+<p>为什么补码能够用加法运算来替代减法运算？
+这主要是使用了同余的原理。
+首先，对于某个负数，我们可以找出它的正数同余，例如：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">-3=125 mod 128
+</code></pre></div><p>根据同余的运算规则，有：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(5-3)=(5+125) mod 128
+(5-3) mod 128 = 2
+(5 + 125) mod 128 = 2
+</code></pre></div><p>模为什么取 128？
+128 是为了方便的计算负数的同余，同时，它还和变量的字长有关。
+我们看模为 128 时，可以如何计算负数的余数，首先：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">-3 mod 128 = 128 - 3
+</code></pre></div><p>所以问题可转化为如何快速计算 <code>128 - 3</code>，又：</p>
+<pre><code>3 + (-3[反码]) + 1 = 128
+
+128 - 3 = -3[反码] + 1
+</code></pre><p>这就是前面提到的负数补码的计算方法，
+模取<code>128</code>可以方便我们快速的计算负数的补码。
+模取<code>128</code>另外一个原因和变量的字长有关，如果变量是<code>8</code>位，
+那么它的某就应该是<code>128</code>，如果是<code>16</code>为，那就应该是<code>32768</code>，也就是变量的 <code>MSB</code>。</p>
 
 </article>
 
