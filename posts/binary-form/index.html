@@ -46,10 +46,9 @@
 我们看模为 128 时，可以如何计算负数的余数，首先：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">-3 mod 128 = 128 - 3
 </code></pre></div><p>所以问题可转化为如何快速计算 <code>128 - 3</code>，又：</p>
-<pre><code>3 + (-3[反码]) + 1 = 128
-
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">3 + (-3[反码]) + 1 = 128
 128 - 3 = -3[反码] + 1
-</code></pre><p>这就是前面提到的负数补码的计算方法，
+</code></pre></div><p><code>-3[反码] + 1</code>就是前面提到的负数补码的计算方法，
 模取<code>128</code>可以方便我们快速的计算负数的补码。
 模取<code>128</code>另外一个原因和变量的字长有关，如果变量是<code>8</code>位，
 那么它的某就应该是<code>128</code>，如果是<code>16</code>为，那就应该是<code>32768</code>，也就是变量的 <code>MSB</code>。</p>
