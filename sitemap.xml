@@ -3,13 +3,18 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
+    <loc>https://coderatwork.cn/posts/parsing-ansi-escape-code/</loc>
+    <lastmod>2020-02-11T22:54:39+08:00</lastmod>
+  </url>
+  
+  <url>
     <loc>https://coderatwork.cn/</loc>
-    <lastmod>2020-02-05T19:41:04+08:00</lastmod>
+    <lastmod>2020-02-11T22:54:39+08:00</lastmod>
   </url>
   
   <url>
     <loc>https://coderatwork.cn/posts/</loc>
-    <lastmod>2020-02-05T19:41:04+08:00</lastmod>
+    <lastmod>2020-02-11T22:54:39+08:00</lastmod>
   </url>
   
   <url>

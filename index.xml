@@ -6,10 +6,21 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 05 Feb 2020 19:41:04 +0800</lastBuildDate>
+    <lastBuildDate>Tue, 11 Feb 2020 22:54:39 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>ANSI 转义码(ANSI escape code)解析</title>
+      <link>https://coderatwork.cn/posts/parsing-ansi-escape-code/</link>
+      <pubDate>Tue, 11 Feb 2020 22:54:39 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/parsing-ansi-escape-code/</guid>
+      <description>ANSI 转义序列是命令行终端下用来控制光标位置、字体颜色以及其他终端选项的一项 in-bind signaling 标准。
+ ANSI escape sequences are a standard for in-band signaling to control the cursor location, color, and other options on video text terminals and terminal emulators.
+  In telecommunications, in-band signaling is the sending of control information within the same band or channel used for data such as voice or video. This is in contrast to out-of-band signaling which is sent over a different channel, or even over a separate network.</description>
+    </item>
     
     <item>
       <title>原码、反码与补码</title>
