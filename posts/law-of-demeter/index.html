@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>迪米特法则(Law of Demeter) | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/law-of-demeter/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>迪米特法则(Law of Demeter)</h1>
+    <time datetime="2020-02-02T16:44:02&#43;08:00">February 02, 2020</time>
+  </header>
+  <p>迪米特法则又称最少知识原则，
+主要是软件开发特别是面向对象开发中的一条设计准则。
+他是低耦合的一种特例。
+这条规则可以归纳为以下三点：</p>
+<ol>
+<li>每个某块应当尽减少和其他某块的关联程度(Each unit should have only limited knowledge about other units: only <strong>units &ldquo;closely&rdquo; related</strong> to the current unit.)</li>
+<li>每个模块应当只和他的“朋友”发生关联(Each unit should only talk to its <strong>friends</strong>; don&rsquo;t talk to strangers.)</li>
+<li>每个模块只和他的直接朋友关联(Only talk to your <strong>immediate friends</strong>.)</li>
+</ol>
+<blockquote>
+<p>The Law of Demeter (LoD) or principle of least knowledge is a design guideline for developing software, particularly object-oriented programs. In its general form, the LoD is a specific case of loose coupling. The guideline was proposed by Ian Holland at Northeastern University towards the end of 1987, and can be succinctly summarized in each of the following ways:[1]</p>
+</blockquote>
+<p><code>A</code> 对象可以调用 <code>B</code> 对象的服务，
+但是 <code>A</code> 对象不能通过 <code>B</code> 对象 访问 <code>C</code> 对象来调用 <code>C</code> 的服务。
+这样做意味着 <code>A</code> 对象需要了解更多 <code>B</code> 对象的内部结构。</p>
+<blockquote>
+<p>An object <code>A</code> can request a service (call a method) of an object instance <code>B</code>, but object <code>A</code> should not &ldquo;reach through&rdquo; object B to access yet another object, <code>C</code>, to request its services. Doing so would mean that object <code>A</code> implicitly requires greater knowledge of object <code>B's</code> internal structure.</p>
+</blockquote>
+<p>正确的做法是，修改 <code>B</code> 对象来满足 <code>A</code> 对象的请求：通过 <code>B</code> 对象提供的服务调用 <code>C</code> 对象。
+或者 A 对象直接调用 C 对象的方法。</p>
+<blockquote>
+<p>Instead, <code>B's</code> interface should be modified if necessary so it can directly serve object <code>A's</code> request, propagating it to any relevant subcomponents. Alternatively, <code>A</code> might have a direct reference to object <code>C</code> and make the request directly to that. If the law is followed, only object B knows its own internal structure.</p>
+</blockquote>
+<p>更准确的讲，迪米特法则要求对象 <code>O</code> 的方法 <code>m</code> 只调用以下对象的方法：</p>
+<ol>
+<li><code>O</code> 对象自己的方法</li>
+<li><code>m</code> 方法的参数</li>
+<li><code>m</code> 方法创建、初始化的对象</li>
+<li><code>O</code> 对象的直接组件的对象</li>
+<li><code>O</code> 对象访问的全局变量，范围局限在方法 <code>m</code></li>
+</ol>
+<blockquote>
+<p>More formally, the Law of Demeter for functions requires that a method m of an object O may only invoke the methods of the following kinds of objects:[2]</p>
+</blockquote>
+<ol>
+<li>O itself</li>
+<li>m&rsquo;s parameters</li>
+<li>Any objects created/instantiated within m</li>
+<li>O&rsquo;s <strong>direct component</strong> objects</li>
+<li>A global variable, accessible by O, in the scope of m</li>
+</ol>
+<p>特别的，一个对象应该避免调用<strong>其他方法返回的成员对象</strong>的方法。
+简单的讲就是应该避免类似 <code>a.b.Method()</code> 这样的调用。
+一个比较贴切的类比是：你命令一条狗走路，而不是命令狗的腿去走路。</p>
+<blockquote>
+<p>In particular, an object should avoid invoking methods of a member object returned by another method. For many modern object oriented languages that use a dot as field identifier, the law can be stated simply as &ldquo;use only one dot&rdquo;. That is, the code a.b.Method() breaks the law where a.Method() does not. As an analogy, when one wants a dog to walk, one does not command the dog&rsquo;s legs to walk directly; instead one commands the dog which then commands its own legs.</p>
+</blockquote>
+
+</article>
+
+
+
+</html>
