@@ -21,8 +21,7 @@
     <h1>GCC 内联汇编</h1>
     <time datetime="2020-02-03T19:55:21&#43;08:00">February 03, 2020</time>
   </header>
-  <p>本文主要根据<a href="https://www.ibm.com/developerworks/library/l-ia/index.html">Inline assembly for x86 in Linux</a>一文的内容整理。</p>
-<p>GCC 支持内联汇编，
+  <p>GCC 支持内联汇编，
 格式如下：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-asm" data-lang="asm"><span style="color:#a6e22e">asm</span> ( <span style="color:#66d9ef">assembler</span> <span style="color:#66d9ef">template</span>
     <span style="color:#960050;background-color:#1e0010">:</span> <span style="color:#a6e22e">output</span> <span style="color:#66d9ef">operands</span>               (<span style="color:#66d9ef">optional</span>)
@@ -76,7 +75,7 @@ D %edi
 但是 GCC 并不知道这一点，
 所以它可能会在展开的代码中使用这两个寄存器，
 为了避免这种情况我们需要把<code>eax</code>和<code>ecx</code>添加到修饰寄存器列表中。</p>
-<h2 id="4-参数修饰符">4. 参数修饰符</h2>
+<h2 id="5-参数修饰符">5. 参数修饰符</h2>
 <p>上面的例子中我们已经见过<code>=</code>修饰符，除了<code>=</code>以外还有三种修饰符：</p>
 <ol>
 <li><code>+</code>表示操作数在一条指令中既被读又背写</li>

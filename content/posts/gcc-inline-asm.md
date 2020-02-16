@@ -3,8 +3,6 @@ title: "GCC 内联汇编"
 date: 2020-02-03T19:55:21+08:00
 draft: false
 ---
-本文主要根据[Inline assembly for x86 in Linux](https://www.ibm.com/developerworks/library/l-ia/index.html)一文的内容整理。
-
 GCC 支持内联汇编，
 格式如下：
 
@@ -87,7 +85,7 @@ asm ("movl $count, %%ecx;
 所以它可能会在展开的代码中使用这两个寄存器，
 为了避免这种情况我们需要把`eax`和`ecx`添加到修饰寄存器列表中。
 
-## 4. 参数修饰符
+## 5. 参数修饰符
 
 上面的例子中我们已经见过`=`修饰符，除了`=`以外还有三种修饰符：
 

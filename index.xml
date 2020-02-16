@@ -54,8 +54,7 @@ static bool __wake_q_add(struct wake_q_head *head, struct task_struct *task) { s
       <pubDate>Mon, 03 Feb 2020 19:55:21 +0800</pubDate>
       
       <guid>https://coderatwork.cn/posts/gcc-inline-asm/</guid>
-      <description>本文主要根据Inline assembly for x86 in Linux一文的内容整理。
-GCC 支持内联汇编， 格式如下：
+      <description>GCC 支持内联汇编， 格式如下：
 asm ( assembler template : output operands (optional) : input operands (optional) : list of clobbered registers (optional) ); asm 又可以写作 __asm__, __asm__主要用来避免命名冲突。 assembler template 就是内联的汇编代码， output operands, input operands, list of clobbered registers分别指代 输入操作数，输入操作数，修饰寄存器列表。 参数的顺序从左到右使用数字序号来引用， 例如%0表示第一个参数。 以下是几个 GCC 内联汇编的例子：
 1. 内存操作数(Memory operand constraint(m)) __asm__(&amp;#34;sidt %0\n&amp;#34; : :&amp;#34;m&amp;#34;(loc)); 以上代码的作用等同于*loc = idt（idt 表示中断向量表）, &amp;quot;m&amp;quot;表示操作数位于内存中， 其中%0表示第一个参数也就是loc。
 2. 参数序号引用(Matching(Digit) constraints) __asm__(&amp;#34;incl %0&amp;#34; :&amp;#34;=a&amp;#34;(var):&amp;#34;0&amp;#34;(var)); 在这个例子中var既用作输入参数由用作输出参数， =a表示使用eax寄存器来存放变量var， =是修饰符，表示输出变量， 它告诉 GCC 这个变量的值会被覆盖。 &amp;ldquo;0&amp;quot;表示使用和第一个参数一样的存储来作为输出来源， 在这里就是eax寄存器。 这段代码展开后等价于：</description>
