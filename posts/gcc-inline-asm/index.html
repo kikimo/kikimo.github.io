@@ -45,7 +45,9 @@
 <h2 id="2-参数序号引用matchingdigit-constraints">2. 参数序号引用(Matching(Digit) constraints)</h2>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C">__asm__(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">incl %0</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">=a</span><span style="color:#e6db74">&#34;</span>(var)<span style="color:#f92672">:</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">0</span><span style="color:#e6db74">&#34;</span>(var));
 </code></pre></div><p>在这个例子中<code>var</code>既用作输入参数由用作输出参数，
-<code>=a</code>（似乎 output operand 都需要加一个<code>=</code>符号）表示使用<code>eax</code>寄存器来存放变量<code>var</code>，
+<code>=a</code>表示使用<code>eax</code>寄存器来存放变量<code>var</code>，
+<code>=</code>是修饰符，表示输出变量，
+它告诉 GCC 这个变量的值会被覆盖。
 &ldquo;0&quot;表示使用和第一个参数一样的存储来作为输出来源，
 在这里就是<code>eax</code>寄存器。
 这段代码展开后等价于：</p>
@@ -74,7 +76,14 @@ D %edi
 但是 GCC 并不知道这一点，
 所以它可能会在展开的代码中使用这两个寄存器，
 为了避免这种情况我们需要把<code>eax</code>和<code>ecx</code>添加到修饰寄存器列表中。</p>
-<h2 id="5-内联汇编的综合例子">5. 内联汇编的综合例子</h2>
+<h2 id="4-参数修饰符">4. 参数修饰符</h2>
+<p>上面的例子中我们已经见过<code>=</code>修饰符，除了<code>=</code>以外还有三种修饰符：</p>
+<ol>
+<li><code>+</code>表示操作数在一条指令中既被读又背写</li>
+<li><code>&amp;</code>表示表示输出寄存器不能和输入寄存器重叠，只能用来做输出</li>
+<li><code>%</code>告诉 GCC 该操作数可能被累加</li>
+</ol>
+<h2 id="6-内联汇编的综合例子">6. 内联汇编的综合例子</h2>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>(<span style="color:#66d9ef">void</span>)
 {
     <span style="color:#66d9ef">int</span> x <span style="color:#f92672">=</span> <span style="color:#ae81ff">10</span>, y;
