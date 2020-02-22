@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>Ansible Dynamic Inventory | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/ansible-dynamic-inventory/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>Ansible Dynamic Inventory</h1>
+    <time datetime="2020-02-22T14:50:45&#43;08:00">February 22, 2020</time>
+  </header>
+  <p>ansible 默认从静态 inventory 文件<code>/etc/ansible/hosts</code>读取节点信息。
+在构建自动化运维系统时，
+一般我们的系统会动态的添加或者删除节点的操作，
+这个时候使用 ansible 的静态 inventory 文件存放节点信息就难以满足我们的需求。
+所幸 ansible 提供了 dynamic inventory 机制，让我们可以通过脚本的形式来提供节点信息。
+ansible 通过<code>-i</code>参数指定 inventory 脚本：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ ansible all -i inventory.py --list-hosts
+  hosts <span style="color:#f92672">(</span>3<span style="color:#f92672">)</span>:
+    127.0.0.1
+    10.58.10.209
+    10.57.33.40
+</code></pre></div><p><code>inventory.py</code>就是我们编写的 dynamic inventory 脚本，
+这个脚本需要提供两个命令行选项（可以理解为 dynamic inventory 需要满足的接口规范）：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ ./inventory.py
+usage: inventory.py <span style="color:#f92672">[</span>-h<span style="color:#f92672">]</span> <span style="color:#f92672">[</span>--list<span style="color:#f92672">]</span> <span style="color:#f92672">[</span>--host HOST<span style="color:#f92672">]</span>
+
+optional arguments:
+  -h, --help   show this help message and exit
+  --list       Get all hosts.
+  --host HOST  Get host vars.
+</code></pre></div><p><code>--list</code>选项让脚本按照节点的分组，输出所有的节点信息：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ ./inventory.py --list
+<span style="color:#f92672">{</span>
+    <span style="color:#e6db74">&#34;local&#34;</span>: <span style="color:#f92672">[</span>
+        <span style="color:#e6db74">&#34;127.0.0.1&#34;</span>
+    <span style="color:#f92672">]</span>,
+    <span style="color:#e6db74">&#34;zk1&#34;</span>: <span style="color:#f92672">[</span>
+        <span style="color:#e6db74">&#34;10.58.10.209&#34;</span>,
+        <span style="color:#e6db74">&#34;10.57.33.40&#34;</span>
+    <span style="color:#f92672">]</span>
+<span style="color:#f92672">}</span>
+</code></pre></div><p><code>--host</code>选线让脚本输出某个节点的 ansible 变量信息：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ ./inventory.py --host 127.0.0.1
+<span style="color:#f92672">{</span>
+    <span style="color:#e6db74">&#34;ansible_ssh_user&#34;</span>: <span style="color:#e6db74">&#34;root&#34;</span>
+<span style="color:#f92672">}</span>
+</code></pre></div><p>测试 <code>inventory.py</code>：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ ansible all  -i inventory.py -m ping
+10.57.33.40 | SUCCESS <span style="color:#f92672">=</span>&gt; <span style="color:#f92672">{</span>
+    <span style="color:#e6db74">&#34;ansible_facts&#34;</span>: <span style="color:#f92672">{</span>
+        <span style="color:#e6db74">&#34;discovered_interpreter_python&#34;</span>: <span style="color:#e6db74">&#34;/usr/bin/python&#34;</span>
+    <span style="color:#f92672">}</span>,
+    <span style="color:#e6db74">&#34;changed&#34;</span>: false,
+    <span style="color:#e6db74">&#34;ping&#34;</span>: <span style="color:#e6db74">&#34;pong&#34;</span>
+<span style="color:#f92672">}</span>
+10.58.10.209 | SUCCESS <span style="color:#f92672">=</span>&gt; <span style="color:#f92672">{</span>
+    <span style="color:#e6db74">&#34;ansible_facts&#34;</span>: <span style="color:#f92672">{</span>
+        <span style="color:#e6db74">&#34;discovered_interpreter_python&#34;</span>: <span style="color:#e6db74">&#34;/usr/bin/python&#34;</span>
+    <span style="color:#f92672">}</span>,
+    <span style="color:#e6db74">&#34;changed&#34;</span>: false,
+    <span style="color:#e6db74">&#34;ping&#34;</span>: <span style="color:#e6db74">&#34;pong&#34;</span>
+<span style="color:#f92672">}</span>
+127.0.0.1 | SUCCESS <span style="color:#f92672">=</span>&gt; <span style="color:#f92672">{</span>
+    <span style="color:#e6db74">&#34;ansible_facts&#34;</span>: <span style="color:#f92672">{</span>
+        <span style="color:#e6db74">&#34;discovered_interpreter_python&#34;</span>: <span style="color:#e6db74">&#34;/usr/bin/python&#34;</span>
+    <span style="color:#f92672">}</span>,
+    <span style="color:#e6db74">&#34;changed&#34;</span>: false,
+    <span style="color:#e6db74">&#34;ping&#34;</span>: <span style="color:#e6db74">&#34;pong&#34;</span>
+<span style="color:#f92672">}</span>
+</code></pre></div><p><strong>注意事项</strong></p>
+<p><code>inventory.py</code>必须是一个可执行文件，否则 ansible 会把它当做一个静态 inventory 文件并尝试使用 <code>ini</code> 插件去解析它，这事后我们会得类似一下的报错：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ ansible all  -i inventory.py -m ping
+<span style="color:#f92672">[</span>WARNING<span style="color:#f92672">]</span>:  * Failed to parse inventory.py with script plugin: problem running ansible/inventory.py --list <span style="color:#f92672">(</span><span style="color:#f92672">[</span>Errno 13<span style="color:#f92672">]</span>
+Permission denied<span style="color:#f92672">)</span>
+
+<span style="color:#f92672">[</span>WARNING<span style="color:#f92672">]</span>:  * Failed to parse inventory.py with ini plugin: inventory.py:3: Expected key<span style="color:#f92672">=</span>value host variable
+assignment, got: sys,
+
+<span style="color:#f92672">[</span>WARNING<span style="color:#f92672">]</span>: Unable to parse inventory.py as an inventory source
+
+<span style="color:#f92672">[</span>WARNING<span style="color:#f92672">]</span>: No inventory was parsed, only implicit localhost is available
+
+<span style="color:#f92672">[</span>WARNING<span style="color:#f92672">]</span>: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match <span style="color:#e6db74">&#39;all&#39;</span>
+</code></pre></div>
+</article>
+
+
+
+</html>

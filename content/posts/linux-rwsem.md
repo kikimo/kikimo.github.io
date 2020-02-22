@@ -132,4 +132,99 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 ```
 
 `__down_read_trylock()`用内联汇编实现，
-核心是 x86 的`cmpxchg`指令。
+核心是 x86 的`cmpxchg`指令，
+这段代码可以翻译如下伪代码来：
+
+```C
+static inline int __down_read_trylock(struct rw_semaphore *sem)
+{
+    long result, tmp;
+
+    result = sem->count;
+    tmp = sem->count + 1;
+    if (tmp <= 0) {
+        goto end;
+    }
+
+    if (result == sem->count) {
+        sem->count = tmp;
+    }
+
+end:
+    return resutl >= 0? 1: 0;
+}
+```
+
+`__down_read_trylock()`调用失败时会继续调用`__down_read()`：
+
+```C
+/*
+ * lock for reading
+ */
+static inline void __down_read(struct rw_semaphore *sem)
+{
+    asm volatile("# beginning down_read\n\t"
+             LOCK_PREFIX _ASM_INC "(%1)\n\t"
+             /* adds 0x00000001 */
+             "  jns        1f\n"
+             "  call call_rwsem_down_read_failed\n"
+             "1:\n\t"
+             "# ending down_read\n\t"
+             : "+m" (sem->count)
+             : "a" (sem)
+             : "memory", "cc");
+}
+```
+
+`call_rwsem_down_read_failed()`调用`rwsem_down_read_failed()`：
+
+```C
+/*
+ * Wait for the read lock to be granted
+ */
+__visible
+struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
+{
+    long count, adjustment = -RWSEM_ACTIVE_READ_BIAS;
+    struct rwsem_waiter waiter;
+    struct task_struct *tsk = current;
+    WAKE_Q(wake_q);
+
+    /* set up my own style of waitqueue */
+    waiter.task = tsk;
+    waiter.type = RWSEM_WAITING_FOR_READ;
+
+    raw_spin_lock_irq(&sem->wait_lock);
+    if (slist_empty(&sem->wait_list))
+        adjustment += RWSEM_WAITING_BIAS;
+    slist_add_tail(&waiter.list, &sem->wait_list);
+
+    /* we're now waiting on the lock, but no longer actively locking */
+    count = atomic_long_add_return(adjustment, &sem->count);
+
+    /*
+     * If there are no active locks, wake the front queued process(es).
+     *
+     * If there are no writers and we are first in the queue,
+     * wake our own waiter to join the existing active readers !
+     */
+    if (count == RWSEM_WAITING_BIAS ||
+        (count > RWSEM_WAITING_BIAS &&
+         adjustment != -RWSEM_ACTIVE_READ_BIAS))
+        __rwsem_mark_wake(sem, RWSEM_WAKE_ANY, &wake_q);
+
+    raw_spin_unlock_irq(&sem->wait_lock);
+    wake_up_q(&wake_q);
+
+    /* wait to be given the lock */
+    while (true) {
+        set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+        if (!waiter.task)
+            break;
+        schedule();
+    }
+
+    __set_task_state(tsk, TASK_RUNNING);
+    return sem;
+}
+```

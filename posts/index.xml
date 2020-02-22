@@ -6,10 +6,22 @@
     <description>Recent content in Posts on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Tue, 11 Feb 2020 22:54:39 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 22 Feb 2020 14:50:45 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Ansible Dynamic Inventory</title>
+      <link>https://coderatwork.cn/posts/ansible-dynamic-inventory/</link>
+      <pubDate>Sat, 22 Feb 2020 14:50:45 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/ansible-dynamic-inventory/</guid>
+      <description>ansible 默认从静态 inventory 文件/etc/ansible/hosts读取节点信息。 在构建自动化运维系统时， 一般我们的系统会动态的添加或者删除节点的操作， 这个时候使用 ansible 的静态 inventory 文件存放节点信息就难以满足我们的需求。 所幸 ansible 提供了 dynamic inventory 机制，让我们可以通过脚本的形式来提供节点信息。 ansible 通过-i参数指定 inventory 脚本：
+$ ansible all -i inventory.py --list-hosts hosts (3): 127.0.0.1 10.58.10.209 10.57.33.40 inventory.py就是我们编写的 dynamic inventory 脚本， 这个脚本需要提供两个命令行选项（可以理解为 dynamic inventory 需要满足的接口规范）：
+$ ./inventory.py usage: inventory.py [-h] [--list] [--host HOST] optional arguments: -h, --help show this help message and exit --list Get all hosts. --host HOST Get host vars. --list选项让脚本按照节点的分组，输出所有的节点信息：
+$ ./inventory.py --list { &amp;#34;local&amp;#34;: [ &amp;#34;127.</description>
+    </item>
     
     <item>
       <title>ANSI 转义码(ANSI escape code)解析</title>
