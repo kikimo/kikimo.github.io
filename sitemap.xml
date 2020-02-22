@@ -3,17 +3,22 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
-    <loc>https://coderatwork.cn/posts/ansible-dynamic-inventory/</loc>
-    <lastmod>2020-02-22T14:50:45+08:00</lastmod>
-  </url>
-  
-  <url>
     <loc>https://coderatwork.cn/</loc>
-    <lastmod>2020-02-22T14:50:45+08:00</lastmod>
+    <lastmod>2020-02-22T19:30:32+08:00</lastmod>
   </url>
   
   <url>
     <loc>https://coderatwork.cn/posts/</loc>
+    <lastmod>2020-02-22T19:30:32+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://coderatwork.cn/posts/deploy-zookeeper-with-ansible/</loc>
+    <lastmod>2020-02-22T19:30:32+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://coderatwork.cn/posts/ansible-dynamic-inventory/</loc>
     <lastmod>2020-02-22T14:50:45+08:00</lastmod>
   </url>
   

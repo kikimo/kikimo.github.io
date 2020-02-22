@@ -6,10 +6,22 @@
     <description>Recent content in Posts on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 22 Feb 2020 14:50:45 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 22 Feb 2020 19:30:32 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>利用 ansible 部署 zookeeper 集群</title>
+      <link>https://coderatwork.cn/posts/deploy-zookeeper-with-ansible/</link>
+      <pubDate>Sat, 22 Feb 2020 19:30:32 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/deploy-zookeeper-with-ansible/</guid>
+      <description>本文介绍如何利用 ansible 部署 zookeeper 集群。 zookeeper 的部署可以分为以下几个步骤：
+ 在部署节点创建部署目录 上传并解压 zookeeper 应用包 初始化 zookeeper 配置文件 启动 zookeeper 服务  步骤 1-3 可用 ansible task 来实现， 最后一个步骤使用 handler 来实现， 利用 handler 的好处在于： 只有步骤 1-3 中对节点配置做了变更后才会触发 zookeeper 重启。
+需要创建的部署目录有：
+ /opt/infra, 这个目录作为 zookeeper 的安装目录 /tmp/zookeeper, 这个目录作为 zookeeper 的 data 目录  tasks: - name: Create zookeeper installation directory file: path: &amp;#34;{{item}}&amp;#34; state: directory notify: Restart zookeeper service with_items: - /opt/infra - /tmp/zookeeper 这里使用了with_items迭代创建目录, 如果文件是第一次创建notify指令会调用Restart zookeeper service handler来重启 zookeeper 服务。</description>
+    </item>
     
     <item>
       <title>Ansible Dynamic Inventory</title>
