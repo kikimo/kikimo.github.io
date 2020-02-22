@@ -41,10 +41,10 @@ shell 脚本代码就是命令式的。
 以文件的操作为例，
 假设我们要创建一个目录，
 使用 shell 指令的操作是：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ mkdir
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ mkdir /path/to/file
 </code></pre></div><p>用 ansible 则是：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">  <span style="color:#66d9ef">file</span>:
-    <span style="color:#66d9ef">path</span>: <span style="color:#e6db74">&#34;{{item}}&#34;</span>
+    <span style="color:#66d9ef">path</span>: /path/to/file
     <span style="color:#66d9ef">state</span>: directory
 </code></pre></div><p>什么，你觉得 ansible 这个操作跟 shell 脚本也没什么区别，甚至更麻烦？
 确实，第一眼看上去的确会让人有这样的感观。

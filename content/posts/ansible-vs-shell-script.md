@@ -28,14 +28,14 @@ shell 脚本代码就是命令式的。
 使用 shell 指令的操作是：
 
 ```shell
-$ mkdir
+$ mkdir /path/to/file
 ```
 
 用 ansible 则是：
 
 ```yaml
   file:
-    path: "{{item}}"
+    path: /path/to/file
     state: directory
 ```
 
