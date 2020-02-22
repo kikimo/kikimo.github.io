@@ -20,7 +20,7 @@
       <description>ansible 可以通过 playbook 用来完成各种机器配置管理工作： 如基建部署、软件安装、服务管理等。 如果只是从完成的任务上看， ansible 的配置管理功能和 shell 脚本似乎是一样的， 既然如此，那为什么还需要 ansible？nsible 跟 shell 脚本相比有什么优势吗？ 否则为什么还要花时间去部署、学习 ansible 的各项功能。
 1. 声明式 vs 指令式 ansible 的模块大部分是声明式（Declarative）的。 声明式的特点是你在 playbook 中告诉 ansible 你想要的是一个什么样的结果， 至于如何达到这个目的，则有你调用的 ansible 来完成具体的工作。 为了更清晰的解释声明式的特点， 可以拿 k8s 中的 Deployment 来与之类比， 你可以在 k8s 在 Deployment 中定义你需要部署多少个容器实例， 至于如何去操作实现这一结果， 那是 k8s 自己会完成的工作。 和声明式相对应的是命令式（imperative）, shell 脚本代码就是命令式的。 以文件的操作为例， 假设我们要创建一个目录， 使用 shell 指令的操作是：
 $ mkdir 用 ansible 则是：
-file: path: &amp;#34;{{item}}&amp;#34; state: directory 什么，你觉得 ansible 这个操作跟 shell 脚本也没什么区别，甚至更麻烦？ 确实，第一眼看上去的确会让人有这样的感官。 然后，我们这里用到的 ansible file 可不止能用来创建文件， 你只要把 state 值设置为file它就能给你创建文件， 设置为absent，ansible 就会帮你上传文件， 到这里应该就能看清楚了， 我们只要设置期望的目标文件的状态，ansible 就会自动帮你达成目标。</description>
+file: path: &amp;#34;{{item}}&amp;#34; state: directory 什么，你觉得 ansible 这个操作跟 shell 脚本也没什么区别，甚至更麻烦？ 确实，第一眼看上去的确会让人有这样的感观。 然后，我们这里用到的 ansible file 可不止能用来创建文件， 你只要把 state 值设置为file它就能给你创建文件， 设置为absent，ansible 就会帮你上传文件， 到这里应该就能看清楚了， 我们只要设置期望的目标文件的状态，ansible 就会自动帮你达成目标。</description>
     </item>
     
     <item>
