@@ -21,21 +21,16 @@
     <h1>Ansible vs Shell Script</h1>
     <time datetime="2020-02-22T20:23:31&#43;08:00">February 22, 2020</time>
   </header>
-  <p>ansible 可以通过 playbook 用来完成各种机器配置管理工作：
-如基建部署、软件安装、服务管理等。
+  <p>ansible 可以通过 playbook 用来完成节点的配置管理工作，如：基建部署、软件安装、服务管理等。
 如果只是从完成的任务上看，
 ansible 的配置管理功能和 shell 脚本似乎是一样的，
-既然如此，那为什么还需要 ansible？nsible 跟 shell 脚本相比有什么优势吗？
-否则为什么还要花时间去部署、学习 ansible 的各项功能。</p>
+既然如此，为什么还要花时间去部署、学习 ansible 呢？
+和 shell 脚本相比 ansible 有什么独特的优势？</p>
 <h2 id="1-声明式-vs-指令式">1. 声明式 vs 指令式</h2>
-<p>ansible 的模块大部分是声明式（Declarative）的。
-声明式的特点是你在 playbook 中告诉 ansible 你想要的是一个什么样的结果，
-至于如何达到这个目的，则有你调用的 ansible 来完成具体的工作。
-为了更清晰的解释声明式的特点，
-可以拿 k8s 中的 Deployment 来与之类比，
-你可以在 k8s 在 Deployment 中定义你需要部署多少个容器实例，
-至于如何去操作实现这一结果，
-那是 k8s 自己会完成的工作。
+<p>ansible 内置了大量功能模块，
+这些模块大部分是声明式（Declarative）的。
+声明式的特点是你告诉 ansible 你想要的是一个什么样的结果，
+ansible 来帮你达成这个目标。
 和声明式相对应的是命令式（imperative）,
 shell 脚本代码就是命令式的。
 以文件的操作为例，
@@ -46,32 +41,59 @@ shell 脚本代码就是命令式的。
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">  <span style="color:#66d9ef">file</span>:
     <span style="color:#66d9ef">path</span>: /path/to/file
     <span style="color:#66d9ef">state</span>: directory
-</code></pre></div><p>什么，你觉得 ansible 这个操作跟 shell 脚本也没什么区别，甚至更麻烦？
-确实，第一眼看上去的确会让人有这样的感观。
-然后，我们这里用到的 ansible <code>file</code> 可不止能用来创建文件，
+</code></pre></div><p>乍看 ansible 这个操作跟 shell 指令也没什么区别，甚至更麻烦。
+然而，我们这里用到的 ansible<code>file</code>模块可不止能用来创建文件，
 你只要把 state 值设置为<code>file</code>它就能给你创建文件，
-设置为<code>absent</code>，ansible 就会帮你上传文件，
-到这里应该就能看清楚了，
-我们只要设置期望的目标文件的状态，ansible 就会自动帮你达成目标。
-而对文件、文件夹的操作则统一转化为对目标文件状态的描述。</p>
+设置为<code>absent</code>时，ansible 就会帮你删除文件；
+当我们创建多级目录的文件时，
+如果忘了给<code>mkdir</code>指令加<code>-p</code>参数，
+脚本可能就执行失败了。
+使用 ansible 就不再需要关注如此细节的问题，
+对文件的操作统一转化为对目标文件状态的描述，
+只要设置好目标文件的状态 ansible 就会自动帮你达成这个目标。</p>
 <h2 id="2-清晰的代码结构和结果输出">2. 清晰的代码结构和结果输出</h2>
 <p>ansible 是通过定义一系列 task 来最终达成你的目标的。
 对于一个复杂的任务，
 使用 shell 脚本你的代码中可能会包含复杂的逻辑跳转，
-相对而言 ansible 的代码近乎是任务的平铺直陈，
-你可清晰分辨出一个执行的模块里面有多少个 task，
-而且每个 task 都有相应的 name 字段用于描述他的作用，
-模块执行时也会同一的格式输出每个 task 的执行结果， 包括：
-对系统配置产生了多少变化（chages），有多少个节点执行失败、成功，哪些节点有错误等。
-当然这些功能，
-脚本理论上也能完成，
-但它完全依赖脚本编写者的素养。</p>
+相对而言 ansible 的代码近乎平铺直陈，
+你可清晰看到一个 ansible 任务中有多少个 task，
+而且每个 task 都有相应的 name 字段用于描述他的作用。
+ansible 会按顺序输出每个 task 的执行结果，
+并输输出整个任务最总的执行结果，
+包括：多少成功、失败的情况，有哪些节点不可达等。
+来看一个 ansble 任务执行的例子：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ ansible-playbook -i inventory.py zookeeper.yaml -e <span style="color:#e6db74">&#39;{ &#34;zk_servers&#34;: [ {&#34;ip&#34;: &#34;127.0.0.1&#34;, &#34;myid&#34;: 1 } ], &#34;zk_election_port&#34;: 3888, &#34;zk_communication_port&#34;: 2888, &#34;zk_data_dir&#34;: &#34;/tmp/zookeeper&#34;, &#34;zk_datalog_dir&#34;: &#34;/opt/tdinfra/apache-zookeeper-3.5.7-bin/logs&#34; }&#39;</span>
+
+PLAY <span style="color:#f92672">[</span><span style="color:#f92672">[</span>u<span style="color:#e6db74">&#39;127.0.0.1&#39;</span><span style="color:#f92672">]</span><span style="color:#f92672">]</span> **********************************************************************************************************************************************************
+
+TASK <span style="color:#f92672">[</span>Create zookeeper installation directory<span style="color:#f92672">]</span> *********************************************************************************************************************************
+ok: <span style="color:#f92672">[</span>127.0.0.1<span style="color:#f92672">]</span> <span style="color:#f92672">=</span>&gt; <span style="color:#f92672">(</span>item<span style="color:#f92672">=</span>/opt/tdinfra<span style="color:#f92672">)</span>
+ok: <span style="color:#f92672">[</span>127.0.0.1<span style="color:#f92672">]</span> <span style="color:#f92672">=</span>&gt; <span style="color:#f92672">(</span>item<span style="color:#f92672">=</span>/tmp/zookeeper<span style="color:#f92672">)</span>
+
+TASK <span style="color:#f92672">[</span>Upload zookeeper package<span style="color:#f92672">]</span> ************************************************************************************************************************************************
+ok: <span style="color:#f92672">[</span>127.0.0.1<span style="color:#f92672">]</span>
+
+TASK <span style="color:#f92672">[</span>Init zookeeper config<span style="color:#f92672">]</span> ***************************************************************************************************************************************************
+ok: <span style="color:#f92672">[</span>127.0.0.1<span style="color:#f92672">]</span> <span style="color:#f92672">=</span>&gt; <span style="color:#f92672">(</span>item<span style="color:#f92672">=</span><span style="color:#f92672">{</span>u<span style="color:#e6db74">&#39;dest&#39;</span>: u<span style="color:#e6db74">&#39;/opt/tdinfra/apache-zookeeper-3.5.7-bin/conf/zoo.cfg&#39;</span>, u<span style="color:#e6db74">&#39;src&#39;</span>: u<span style="color:#e6db74">&#39;./infra_pkgs/zoo.cfg.j2&#39;</span><span style="color:#f92672">}</span><span style="color:#f92672">)</span>
+ok: <span style="color:#f92672">[</span>127.0.0.1<span style="color:#f92672">]</span> <span style="color:#f92672">=</span>&gt; <span style="color:#f92672">(</span>item<span style="color:#f92672">=</span><span style="color:#f92672">{</span>u<span style="color:#e6db74">&#39;dest&#39;</span>: u<span style="color:#e6db74">&#39;/tmp/zookeeper/myid&#39;</span>, u<span style="color:#e6db74">&#39;src&#39;</span>: u<span style="color:#e6db74">&#39;./infra_pkgs/myid.j2&#39;</span><span style="color:#f92672">}</span><span style="color:#f92672">)</span>
+ok: <span style="color:#f92672">[</span>127.0.0.1<span style="color:#f92672">]</span> <span style="color:#f92672">=</span>&gt; <span style="color:#f92672">(</span>item<span style="color:#f92672">=</span><span style="color:#f92672">{</span>u<span style="color:#e6db74">&#39;dest&#39;</span>: u<span style="color:#e6db74">&#39;/etc/profile.d/zk.sh&#39;</span>, u<span style="color:#e6db74">&#39;src&#39;</span>: u<span style="color:#e6db74">&#39;./infra_pkgs/zk.sh&#39;</span><span style="color:#f92672">}</span><span style="color:#f92672">)</span>
+
+TASK <span style="color:#f92672">[</span>debug-test<span style="color:#f92672">]</span> **************************************************************************************************************************************************************
+ok: <span style="color:#f92672">[</span>127.0.0.1<span style="color:#f92672">]</span> <span style="color:#f92672">=</span>&gt; <span style="color:#f92672">{</span>
+    <span style="color:#e6db74">&#34;msg&#34;</span>: <span style="color:#e6db74">&#34;127.0.0.1&#34;</span>
+<span style="color:#f92672">}</span>
+
+PLAY RECAP *********************************************************************************************************************************************************************
+127.0.0.1                  : ok<span style="color:#f92672">=</span><span style="color:#ae81ff">4</span>    changed<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>    unreachable<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>    failed<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>    skipped<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>    rescued<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>    ignored<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>
+</code></pre></div><p>当然这些功能理论上也可以通过编写复杂的脚本来实现，
+但这不但费时费力，
+而且它对脚本编写者有极高的要求。</p>
 <h2 id="3-更加强悍的语言表达能力">3. 更加强悍的语言表达能力</h2>
 <p>ansible 具有比脚本强悍得多的表达能力。
-我们前面提到的 ansible 的声明式性质就是 ansible 表达能力优越的具体体现之一。
+我们前面提到的 ansible 的声明式的模块用法就是 ansible 表达能力优越的具体体现之一。
 声明式可以让你用更少的代码完成更复杂的操作，
 因为具体的脏活累活都被模块承包了。
-出了声明式这一点外，ansible 语言表达能力强悍还体现在它对模板的支持和灵活的变量传递上。</p>
+除此之外，ansible 语言表达能力强悍还体现在它对模板的支持和灵活的变量传递上。</p>
 <p>我们可在 ansible 中使用 Jinja 模板，模板的使用有两种形式：</p>
 <ol>
 <li>使用<code>template</code>模块渲染模板文件</li>
@@ -79,14 +101,14 @@ shell 脚本代码就是命令式的。
 </ol>
 <p><code>template</code>模块用于渲染本地的模板文件，
 并将渲染出来的结果传输到目标节点上。
-<code>template</code>经常使用在需要配置文件的场景中，
+<code>template</code>经常使用在需要配置文件分发的场景中，
 例如在部署 zookeeper 集群时，
 我们便可以使用<code>template</code>来渲染 zookeeper 的<code>zoo.cfg</code>和<code>myid</code>配置文件。
-是想一下如果我们用 shell 脚本来实现 zookeeper 集群中每个节点的配置会是什么样的。
+试想一下如果我们用 shell 脚本来实现 zookeeper 集群中每个节点的配置会是什么样的。
 你可能会想到使用 shell 的 here document，
-实际上，知道 shell here document 的人估计都不会很多，
+实际上知道 here document 的人估计都不会很多，
 更遑论使用。
-就算你知道 here docuemnt，中你还得小心 here docuemtn 变量替换过程中危险的转义问题，
+就算你知道 here docuemnt，你还得小心 here docuemtn 变量替换过程中危险的转义问题，
 而一些复杂的场景，如需要使用循环迭代，列表过滤器，单存使用 shell 脚本你几乎是无法完成的。</p>
 <p>回到另外一个问题上，也就是 ansible 对变量传递的支持。
 ansible 可以帮你自动收集目标节点上的信息，
@@ -94,8 +116,8 @@ ansible 可以帮你自动收集目标节点上的信息，
 你也可以通过<code>-e</code>参数传递参数，
 参数除了普通的键值对外，
 还可以传递 JSON 对象。
-你可以在 ansible 脚本或者<code>template</code>渲染的模板中直接引用，
-也可以通过<code>set_fact</code>模块在原有变量的基础上定义新的变量，
+你可以在 ansible 脚本或者 Jinja 模板中直接引用。
+你还可以通过<code>set_fact</code>模块在原有变量的基础上定义新的变量，
 这些场景用 ansible 来处理可能几行代码就能搞定，
 用 shell 脚本来做绝对会吐血的。</p>
 <h2 id="4-模块幂等性质">4. 模块幂等性质</h2>
@@ -104,17 +126,17 @@ ansible 可以帮你自动收集目标节点上的信息，
 </blockquote>
 <p>ansible 自带的模块中有很大一部分比例和 shell 指令存在功能上是有重叠的。
 和 shell 指令比，
-这些模块除了功能更加强大外（如 unarchive，除了解压文件外，还能自动传输文件）,
+这些模块除了功能更加强大外，
 他们大多实现了幂等性，
-由此 ansible 可以明确的告诉你在执行了某个模块后，
-系统的配置是否产生了变化
+由此 ansible 可以告诉你在执行了某个模块后，
+系统的配置是否产生了变化，
 你可以利用这些信息来触发进一步的操作，如重启服务等。</p>
 <h2 id="5-丰富的开源部署模块支持">5. 丰富的开源部署模块支持</h2>
-<p>ansible 提倡编写可复用的部署模块，
-ansible 官方维护了丰富的开源部署模块，
-如：zookeeper、es、JDK、kafka 等基建部署模块。
-我们可以到<a href="https://galaxy.ansible.com/">galaxy.ansible.com</a>搜索需要的模块，
-另外 ansible 还提供了 ansible-galaxy 指令，可直接从 galaxy.ansible.com 下载和安装部署模块。</p>
+<p>ansible 提倡编写可复用的部署模块。
+ansible 社区维护了丰富的 ansible 开源部署模块，
+这些模块可以在官方维护的<a href="https://galaxy.ansible.com/">galaxy.ansible.com</a>上找到。
+我们可以在上面找到诸如：zookeeper、ES、JDK、kafka 等基建服务的部署模块。
+通过 ansible 自带的 ansible-galaxy 指令，可直接从 galaxy.ansible.com 下载和安装部署模块。</p>
 
 </article>
 
