@@ -140,5 +140,35 @@ asm ( assembler template : output operands (optional) : input operands (optional
  CNAME records are handled specially in the domain name system, and have several restrictions on their use.</description>
     </item>
     
+    <item>
+      <title>cron 僵尸进程问题分析</title>
+      <link>https://coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/</link>
+      <pubDate>Sat, 14 Apr 2018 21:57:46 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/</guid>
+      <description>前段时间遇到一个比较诡异的问题, 一台服务器上突然出现了许多僵尸进程。 多数时候，这些僵尸进程出现在早上，大概到了下午又自动消失。 第二天又重复这样的情况。
+查了下，这些僵尸进程的父进程都是一些挂在 cron 下的 bash 进程。
+猜测是 cron 每天早上定时执行了某些任务留下了这些僵尸进程． 为什么会出现僵尸进程，以及，为什么这些僵尸进程到了下午又自己消失了？ 一开始希望直接从 cron 配置定位产生僵尸进程的任务， 检查发现这台机器上配置了相当数量的 cron 任务，逐一排查过去不现实，只能寻找其他思路．
+僵尸进程意味着该进程已经执行结束， 但是父进程还没有调用 wait() 获取它的返回值， 从而导致已结束的进程进程处于僵尸(zombie)进程状态。 正常而言，一个进程结束后通常会在短暂的时间内处于僵尸进程状态． 长时间处于僵尸进程状态， 意味着父进程一直都没有调用 wait()， 所以我们首先检查下这些僵尸进程的父进程也就是 cron 进程在干什么。
+可以看到 2584 这个僵尸进程的父进程 2582 处于睡眠状态。 strace 显示 2582 进程在等待在 read() 系统调用。 read()系统调用读取的文件描述符是 6， 利用 lsof 指令来查看这个文件描述符的详细信息。
+可以看到这是个管道文件， 对应 inode 是 13865。 进程 2582 处于管道读的一端， 根据这个 inode 信息， 我们可以利用 lsof 进一步找出管道写的一端关联的进程。
+根据 lsof 的输出，大致可以断定 2586 和 18826 这两个进程把标准输出和错误输入都重定向到管道 6 写的一端了。 经过检查发现 2586 进程执行的 sleep.</description>
+    </item>
+    
+    <item>
+      <title>tops 使用说明</title>
+      <link>https://coderatwork.cn/posts/tdops/</link>
+      <pubDate>Sat, 14 Apr 2018 21:57:46 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/tdops/</guid>
+      <description>tdops 目前部署在线下测试环境机器 10.57.17.90 上，需要测试的同学可以吴文林申请访问权限。
+1. tdops 是什么 tdops 是一套轻量级的自动化运维平台。 目前主要考虑为私有云场景下的系统运维工具，主要提供的功能为服务节点管理、软件包管理、服务管理，具体可分为以下几个方面：
+ 主机管理 软件包 集群管理 应用管理  系统的主要用例包括：
+ 节点录入 添加应用 添加集群 添加应用版本 发布应用 启动、关停、重启、检查服务状态  当前系统主要通过终端命令与用户交互，下面我们介绍系统的详细使用说明。
+2. 查看帮助 tdops 通过提供一系列命令和子命令来完成相关操作，每个命令都直指 --help 选项，改选项会列出指令的使用说明：
+$ tdops.py --help (mops) albania:magicops wenlin.wu$ ./tdops.py --help Usage: tdops.py [OPTIONS] COMMAND [ARGS]... 同盾运维部署工具 Options: --help Show this message and exit. Commands: app 应用管理 cluster 管理、部署集群 host 主机管理 pkg 软件包管理 我们可以看到 tdops 支持的一系列子命令，这些子命令本身也可以通过--help选线查看使用说明，而子命令也可能包含其他子命令：
+$ tdops.py app --help Usage: tdops.</description>
+    </item>
+    
   </channel>
 </rss>
