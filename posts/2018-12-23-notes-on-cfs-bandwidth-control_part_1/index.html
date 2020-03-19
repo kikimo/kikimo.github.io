@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>CFS bandwidth control 笔记（一） | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/2018-12-23-notes-on-cfs-bandwidth-control_part_1/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>CFS bandwidth control 笔记（一）</h1>
+    <time datetime="2018-12-23T11:54:46&#43;08:00">December 23, 2018</time>
+  </header>
+  <h3 id="1-什么是-cfs-bandwidth-control">1. 什么是 CFS bandwidth control</h3>
+<p><a href="https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt">CFS bandwidth control</a> <!-- raw HTML omitted -->[1]<!-- raw HTML omitted -->是 Linux 内核中用来实现 CPU 带宽控制的一种机制，
+<strong>它可以设定一个进程组（task group）可使用的 CPU 时间的上限，注意是上限， CPU 的使用上限</strong>。</p>
+<h3 id="2-为什么需要-cfs-bandwidth-control">2. 为什么需要 CFS bandwidth control</h3>
+<p>上面我们已经提到 CFS bandwidth control 的主要目的是设定进程组的 CPU 使用上限，
+为什么需要 CFS banwidth control 来控制 CPU 使用上限呢？
+原因有两点：</p>
+<pre><code>1. 最初的 CFS 调度器不支持设定 CPU 上限
+2. 实际应用场景中需要控制进程的的 CPU 使用上限
+</code></pre>
+<p>最初的 CFS 只能控制进程的 CPU 使用下限，
+更准确的表述应该是它只能控制进程全速运行时 CPU 的使用下限。
+这一点和 CFS 的实现有关。
+CFS 是根据权重也就是 cfs.share 参数、进程的运行时间（vruntime）来尽量保证 CPU 时间的公平分配。
+假设系统中只运行 A 和 B 进程，其调度权重分别为 100、200，
+那么 CFS 可保证 A 至少能占有 1/3 的 CPU，
+B 占有 2/3 的 CPU 时间。
+<strong>但是， 如果 B 一直处于休眠状态，那么 CFS 可以一直调度执行 A 让它占有超过 1/3 的 CPU 使用时间。</strong>
+CFS 的这个特点可以造成 CPU 资源的过度使用。
+CPU 资源的过度使用可能会造成诸如：系统负载过高，系统响应延迟等问题。
+所以内核需要一种机制来限制进程能使用的 CPU 时间的上限。
+CPU bandwidth control 还有一个重要的应用场景就是用户按需购买资源，
+譬如用户购买 0.5 个 CPU，我们就可以把它的 CPU 使用上限设定为 50%。</p>
+<h3 id="3-cfs-bandwidth-control-参数">3. CFS bandwidth control 参数</h3>
+<p>CFS bandwidth control 主要通过两个参数来实现带宽控制，分别是：</p>
+<pre><code>1. cpu.cfs_period_us
+2. cpu.cfs_quota_us
+</code></pre>
+<p>这两个参数的意义为：
+进程在 cpu.cfs_period_us 时间内能占用 cpu.cfs_quota_us CPU 时间。
+cpu.cfs_quota_us 参数可以大于 cpu.cfs_period_us，
+如果 cpu.cfs_quota_us 为 cpu.cfs_period_us 的两倍，
+实际效果就相当于允许调度组最多占用两个 CPU 资源。
+<strong>不过如果系统只有一个 CPU，这种情况实际运行起来会怎么样?</strong></p>
+<h3 id="4-cfs-bandwidth-control-implementation">4. CFS bandwidth control implementation</h3>
+<h4 id="第一版实现">第一版实现</h4>
+<p>CPU bandwidth controlfor for CFS 中对第一版实现的描述：</p>
+<blockquote>
+<p>This was the first approach at implementing bandwidth
+controls for CFS and was modelled on the existing bandwidth
+control scheme in use by the real-time
+scheduling class. The mechanism employed here is
+quite direct. Each group entity (specifically cfs_rq
+here) is provisioned locally with cfs_runtime_us
+units of time. CPUs are then allowed to borrow from
+one another within a given root_domain. This
+means that the externally visible bandwidth of the group
+is effectively the weight of the root_domain CPU
+mask multiplied by cfs_runtime_us (per cfs_
+period_us). When a CFS group consumes all its
+runtime and when there is nothing left to borrow from
+the other CPUs, the group is then throttled. At the end
+of the enforcement interval, the bandwidth gets replenished
+and the throttled group becomes eligible to run once again.</p>
+</blockquote>
+<p>可以看到第一版是基于已有 RT 调度器的 CPU 带宽控制来实现。
+每个调度组实体（group entity）一开始分配 cfs_runtime_us CPU 时间。
+在同一个 root_domain 的 CPU 执行时间可以相互借用。
+关于 root_domain 我猜测这应该是 scheduling domain<!-- raw HTML omitted -->[2]<!-- raw HTML omitted -->，[2] 中有关于 scheduling domain 的描述：</p>
+<blockquote>
+<p>Furthermore, all run queues are organized in scheduling domains. This allows for grouping CPUs that
+are physically adjacent to each other or share a common cache such that processes should preferably
+be moved between them. On ‘‘normal’’ SMP systems, however, all processors will be contained in one
+scheduling domain.</p>
+</blockquote>
+<p>所以一个调度组在 cfs_period_us 时间内的可用 CPU 时间为：</p>
+<pre><code>weight of root_domain CPU mask * cfs_runtime_us
+</code></pre>
+<p><strong>这里，不是很明白 <code>weight of root_domain CPU mask</code> 所指的意思，暂时理解为 root_domain 下 CPU 的数量。</strong></p>
+<h4 id="第二版实现">第二版实现</h4>
+<p>第一版实现在计算和存储剩余 CPU 带宽方面存在一个多对多对应关系问题：</p>
+<blockquote>
+<p>The primary scalability issue with the local pool approach is that there there is a many-to-many relationship
+in the computation and storage of remaining quota.</p>
+</blockquote>
+<p>关于这里描述的多对多关系有以下几个问题需要搞清楚：</p>
+<pre><code>1. 多对多关系具体是指谁和谁的关系
+2. 这个多对多关系造成什么问题
+3. 这个多对多关系为什么会造成问题
+</code></pre>
+<p><strong>多对多关系我理解为 root_domain 下的多个 CPU 和 cfs_runq 中的多个调度组实体之间的关系。</strong>
+这个多对多关系造成了 CPU 的扩展性问题：</p>
+<pre><code>1. cfs_runtime_us 可能无法快速向 cfs_period_us 收敛
+2. 频繁时间分配申请带来的锁竞争问题
+</code></pre>
+<p>为什么会造成以上几个问题，
+应该是跟 CPU 时间分配的大小，
+次数有关，[1] 中的描述看的不是很明白，
+我想后面多看几遍看看能不能明白过来。</p>
+<p>所以在第二版中有引入了 cfs_bandwidth 结构体来解决这个问题。
+在每个调度组（task_group）中都添加了 cfs_bandwidth 结构体，
+cfs_rq 中存放已经分配的和消耗的 CPU 时间。
+cfs_rq 中分配的 CPU 时间完全消耗之后可以尝试向 cfs_bandwidth 申请新的 CPU 时间
+（申请下来的时间片长度通过 sched_cfs_bandwidth_slice_us 参数配置），
+申请失败表明 cfs_bandwidth 中的时间已经消耗殆尽，
+这时候整个 task_group 就会被限流。
+每个 cfs_bandwidth 结构体都关联这一个定时器，
+这个定时器每隔 cpu.cfs_period_us 时间就会将 cfs_bandwidth 中的 CPU 时间重置，
+同时限流中的任务也会被重新唤醒。</p>
+<p>带宽限制还需要搞清楚一个问题：两个形成父子关系的调度组，
+他们的 CPU 带宽限制具体这么运行？
+在实际测试中观察到，如果父调度组 parent 带宽上限设置为 70%，
+那么子调度组 child 的带宽上限只能设在 70% 或以下。
+如果将 child 调度上限设置为 10%，
+在 child 中加入全速运转的任务 A，
+在 parent 中加入全速运转的任务 B，
+这个时候可以观测到 A 占用 10% 的 CPU，
+B 占用到 60% 的 CPU。
+parent 中的任务 B 为什么 CPU 会被限制在 60%，[1] 没有明确讲到这部分，
+估计只能自己去翻代码确认了。</p>
+<hr>
+<h2 id="references">References</h2>
+<p>[1] <a href="https://ai.google/research/pubs/pub36669">CPU bandwidth control for CFS</a></p>
+<p>[2] Professional Linux kernel architecture, page 123</p>
+
+</article>
+
+
+
+</html>
