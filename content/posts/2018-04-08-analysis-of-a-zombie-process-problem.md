@@ -10,7 +10,7 @@ draft: false
 
 查了下，这些僵尸进程的父进程都是一些挂在 cron 下的 bash 进程。
 
-![僵尸进程](/cron_zombie_01_pub.png)
+![僵尸进程](/images/cron_zombie_01_pub.png)
 
 猜测是 cron 每天早上定时执行了某些任务留下了这些僵尸进程．
 为什么会出现僵尸进程，以及，为什么这些僵尸进程到了下午又自己消失了？
@@ -26,26 +26,26 @@ draft: false
 意味着父进程一直都没有调用 ```wait()```，
 所以我们首先检查下这些僵尸进程的父进程也就是 cron 进程在干什么。
 
-![父进程状态](/cron_zombie_02_pub.png)
+![父进程状态](/images/cron_zombie_02_pub.png)
 
 可以看到 2584 这个僵尸进程的父进程 2582 处于睡眠状态。
 strace 显示 2582 进程在等待在 ```read()``` 系统调用。
 ```read()```系统调用读取的文件描述符是 6，
 利用 [lsof](http://man7.org/linux/man-pages/man8/lsof.8.html) 指令来查看这个文件描述符的详细信息。
 
-![描述符 6 的详细信息](/cron_zombie_03_pub.png)
+![描述符 6 的详细信息](/images/cron_zombie_03_pub.png)
 
 可以看到这是个管道文件， 对应 inode 是 13865。
 进程 2582 处于管道读的一端，
 根据这个 inode 信息，
 我们可以利用 [lsof](http://man7.org/linux/man-pages/man8/lsof.8.html) 进一步找出管道写的一端关联的进程。
 
-![管道写端的进程](/cron_zombie_04_pub.png)
+![管道写端的进程](/images/cron_zombie_04_pub.png)
 
 根据 lsof 的输出，大致可以断定 2586 和 18826 这两个进程把标准输出和错误输入都重定向到管道 6 写的一端了。
 经过检查发现 2586 进程执行的 sleep.sh 脚本就是 cron 下的定时任务之一。
 但是 ps 指令却显示，2586 任务进程的父进程是 init 进程。
-![任务进程的父进程](/cron_zombie_05_pub.png)
+![任务进程的父进程](/images/cron_zombie_05_pub.png)
 
 根据目前的分析，大概可以猜测会出现 bash 僵尸进程的直接原因－－父进程卡在管道读的一端上而没法继续调用 [wait()函数]．
 但是我们还需要搞清楚：
@@ -55,11 +55,11 @@ strace 显示 2582 进程在等待在 ```read()``` 系统调用。
 
 要继续分析下去只能去看 cron 的代码了，先确定当前系统上的 cron 版本。
 
-![cron 版本](/cron_version_pub.png) 
+![cron 版本](/images/cron_version_pub.png) 
 
 找到[这个版本 cron 的代码](http://rpm.pbone.net/index.php3/stat/26/dist/79/size/230920/name/cronie-1.4.4-12.el6.src.rpm)，以 pipe 为关键字搜索代码：
 
-![cron pipe](/cron_pipe_pub.png)
+![cron pipe](/images/cron_pipe_pub.png)
 
 可以看到 do_command.c 这个源码文件中有大量管道相关的操作，所以重点来分析这个文件。
 do_command.c 文件总共 571 行代码，一共就三个函数。
@@ -164,7 +164,7 @@ int main()
 
 编译执行以上代码：
 
-![bash zombie test](/bash_zombie_demo_pub.png)
+![bash zombie test](/images/bash_zombie_demo_pub.png)
 
 可以看看到，exec.c 的代码成功的复现出 bash 僵尸进程产生的场景了。
 
