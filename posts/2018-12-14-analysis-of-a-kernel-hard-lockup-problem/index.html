@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>一起内核 hard LOCKUP 问题分析 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/2018-12-14-analysis-of-a-kernel-hard-lockup-problem/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>一起内核 hard LOCKUP 问题分析</h1>
+    <time datetime="2018-12-14T19:54:46&#43;08:00">December 14, 2018</time>
+  </header>
+  <p>前段时间碰到一起服务器宕机故障，
+机器重启后在 /var/crash 找到了崭新的 crash dump 文件夹，
+看来是一起新鲜出炉的 kernel crash 故障。
+在 crash 目录下的 vmcore-dmesg.txt 文件中发现一系列如下形式的 kernel hard LOCKUP<!-- raw HTML omitted -->[1]<!-- raw HTML omitted --> 日志：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">[xxxxxx.xxxxxx] NMI watchdog: Watchdog detected hard LOCKUP on cpu x
+[xxxxxx.xxxxxx] NMI watchdog: Watchdog detected hard LOCKUP on cpu y
+[xxxxxx.xxxxxx] NMI watchdog: Watchdog detected hard LOCKUP on cpu z
+</code></pre></div><p>这是一台核数不少的物理机，
+日志显示几乎有一半的 CPU 发生了 hard LOCKUP.
+开动 crash<!-- raw HTML omitted -->[2]<!-- raw HTML omitted --> 分析，
+kernel crash 的堆栈现场如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">crash&gt; bt
+PID: 0      TASK: ffff8820d3ad8fd0  CPU: x   COMMAND: &#34;swapper/x&#34;
+ #0 [ffff883ffde859f0] machine_kexec at ffffffff8105c4cb
+ #1 [ffff883ffde85a50] __crash_kexec at ffffffff81104a32
+ #2 [ffff883ffde85b20] panic at ffffffff8169dc5f
+ #3 [ffff883ffde85ba0] nmi_panic at ffffffff8108771f
+ #4 [ffff883ffde85bb0] watchdog_overflow_callback at ffffffff8112fa75
+ #5 [ffff883ffde85bc8] __perf_event_overflow at ffffffff8116e561
+ #6 [ffff883ffde85c00] perf_event_overflow at ffffffff811770b4
+ #7 [ffff883ffde85c10] intel_pmu_handle_irq at ffffffff81009f78
+ #8 [ffff883ffde85e38] perf_event_nmi_handler at ffffffff816ac06b
+ #9 [ffff883ffde85e58] nmi_handle at ffffffff816ad427
+#10 [ffff883ffde85eb0] do_nmi at ffffffff816ad65d
+#11 [ffff883ffde85ef0] end_repeat_nmi at ffffffff816ac8d3
+    [exception RIP: tick_nohz_stop_sched_tick+755]
+    RIP: ffffffff810f3483  RSP: ffff8820d3aebe50  RFLAGS: 00000002
+    RAX: 0000000035696841  RBX: 0002b313f9231dc0  RCX: 000000000000001f
+    RDX: 0000000000000005  RSI: 0002b313e403c95f  RDI: ffff883ffde8fe80
+    RBP: ffff8820d3aebe98   R8: ffff8820d3ae8000   R9: 000000012d45c83d
+    R10: 0000000000000000  R11: 0000000000000000  R12: 0000000000000005
+    R13: 000000012d45c9a0  R14: ffff883ffde8fe80  R15: ffff8820d3ae8000
+    ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0018
+--- &lt;NMI exception stack&gt; ---
+#12 [ffff8820d3aebe50] tick_nohz_stop_sched_tick at ffffffff810f3483
+#13 [ffff8820d3aebe60] sched_clock at ffffffff81033619
+#14 [ffff8820d3aebea0] __tick_nohz_idle_enter at ffffffff810f359f
+#15 [ffff8820d3aebed0] tick_nohz_idle_enter at ffffffff810f3adf
+#16 [ffff8820d3aebee0] cpu_startup_entry at ffffffff810e7b1a
+#17 [ffff8820d3aebf28] start_secondary at ffffffff81051af6
+</code></pre></div><p>根据堆栈现场可以观察到一下几点：</p>
+<ol>
+<li>kernel panic 时运行的是 swapper 进程（也就是 idle 空闲进程，跟内存 swap 没关系）；</li>
+<li><code>tick_nohz_stop_sched_tick()</code> 函数说明 idle 进程正在准备进入 tickless<!-- raw HTML omitted -->[3][4]<!-- raw HTML omitted --> 状态；</li>
+<li>此时来了一个 NMI 不可屏蔽中断<!-- raw HTML omitted -->[5]<!-- raw HTML omitted -->，
+NMI 中断处理函数判断当前 CPU 发生了 hard LOCKUP，然后触发了 kernel crash；</li>
+</ol>
+<p>hard LOCKUP 意味着系统在屏蔽 IRQ 中断的场景下长时间运行于内核态，时间超过 watchdog_thresh 配置，
+watchdog_thresh 默认配置是 10s。
+系统在内核态中绕不出来，而且有大量的 CPU 都发生了 hard LOCKUP，
+猜测是内核某个代码死循环了。
+从上面的堆栈现场中可以看到，NMI 中断发生前系统运行的是这行代码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">#12 [ffff8820d3aebe50] tick_nohz_stop_sched_tick at ffffffff810f3483
+</code></pre></div><p>把 <code>tick_nohz_stop_sched_tick()</code> 函数的反汇编代码展开来看：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">crash&gt; dis tick_nohz_stop_sched_tick
+0xffffffff810f3190 &lt;tick_nohz_stop_sched_tick&gt;: nopl   0x0(%rax,%rax,1) [FTRACE NOP]
+0xffffffff810f3195 &lt;tick_nohz_stop_sched_tick+5&gt;:       push   %rbp
+0xffffffff810f3196 &lt;tick_nohz_stop_sched_tick+6&gt;:       mov    %rsp,%rbp
+0xffffffff810f3199 &lt;tick_nohz_stop_sched_tick+9&gt;:       push   %r15
+0xffffffff810f319b &lt;tick_nohz_stop_sched_tick+11&gt;:      push   %r14
+...
+0xffffffff810f31ce &lt;tick_nohz_stop_sched_tick+62&gt;:      mov    (%rax),%rax
+0xffffffff810f31d1 &lt;tick_nohz_stop_sched_tick+65&gt;:      mov    %rax,-0x40(%rbp)
+0xffffffff810f31d5 &lt;tick_nohz_stop_sched_tick+69&gt;:      mov    0x8f7fe5(%rip),%eax        # 0xffffffff819eb1c0 &lt;jiffies_lock&gt;
+0xffffffff810f31db &lt;tick_nohz_stop_sched_tick+75&gt;:      test   $0x1,%al
+0xffffffff810f31dd &lt;tick_nohz_stop_sched_tick+77&gt;:      jne    0xffffffff810f3481 &lt;tick_nohz_stop_sched_tick+753&gt;
+0xffffffff810f31e3 &lt;tick_nohz_stop_sched_tick+83&gt;:      mov    0xda299e(%rip),%rbx        # 0xffffffff81e95b88 &lt;last_jiffies_update&gt;
+0xffffffff810f31ea &lt;tick_nohz_stop_sched_tick+90&gt;:      mov    0xa37e0f(%rip),%r13        # 0xffffffff81b2b000 &lt;.vvar&gt;
+0xffffffff810f31f1 &lt;tick_nohz_stop_sched_tick+97&gt;:      cmp    0x8f7fc9(%rip),%eax        # 0xffffffff819eb1c0 &lt;jiffies_lock&gt;
+0xffffffff810f31f7 &lt;tick_nohz_stop_sched_tick+103&gt;:     jne    0xffffffff810f31d5 &lt;tick_nohz_stop_sched_tick+69&gt;
+0xffffffff810f31f9 &lt;tick_nohz_stop_sched_tick+105&gt;:     lea    -0x38(%rbp),%rsi
+0xffffffff810f31fd &lt;tick_nohz_stop_sched_tick+109&gt;:     mov    %r13,0xd8(%r14)
+0xffffffff810f3204 &lt;tick_nohz_stop_sched_tick+116&gt;:     mov    %r12d,%edi
+...
+0xffffffff810f3477 &lt;tick_nohz_stop_sched_tick+743&gt;:     jmpq   0xffffffff810f32b0 &lt;tick_nohz_stop_sched_tick+288&gt;
+0xffffffff810f347c &lt;tick_nohz_stop_sched_tick+748&gt;:     callq  0xffffffff81087720 &lt;__stack_chk_fail&gt;
+0xffffffff810f3481 &lt;tick_nohz_stop_sched_tick+753&gt;:     pause  
+0xffffffff810f3483 &lt;tick_nohz_stop_sched_tick+755&gt;:     jmpq   0xffffffff810f31d5 &lt;tick_nohz_stop_sched_tick+69&gt;
+0xffffffff810f3488 &lt;tick_nohz_stop_sched_tick+760&gt;:     cmpl   $0x2,0x68(%r14)
+0xffffffff810f348d &lt;tick_nohz_stop_sched_tick+765&gt;:     nopl   (%rax)
+0xffffffff810f3490 &lt;tick_nohz_stop_sched_tick+768&gt;:     jne    0xffffffff810f3321 &lt;tick_nohz_stop_sched_tick+401&gt;
+0xffffffff810f3496 &lt;tick_nohz_stop_sched_tick+774&gt;:     mov    %r14,%rdi
+0xffffffff810f3499 &lt;tick_nohz_stop_sched_tick+777&gt;:     callq  0xffffffff810b4d90 &lt;hrtimer_cancel&gt;
+0xffffffff810f349e &lt;tick_nohz_stop_sched_tick+782&gt;:     jmpq   0xffffffff810f3321 &lt;tick_nohz_stop_sched_tick+401&gt;
+...
+</code></pre></div><p>可以看到 <code>0xffffffff810f3483</code> 处的代码是一条跳转到 <code>0xffffffff810f31d5</code> 处的指令，
+<code>0xffffffff810f31d5</code> 之前的指令则都是一些函数堆栈初始化相关的指令，
+这说明 <code>0xffffffff810f31d5</code> 处的指令对应的应该是函数最开始的几行代码。
+查看 <code>tick_nohz_stop_sched_tick()</code> 函数的源码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">crash<span style="color:#f92672">&gt;</span> dis <span style="color:#f92672">-</span>s tick_nohz_stop_sched_tick
+FILE: kernel<span style="color:#f92672">/</span>time<span style="color:#f92672">/</span>tick<span style="color:#f92672">-</span>sched.c
+LINE: <span style="color:#ae81ff">578</span>
+
+  <span style="color:#ae81ff">573</span>           ts<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>next_tick.tv64 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+  <span style="color:#ae81ff">574</span>   }
+  <span style="color:#ae81ff">575</span>   
+  <span style="color:#ae81ff">576</span>   <span style="color:#66d9ef">static</span> ktime_t tick_nohz_stop_sched_tick(<span style="color:#66d9ef">struct</span> tick_sched <span style="color:#f92672">*</span>ts,
+  <span style="color:#ae81ff">577</span>                                            ktime_t now, <span style="color:#66d9ef">int</span> cpu)
+<span style="color:#f92672">*</span> <span style="color:#ae81ff">578</span>   {
+  <span style="color:#ae81ff">579</span>           <span style="color:#66d9ef">struct</span> clock_event_device <span style="color:#f92672">*</span>dev <span style="color:#f92672">=</span> __get_cpu_var(tick_cpu_device).evtdev;
+  <span style="color:#ae81ff">580</span>           u64 basemono, next_tick, next_tmr, next_rcu, delta, expires;
+  <span style="color:#ae81ff">581</span>           <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> seq, basejiff;
+  <span style="color:#ae81ff">582</span>           ktime_t tick;
+  <span style="color:#ae81ff">583</span>   
+  <span style="color:#ae81ff">584</span>           <span style="color:#75715e">/* Read jiffies and the time when jiffies were updated last */</span>
+  <span style="color:#ae81ff">585</span>           <span style="color:#66d9ef">do</span> {
+  <span style="color:#ae81ff">586</span>                   seq <span style="color:#f92672">=</span> read_seqbegin(<span style="color:#f92672">&amp;</span>jiffies_lock);
+  <span style="color:#ae81ff">587</span>                   basemono <span style="color:#f92672">=</span> last_jiffies_update.tv64;
+  <span style="color:#ae81ff">588</span>                   basejiff <span style="color:#f92672">=</span> jiffies;
+  <span style="color:#ae81ff">589</span>           } <span style="color:#66d9ef">while</span> (read_seqretry(<span style="color:#f92672">&amp;</span>jiffies_lock, seq));
+  <span style="color:#ae81ff">590</span>           ts<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>last_jiffies <span style="color:#f92672">=</span> basejiff;
+  <span style="color:#ae81ff">591</span>   
+  <span style="color:#ae81ff">592</span>           <span style="color:#a6e22e">if</span> (rcu_needs_cpu(cpu, <span style="color:#f92672">&amp;</span>next_rcu) <span style="color:#f92672">|</span><span style="color:#f92672">|</span>
+  <span style="color:#ae81ff">593</span>               arch_needs_cpu(cpu) <span style="color:#f92672">|</span><span style="color:#f92672">|</span> irq_work_needs_cpu()) {
+  <span style="color:#ae81ff">594</span>                   next_tick <span style="color:#f92672">=</span> basemono <span style="color:#f92672">+</span> TICK_NSEC;
+  <span style="color:#ae81ff">595</span>           } <span style="color:#66d9ef">else</span> {
+      ...
+</code></pre></div><p>可以看到　<code>tick_nohz_stop_sched_tick()</code> 函数最前几行代码执行的是读取 <code>jiffies_lock</code><!-- raw HTML omitted -->[6]<!-- raw HTML omitted --> 的操作，
+<code>jiffies_lock</code> 是内核中用到的轻量级读写锁 <code>seqlock_t</code> <!-- raw HTML omitted -->[7]<!-- raw HTML omitted -->，
+这里主要用来保护内核时钟滴答变量 <code>jiffies</code>。
+对比 <code>0xffffffff810f31d5</code> 处的指令：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">0xffffffff810f31d5 &lt;tick_nohz_stop_sched_tick+69&gt;:      mov    0x8f7fe5(%rip),%eax        # 0xffffffff819eb1c0 &lt;jiffies_lock&gt;
+</code></pre></div><p>再来看 <code>jiffies_lock</code> 的地址：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">crash&gt; p &amp;jiffies_lock
+$2 = (seqlock_t *) 0xffffffff819eb1c0 &lt;jiffies_lock&gt;
+</code></pre></div><p><code>0xffffffff810f31d5</code> 处指令执行时，
+rip 指向的是下一条指令的地址，也就是 <code>0xffffffff810f31db</code>，
+所以有：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">&amp;jiffies_lock = rip(0xffffffff819eb1c0) + 0x8f7fe5 = 0xffffffff819eb1c0
+</code></pre></div><p>和该处汇编代码上的注释是一致的，
+说明 <code>0xffffffff810f31d5</code> 处代码执行的是读取 <code>jiffies_lock</code> 变量的操作，
+对应的源码应该就是 586 行处的代码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">  <span style="color:#ae81ff">586</span>                   seq <span style="color:#f92672">=</span> read_seqbegin(<span style="color:#f92672">&amp;</span>jiffies_lock);
+</code></pre></div><p>目前为止还看不出哪处代码有产生死循环的可能，
+目前有一个疑问是，
+<code>0xffffffff810f3483</code> 这个地址几乎已经是函数末尾了，
+代码为什么执行到这一处，
+为什么会跳往接近函数开头 <code>0xffffffff810f31d5</code> 处的这个地址？
+<code>0xffffffff810f31d5</code> 这个地址我们已经分析过，
+它对应的是 <code>seq = read_seqbegin(&amp;jiffies_lock);</code> 这行代码，
+继续分析 <code>0xffffffff810f31d5</code> 下面的几行汇编代码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">0xffffffff810f31d5 &lt;tick_nohz_stop_sched_tick+69&gt;:      mov    0x8f7fe5(%rip),%eax        # 0xffffffff819eb1c0 &lt;jiffies_lock&gt;
+0xffffffff810f31db &lt;tick_nohz_stop_sched_tick+75&gt;:      test   $0x1,%al
+0xffffffff810f31dd &lt;tick_nohz_stop_sched_tick+77&gt;:      jne    0xffffffff810f3481 &lt;tick_nohz_stop_sched_tick+753&gt;
+</code></pre></div><p>可以看到 <code>0xffffffff810f31dd</code> 处代码往 <code>0xffffffff810f3481</code> 做了条件跳转，
+而 <code>0xffffffff810f3481</code> 处的下一条指令的地址就是 <code>0xffffffff810f3483</code>：</p>
+<pre><code>0xffffffff810f3481 &lt;tick_nohz_stop_sched_tick+753&gt;:     pause  
+0xffffffff810f3483 &lt;tick_nohz_stop_sched_tick+755&gt;:     jmpq   0xffffffff810f31d5 &lt;tick_nohz_stop_sched_tick+69&gt;
+</code></pre><p>这里似乎——构成了一个循环诶！
+再来逐条分析函数最前面 <code>0xffffffff810f31d5-0xffffffff810f31dd</code> 的三条指令，
+首先 <code>0xffffffff810f31d5</code> 处代码把 <code>jiffies_lock</code> 结构体中的某个字段读取到 <code>eax</code> 寄存器中：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">0xffffffff810f31d5 &lt;tick_nohz_stop_sched_tick+69&gt;:      mov    0x8f7fe5(%rip),%eax        # 0xffffffff819eb1c0 &lt;jiffies_lock&gt;
+</code></pre></div><p>我们来看 <code>jiffies_lock</code> 这个结构：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">crash&gt; p jiffies_lock
+jiffies_lock = $5 = {
+  seqcount = {
+    sequence = 896100417
+  }, 
+  lock = {
+    {
+      rlock = {
+        raw_lock = {
+          val = {
+            counter = 0
+          }
+        }
+      }
+    }
+  }
+}
+</code></pre></div><p>很明显，<code>0xffffffff810f31d5</code> 处代码等价于 <code>eax = jiffies_lock.seqcount.sequence</code>。
+再来看紧接着的 <code>0xffffffff810f31db</code> 处的指令：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">0xffffffff810f31db &lt;tick_nohz_stop_sched_tick+75&gt;:     test   $0x1,%al
+</code></pre></div><p><code>0xffffffff810f31db</code> 处指令将 <code>al</code> 寄存器和 <code>0x01</code> 进行位与运算，
+<code>test</code> 指令结果影响到 <code>Flag</code> 寄存器的 <code>ZF</code> 标志位，
+<code>ZF</code> 标志为又会进一步影响下一条 <code>0xffffffff810f31dd</code> 处的 <code>jne</code> 指令的：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">0xffffffff810f31dd &lt;tick_nohz_stop_sched_tick+77&gt;:     jne    0xffffffff810f3481 &lt;tick_nohz_stop_sched_tick+753&gt;
+</code></pre></div><p>如果 <code>al &amp; 0x01</code> 不为零那么 <code>ZF</code> 标志位被置一，
+<code>jne    0xffffffff810f3481</code> 条件成立跳转到 <code>0xffffffff810f3481</code> 执行 <code>pause</code> 暂停指令，
+紧接着 <code>0xffffffff810f3483</code> 处的 <code>jmp</code> 指令又跳转到 <code>0xffffffff810f31d5</code>，
+构成一个循环了有木有？
+内核是不是卡在这个循环上了？
+不难找出，这里代码构成死循环的条件是 <code>jiffies_lock.seqcount.sequence</code> 变量一直为奇数，
+这样的话 <code>test   $0x1,%al</code> 会一直将 <code>ZF</code> 标志为置一。
+上面我们已经看到 <code>jiffies_lock.seqcount.sequence</code> 的值为奇数 896100417，
+符合我们的猜想。
+那么 <code>jiffies_lock.seqcount.sequence</code> 有没有可能一直保持奇数呢？
+我们已经分析出内核当前执行的代码构成一个循环，
+当前代码对应的是 <code>seq = read_seqbegin(&amp;jiffies_lock);</code> 这行代码，
+这行代码的作用是获取 jiffies_lock 读者锁，
+查看 <code>read_seqbegin()</code> 的实现：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">72</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">unsigned</span> <span style="color:#a6e22e">__read_seqcount_begin</span>(<span style="color:#66d9ef">const</span> seqcount_t <span style="color:#f92672">*</span>s)
+ <span style="color:#ae81ff">73</span> {
+ <span style="color:#ae81ff">74</span>     <span style="color:#66d9ef">unsigned</span> ret;
+ <span style="color:#ae81ff">75</span> 
+ <span style="color:#ae81ff">76</span> repeat:
+ <span style="color:#ae81ff">77</span>     ret <span style="color:#f92672">=</span> READ_ONCE(s<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>sequence);
+ <span style="color:#ae81ff">78</span>     <span style="color:#66d9ef">if</span> (unlikely(ret <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">1</span>)) {
+ <span style="color:#ae81ff">79</span>         cpu_relax();
+ <span style="color:#ae81ff">80</span>         <span style="color:#66d9ef">goto</span> repeat;
+ <span style="color:#ae81ff">81</span>     }
+ <span style="color:#ae81ff">82</span>     <span style="color:#66d9ef">return</span> ret;
+ <span style="color:#ae81ff">83</span> }
+...
+<span style="color:#ae81ff">238</span> <span style="color:#75715e">/*
+</span><span style="color:#75715e">239  * Read side functions for starting and finalizing a read side section.
+</span><span style="color:#75715e">240  */</span>
+<span style="color:#ae81ff">241</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">unsigned</span> read_seqbegin(<span style="color:#66d9ef">const</span> seqlock_t <span style="color:#f92672">*</span>sl)
+<span style="color:#ae81ff">242</span> {
+<span style="color:#ae81ff">243</span>     <span style="color:#66d9ef">return</span> read_seqcount_begin(<span style="color:#f92672">&amp;</span>sl<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>seqcount);
+<span style="color:#ae81ff">244</span> }
+...
+</code></pre></div><p>不难看出，上面分析的那个循环对应的应该就是 <code>__read_seqcount_begin()</code> 函数中的这个 repeat 循环。
+为什么 s-&gt;sequence 为奇数时 <code>__read_seqcount_begin()</code> 就让代码在 <code>repeat</code> 循环跳不出来呢？
+这涉及到 <code>seqlock_t</code> 锁的实现。
+<code>s-&gt;sequence</code> 初始化为偶数，
+当写者获取锁是 <code>s-&gt;sequence</code> 先加一，
+写者离开时再加一，
+这样如果 <code>s-&gt;sequence</code> 为奇数便说明当前有写者在操作，
+读者便进入 <code>repeat</code> 那段死循环中忙等待。
+所以，当前那个 CPU 执行的代码持有 <code>jiffies_lock</code> 写者锁让当前这个 CPU 的内核代码进入死循环呢？
+要确定这个问题只要把各个 CPU 当前的执行堆栈打出来大概就清楚了。
+一查下去，
+能把人吓一大跳，
+这台机器上不管 CPU 上有没有检测出 hard LOCKUP，他们全部都处在这个死循环上！
+也就是说，所有的 CPU 不是已经产生 hard LOCKUP 就是在进入 hard LOCKUP 的路上！</p>
+<p>为什么会这样？
+一个猜测内核代码在操作 <code>jiffies_lock writer lock</code> 上有 bug（读者不会修改 <code>sequence</code> 变量），
+检查内核中对 <code>jiffies_lock</code> 的所有操作：</p>
+<pre><code>C symbol: jiffies_lock
+
+  File            Function                  Line
+0 jiffies.c       &lt;global&gt;                    70 __cacheline_aligned_in_smp DEFINE_SEQLOCK(jiffies_lock);
+1 tick-internal.h &lt;global&gt;                     9 extern seqlock_t jiffies_lock;
+2 jiffies.c       get_jiffies_64              79 seq = read_seqbegin(&amp;jiffies_lock);
+3 jiffies.c       get_jiffies_64              81 } while (read_seqretry(&amp;jiffies_lock, seq));
+4 tick-common.c   tick_periodic               66 write_seqlock(&amp;jiffies_lock);
+5 tick-common.c   tick_periodic               72 write_sequnlock(&amp;jiffies_lock);
+6 tick-common.c   tick_setup_periodic        144 seq = read_seqbegin(&amp;jiffies_lock);
+7 tick-common.c   tick_setup_periodic        146 } while (read_seqretry(&amp;jiffies_lock, seq));
+8 tick-sched.c    tick_do_update_jiffies64    65 write_seqlock(&amp;jiffies_lock);
+9 tick-sched.c    tick_do_update_jiffies64    88 write_sequnlock(&amp;jiffies_lock);
+a tick-sched.c    tick_do_update_jiffies64    91 write_sequnlock(&amp;jiffies_lock);
+b tick-sched.c    tick_init_jiffy_update     102 write_seqlock(&amp;jiffies_lock);
+c tick-sched.c    tick_init_jiffy_update     107 write_sequnlock(&amp;jiffies_lock);
+d tick-sched.c    tick_nohz_stop_sched_tick  586 seq = read_seqbegin(&amp;jiffies_lock);
+e tick-sched.c    tick_nohz_stop_sched_tick  589 } while (read_seqretry(&amp;jiffies_lock, seq));
+f timekeeping.c   xtime_update              2179 write_seqlock(&amp;jiffies_lock);
+g timekeeping.c   xtime_update              2181 write_sequnlock(&amp;jiffies_lock);
+</code></pre><p>以上一系列 <code>jiffies_lock</code> 引用中的 writer 操作中，
+代码逻辑或者内存屏障的使用上都看不出有明显的问题。
+问题一时没法继续分析下去了，
+搁置了很长时间，
+直到有一天，
+心血来潮在 google 上用关键字 &ldquo;<strong>intel cpu unexpected register value</strong>&rdquo; 搜了一把，
+google 的第一条记录是 <a href="https://www.intel.com/content/dam/www/public/us/en/documents/specification-updates/desktop-6th-gen-core-family-spec-update.pdf">Intel ６ 代处理器的固件升级文档</a>：</p>
+<p><img src="/images/intel_errata_01_pub.png" alt="intel_errata_01"></p>
+<p>第二页则看到一篇非常有价值的文章
+<a href="https://www.theregister.co.uk/2017/06/25/intel_skylake_kaby_lake_hyperthreading/">Intel&rsquo;s Skylake and Kaby Lake CPUs have nasty hyper-threading bug</a>:</p>
+<p><img src="/images/intel_errata_02_pub.png" alt="intel_errata_02"></p>
+<p>这是去年六月份出来的一篇文章，
+这篇文章提到 Intel Skylake 和 Kaby Lake 系列 CPU 的超线程技术存在严重的问题，
+而 google 搜索出来的第一条记录的固件升级文档则包含了该问题的记录。
+文章中提到：</p>
+<blockquote>
+<p>Under complex micro-architectural conditions, short loops of less than 64 instructions that use AH, BH, CH or DH registers as well as their corresponding wider register (eg RAX, EAX or AX for AH) may cause unpredictable system behaviour. This can only happen when both logical processors on the same physical processor are active.</p>
+</blockquote>
+<blockquote>
+<p>Symptoms can include “application and system misbehaviour, data corruption, and data loss”.</p>
+</blockquote>
+<p>就是说 Intel 该系列的 CPU 在启用超线程的场景下
+使用 <code>AH，EAX，RAX</code> 等寄存器的短循环可能会产生不可预知的系统行为，
+包括数据错误和数据丢失。
+这个场景和我们遇到的问题非常相似，
+一个猜想就是：
+sequence 的值因为 Intel CPU 的这个 bug 而产生奇偶性翻转，
+最终导致整个 kernel crash。
+不过，值得注意的一点是，我们故障内核的代码中使用的是 <code>AL</code> 寄存器，
+而且我们的 CPU 型号和上述文章中描述的故障 CPU 型号也不一致。
+一个比较阴谋论的猜测就是：我们的使用的 CPU 也存在类似 bug，
+但是 Intel 故意不公布相关型号 CPU 的故障信息
+（考虑到 Intel 在他们固件升级文档中关于故障的描述是如此的语焉不详，
+这个怀疑不能说毫无根据），
+毕竟如果他们众多型号的服务器 CPU 都存在以上问题，
+那是很影响产品销售和公司信誉的，
+暗搓搓发布一版固件升级偷偷摸摸把问题修复掉，
+对于 Intel 来说可能是最好的解决办法。</p>
+<hr>
+<h2 id="references">References</h2>
+<p>[1] <a href="https://www.kernel.org/doc/Documentation/lockup-watchdogs.txt">Softlockup detector and hardlockup detector (aka nmi_watchdog)</a></p>
+<p>[2] <a href="https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/kernel_administration_guide/kernel_crash_dump_guide">KERNEL CRASH DUMP GUIDE</a></p>
+<p>[3] <a href="https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/power_management_guide/tickless-kernel">TICKLESS KERNEL</a></p>
+<p>[4] <a href="https://www.kernel.org/doc/Documentation/timers/NO_HZ.txt">NO_HZ: Reducing Scheduling-Clock Ticks</a></p>
+<p>[5] <a href="https://en.wikipedia.org/wiki/Non-maskable_interrupt">Non-maskable interrupt</a></p>
+<p>[6] <a href="https://lwn.net/Articles/646950/">Reinventing the timer wheel</a></p>
+<p>[7] <a href="https://lwn.net/Articles/22818/">Driver porting: mutual exclusion with seqlocks</a></p>
+
+</article>
+
+
+
+</html>

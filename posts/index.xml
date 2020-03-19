@@ -176,6 +176,17 @@ XXX passes lock by value 仔细检查代码，发现在那个地方，有个结�
     </item>
     
     <item>
+      <title>一起内核 hard LOCKUP 问题分析</title>
+      <link>https://coderatwork.cn/posts/2018-12-14-analysis-of-a-kernel-hard-lockup-problem/</link>
+      <pubDate>Fri, 14 Dec 2018 19:54:46 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/2018-12-14-analysis-of-a-kernel-hard-lockup-problem/</guid>
+      <description>前段时间碰到一起服务器宕机故障， 机器重启后在 /var/crash 找到了崭新的 crash dump 文件夹， 看来是一起新鲜出炉的 kernel crash 故障。 在 crash 目录下的 vmcore-dmesg.txt 文件中发现一系列如下形式的 kernel hard LOCKUP[1]日志：
+[xxxxxx.xxxxxx] NMI watchdog: Watchdog detected hard LOCKUP on cpu x [xxxxxx.xxxxxx] NMI watchdog: Watchdog detected hard LOCKUP on cpu y [xxxxxx.xxxxxx] NMI watchdog: Watchdog detected hard LOCKUP on cpu z 这是一台核数不少的物理机， 日志显示几乎有一半的 CPU 发生了 hard LOCKUP. 开动 crash[2]分析， kernel crash 的堆栈现场如下：
+crash&amp;gt; bt PID: 0 TASK: ffff8820d3ad8fd0 CPU: x COMMAND: &amp;#34;swapper/x&amp;#34; #0 [ffff883ffde859f0] machine_kexec at ffffffff8105c4cb #1 [ffff883ffde85a50] __crash_kexec at ffffffff81104a32 #2 [ffff883ffde85b20] panic at ffffffff8169dc5f #3 [ffff883ffde85ba0] nmi_panic at ffffffff8108771f #4 [ffff883ffde85bb0] watchdog_overflow_callback at ffffffff8112fa75 #5 [ffff883ffde85bc8] __perf_event_overflow at ffffffff8116e561 #6 [ffff883ffde85c00] perf_event_overflow at ffffffff811770b4 #7 [ffff883ffde85c10] intel_pmu_handle_irq at ffffffff81009f78 #8 [ffff883ffde85e38] perf_event_nmi_handler at ffffffff816ac06b #9 [ffff883ffde85e58] nmi_handle at ffffffff816ad427 #10 [ffff883ffde85eb0] do_nmi at ffffffff816ad65d #11 [ffff883ffde85ef0] end_repeat_nmi at ffffffff816ac8d3 [exception RIP: tick_nohz_stop_sched_tick+755] RIP: ffffffff810f3483 RSP: ffff8820d3aebe50 RFLAGS: 00000002 RAX: 0000000035696841 RBX: 0002b313f9231dc0 RCX: 000000000000001f RDX: 0000000000000005 RSI: 0002b313e403c95f RDI: ffff883ffde8fe80 RBP: ffff8820d3aebe98 R8: ffff8820d3ae8000 R9: 000000012d45c83d R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000005 R13: 000000012d45c9a0 R14: ffff883ffde8fe80 R15: ffff8820d3ae8000 ORIG_RAX: ffffffffffffffff CS: 0010 SS: 0018 --- &amp;lt;NMI exception stack&amp;gt; --- #12 [ffff8820d3aebe50] tick_nohz_stop_sched_tick at ffffffff810f3483 #13 [ffff8820d3aebe60] sched_clock at ffffffff81033619 #14 [ffff8820d3aebea0] __tick_nohz_idle_enter at ffffffff810f359f #15 [ffff8820d3aebed0] tick_nohz_idle_enter at ffffffff810f3adf #16 [ffff8820d3aebee0] cpu_startup_entry at ffffffff810e7b1a #17 [ffff8820d3aebf28] start_secondary at ffffffff81051af6 根据堆栈现场可以观察到一下几点：</description>
+    </item>
+    
+    <item>
       <title>cron 僵尸进程问题分析</title>
       <link>https://coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/</link>
       <pubDate>Sat, 14 Apr 2018 21:57:46 +0800</pubDate>
