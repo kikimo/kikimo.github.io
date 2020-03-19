@@ -155,20 +155,5 @@ asm ( assembler template : output operands (optional) : input operands (optional
 根据 lsof 的输出，大致可以断定 2586 和 18826 这两个进程把标准输出和错误输入都重定向到管道 6 写的一端了。 经过检查发现 2586 进程执行的 sleep.</description>
     </item>
     
-    <item>
-      <title>tops 使用说明</title>
-      <link>https://coderatwork.cn/posts/tdops/</link>
-      <pubDate>Sat, 14 Apr 2018 21:57:46 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/tdops/</guid>
-      <description>tdops 目前部署在线下测试环境机器 10.57.17.90 上，需要测试的同学可以吴文林申请访问权限。
-1. tdops 是什么 tdops 是一套轻量级的自动化运维平台。 目前主要考虑为私有云场景下的系统运维工具，主要提供的功能为服务节点管理、软件包管理、服务管理，具体可分为以下几个方面：
- 主机管理 软件包 集群管理 应用管理  系统的主要用例包括：
- 节点录入 添加应用 添加集群 添加应用版本 发布应用 启动、关停、重启、检查服务状态  当前系统主要通过终端命令与用户交互，下面我们介绍系统的详细使用说明。
-2. 查看帮助 tdops 通过提供一系列命令和子命令来完成相关操作，每个命令都直指 --help 选项，改选项会列出指令的使用说明：
-$ tdops.py --help (mops) albania:magicops wenlin.wu$ ./tdops.py --help Usage: tdops.py [OPTIONS] COMMAND [ARGS]... 同盾运维部署工具 Options: --help Show this message and exit. Commands: app 应用管理 cluster 管理、部署集群 host 主机管理 pkg 软件包管理 我们可以看到 tdops 支持的一系列子命令，这些子命令本身也可以通过--help选线查看使用说明，而子命令也可能包含其他子命令：
-$ tdops.py app --help Usage: tdops.</description>
-    </item>
-    
   </channel>
 </rss>
