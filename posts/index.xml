@@ -141,6 +141,18 @@ asm ( assembler template : output operands (optional) : input operands (optional
     </item>
     
     <item>
+      <title>go Map 并发读写问题处理</title>
+      <link>https://coderatwork.cn/posts/2019-01-17-troubleshooting-go-concurrent-map-read-write-problem/</link>
+      <pubDate>Thu, 17 Jan 2019 21:04:40 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/2019-01-17-troubleshooting-go-concurrent-map-read-write-problem/</guid>
+      <description>几个月前碰到一起线上 go 应用崩溃问题， 查看日志，注意到其中有一条信息：
+fatal error: concurrent map read and map write 回去查了下，代码里面确实有Map的并发读写， 但是涉及到Map相关的操作都用sync.RWMutex做了读写保护， 我把代码拉出来仔细看了一个晚上，愣是没看出啥问题。 这个问题后来交个另外一个同事去跟进， 同事构造了几个单元测试代码，很快就把问题重现出来了。 但是怎么修这个 bug，他说这个问题是由于三方库引起的， 不好修，所以问题后来就这么一直放着。 过了足足两个月，我感觉这问题不解决有点危险，万一哪天线上又复发就尴尬了， 就专门抽个下午的时间去研究这个问题。 代码拉下来，把同事当时写的单元测试跑起来， 很快程序就又爆出concurrent map read and map write问题。 正准备深入研究一番，然而一看同事写的测试代码顿时就无语了， 挖槽，测试代码里自身就有一个 map 的并发读写，跑起来不报这个问题才怪。 心里暗暗叫苦，TM 还是要从零开始分析。 那还是从场景复现开始做起，从之前的故障堆栈日志来看， 对于由哪个Map数据存在并发访问是比较明显的， 所以准备从代码梳理开始做起，查看哪些地方有涉及到这个Map数据的读、写操作， 然后针对这几处访问点构造并发访问场景。 一开始 review 代码的时候，发现这代码有点奇怪。 这些代码都是我几个月前写的，当时是把所有代码中的静态检查告警都搞定了才上线的， 然而今天却又看到了一堆的告警。 一开始是几个fmt.Printf的告警，顺手改掉了， 然后看到一个让我虎躯一震的静态检查告警：
+XXX passes lock by value 仔细检查代码，发现在那个地方，有个结构体参数传值， 结构体中有一个sync.RWMutex字段， 其他地方也有涉及到这个结构体的参数传递，但传的是结构体指针， 那个地方当时眼睛瘸了，没注意到是值传递， 因为不是指针传值，所以和其他地方比它其实是在对不同的sync.RWMutex执行操作， 引起Map并发访问问题也就不奇怪了。
+关于XXX passes lock by value问题， Detect locks passed by value in Go  这篇文章有很生动的介绍，其中有段示例代码演示了代码中如何引入这个问题并导致程序死锁的：</description>
+    </item>
+    
+    <item>
       <title>cron 僵尸进程问题分析</title>
       <link>https://coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/</link>
       <pubDate>Sat, 14 Apr 2018 21:57:46 +0800</pubDate>
