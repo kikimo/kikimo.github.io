@@ -211,5 +211,16 @@ crash&amp;gt; bt PID: 0 TASK: ffff8820d3ad8fd0 CPU: x COMMAND: &amp;#34;swapper/
 1114 SYSCALL_DEFINE4(ptrace, long, request, long, pid, unsigned long, addr, 1115 unsigned long, data) 1116 { 1117 struct task_struct *child; 1118 long ret; ... 1149 ret = arch_ptrace(child, request, addr, data); 1150 if (ret || request != PTRACE_DETACH) 1151 ptrace_unfreeze_traced(child); 1152 1153 out_put_task_struct: 1154 put_task_struct(child); 1155 out: 1156 return ret; 1157 } ptrace() 函数的一些操作是平台相关的， 这些平台相关的操作被放置到 arch_ptrace() 函数中， 对于不同的 CPU，arch_ptrace() 函数有不一样的实现。 我们要分析的单步执行功能就是一个平台相关的操作， 所以接下来要去看 x86 平台上 arch_ptrace() 函数的实现。 x86 的 arch_ptrace() 函数在文件 arch/x86/kernel/ptrace.</description>
     </item>
     
+    <item>
+      <title>利用 ptrace 设置硬件断点</title>
+      <link>https://coderatwork.cn/posts/2017-08-15-setting-hardware-breakpoint-using-ptrace/</link>
+      <pubDate>Tue, 15 Aug 2017 21:57:46 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/2017-08-15-setting-hardware-breakpoint-using-ptrace/</guid>
+      <description>x86 CPU 为断点调试提供了硬件上的支持。 x86 CPU 上设有专门的调试寄存器， 通过设置这些寄存器， 可以为进程设置代码执行断点和内存读写断点， 这些断点统称为硬件断点。 Linux 上的 ptrace() 系统调用可以用来设置 x86 CPU 上的这些调试寄存器， 所以我们可以利用 ptrace 来给进程设置硬件断点。 这篇文章将介绍如何利用 ptrace() 来设置硬件断点。
+1. 硬件断点 x86 CPU 上的共有8个调试寄存器: DR0 - DR7。 其中 DR0 - DR3 为地址寄存器， 这四个寄存器是用来存放断点地址的， 只有四个断点地址寄存器意味着最多可以同时设置四个硬件断点。 DR4 和 DR5 是保留寄存器，并不使用。 DR6 是状态寄存器，设置硬件断点的过程中并没有用到该寄存器，这里不做更多介绍。 DR7 是控制寄存器，这个寄存是上有一系列的标志位。 通过设置 DR7 寄存器上的标志位可以设定某个断点的类型(读写断点或者执行断点)，断点是否有效等。 我们来看下 DR7 寄存器中各个标志位具体的含义：
+0 - 7 标志位控制 DR0 - DR3 寄存器指定的断点是否处于激活状态。 G 和 L 域分别代表 global 和 local 范围。 Gray Hat Python[1]中说用户态的调试中设定 G 和 L 位没有区别。 看了下 wiki 上的介绍：</description>
+    </item>
+    
   </channel>
 </rss>
