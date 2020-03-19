@@ -201,5 +201,15 @@ crash&amp;gt; bt PID: 0 TASK: ffff8820d3ad8fd0 CPU: x COMMAND: &amp;#34;swapper/
 根据 lsof 的输出，大致可以断定 2586 和 18826 这两个进程把标准输出和错误输入都重定向到管道 6 写的一端了。 经过检查发现 2586 进程执行的 sleep.</description>
     </item>
     
+    <item>
+      <title>ptrace 如何实现单步跟进</title>
+      <link>https://coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/</link>
+      <pubDate>Mon, 18 Sep 2017 21:57:46 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/</guid>
+      <description>1. ptrace() 单步跟进（PTRACE_SINGLESTEP）源码分析 ptrace() 是一个重要的 Linux 系统调用，它的代码在 kernel/ptrace.c 文件中。 ptrace() 可以实现诸如暂停进程、观察进程内存数据、进程指令单步执行等功能， 它可以用来实现调试器，例如 gdb 调试器便是基于 ptrace() 实现的。 以 Linux 4.10.17 版本的代码为例，我们来分析 ptrace() 函数单步跟进功能的实现。 ptrace() 函数的定义如下：
+1114 SYSCALL_DEFINE4(ptrace, long, request, long, pid, unsigned long, addr, 1115 unsigned long, data) 1116 { 1117 struct task_struct *child; 1118 long ret; ... 1149 ret = arch_ptrace(child, request, addr, data); 1150 if (ret || request != PTRACE_DETACH) 1151 ptrace_unfreeze_traced(child); 1152 1153 out_put_task_struct: 1154 put_task_struct(child); 1155 out: 1156 return ret; 1157 } ptrace() 函数的一些操作是平台相关的， 这些平台相关的操作被放置到 arch_ptrace() 函数中， 对于不同的 CPU，arch_ptrace() 函数有不一样的实现。 我们要分析的单步执行功能就是一个平台相关的操作， 所以接下来要去看 x86 平台上 arch_ptrace() 函数的实现。 x86 的 arch_ptrace() 函数在文件 arch/x86/kernel/ptrace.</description>
+    </item>
+    
   </channel>
 </rss>

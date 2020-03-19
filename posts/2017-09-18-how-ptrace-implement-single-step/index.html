@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>ptrace 如何实现单步跟进 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>ptrace 如何实现单步跟进</h1>
+    <time datetime="2017-09-18T21:57:46&#43;08:00">September 18, 2017</time>
+  </header>
+  <h3 id="1-ptrace-单步跟进ptrace_singlestep源码分析">1. <code>ptrace()</code> 单步跟进（PTRACE_SINGLESTEP）源码分析</h3>
+<p><code>ptrace()</code> 是一个重要的 Linux 系统调用，它的代码在 kernel/ptrace.c 文件中。
+<code>ptrace()</code> 可以实现诸如暂停进程、观察进程内存数据、进程指令单步执行等功能，
+它可以用来实现调试器，例如 gdb 调试器便是基于 <code>ptrace()</code> 实现的。
+以 Linux 4.10.17 版本的代码为例，我们来分析 <code>ptrace()</code> 函数单步跟进功能的实现。
+<code>ptrace()</code> 函数的定义如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">1114</span> <span style="color:#a6e22e">SYSCALL_DEFINE4</span>(ptrace, <span style="color:#66d9ef">long</span>, request, <span style="color:#66d9ef">long</span>, pid, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span>, addr,
+<span style="color:#ae81ff">1115</span>                 <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span>, data)
+<span style="color:#ae81ff">1116</span> {
+<span style="color:#ae81ff">1117</span>         <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child;
+<span style="color:#ae81ff">1118</span>         <span style="color:#66d9ef">long</span> ret;
+...
+<span style="color:#ae81ff">1149</span>         ret <span style="color:#f92672">=</span> arch_ptrace(child, request, addr, data);
+<span style="color:#ae81ff">1150</span>         <span style="color:#66d9ef">if</span> (ret <span style="color:#f92672">|</span><span style="color:#f92672">|</span> request <span style="color:#f92672">!</span><span style="color:#f92672">=</span> PTRACE_DETACH)
+<span style="color:#ae81ff">1151</span>                 ptrace_unfreeze_traced(child);
+<span style="color:#ae81ff">1152</span> 
+<span style="color:#ae81ff">1153</span>  out_put_task_struct:
+<span style="color:#ae81ff">1154</span>         put_task_struct(child);
+<span style="color:#ae81ff">1155</span>  out:
+<span style="color:#ae81ff">1156</span>         <span style="color:#66d9ef">return</span> ret;
+<span style="color:#ae81ff">1157</span> }
+</code></pre></div><p><code>ptrace()</code> 函数的一些操作是平台相关的，
+这些平台相关的操作被放置到 <code>arch_ptrace()</code> 函数中，
+对于不同的 CPU，<code>arch_ptrace()</code> 函数有不一样的实现。
+我们要分析的单步执行功能就是一个平台相关的操作，
+所以接下来要去看 x86 平台上 <code>arch_ptrace()</code> 函数的实现。
+x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">766</span> <span style="color:#66d9ef">long</span> <span style="color:#a6e22e">arch_ptrace</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">long</span> request,
+ <span style="color:#ae81ff">767</span>                  <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> addr, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> data)
+ <span style="color:#ae81ff">768</span> {
+ <span style="color:#ae81ff">769</span>         <span style="color:#66d9ef">int</span> ret;
+ <span style="color:#ae81ff">770</span>         <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> __user <span style="color:#f92672">*</span>datap <span style="color:#f92672">=</span> (<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> __user <span style="color:#f92672">*</span>)data;
+ <span style="color:#ae81ff">771</span> 
+...
+ <span style="color:#ae81ff">875</span>         <span style="color:#66d9ef">default</span><span style="color:#f92672">:</span>
+ <span style="color:#ae81ff">876</span>                 ret <span style="color:#f92672">=</span> ptrace_request(child, request, addr, data);
+ <span style="color:#ae81ff">877</span>                 <span style="color:#66d9ef">break</span>;
+ <span style="color:#ae81ff">878</span>         }
+ <span style="color:#ae81ff">879</span> 
+ <span style="color:#ae81ff">880</span>         <span style="color:#66d9ef">return</span> ret;
+ <span style="color:#ae81ff">881</span> }
+</code></pre></div><p>这个文件中大部分代码和我们要分析单步跟进功能没关系，
+第 876 行对<code>ptrace_request()</code> 函数的调用才是我们要关注的，
+<code>ptrace_request()</code> 函数这文件 kernel/ptrace.c 中：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">876</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">ptrace_request</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">long</span> request,
+ <span style="color:#ae81ff">877</span>                    <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> addr, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> data)
+ <span style="color:#ae81ff">878</span> {
+ <span style="color:#ae81ff">879</span>         <span style="color:#66d9ef">bool</span> seized <span style="color:#f92672">=</span> child<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>ptrace <span style="color:#f92672">&amp;</span> PT_SEIZED;
+ <span style="color:#ae81ff">880</span>         <span style="color:#66d9ef">int</span> ret <span style="color:#f92672">=</span> <span style="color:#f92672">-</span>EIO;
+ <span style="color:#ae81ff">881</span>         siginfo_t siginfo, <span style="color:#f92672">*</span>si;
+ <span style="color:#ae81ff">882</span>         <span style="color:#66d9ef">void</span> __user <span style="color:#f92672">*</span>datavp <span style="color:#f92672">=</span> (<span style="color:#66d9ef">void</span> __user <span style="color:#f92672">*</span>) data;
+ <span style="color:#ae81ff">883</span>         <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> __user <span style="color:#f92672">*</span>datalp <span style="color:#f92672">=</span> datavp;
+ <span style="color:#ae81ff">884</span>         <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> flags;
+...
+<span style="color:#ae81ff">1045</span> <span style="color:#960050;background-color:#1e0010">#</span>ifdef PTRACE_SINGLESTEP
+<span style="color:#ae81ff">1046</span>         <span style="color:#66d9ef">case</span> PTRACE_SINGLESTEP:
+<span style="color:#ae81ff">1047</span> <span style="color:#960050;background-color:#1e0010">#</span>endif
+<span style="color:#ae81ff">1048</span> <span style="color:#960050;background-color:#1e0010">#</span>ifdef PTRACE_SINGLEBLOCK
+<span style="color:#ae81ff">1049</span>         <span style="color:#66d9ef">case</span> PTRACE_SINGLEBLOCK:
+<span style="color:#ae81ff">1050</span> <span style="color:#960050;background-color:#1e0010">#</span>endif
+<span style="color:#ae81ff">1051</span> <span style="color:#960050;background-color:#1e0010">#</span>ifdef PTRACE_SYSEMU
+<span style="color:#ae81ff">1052</span>         <span style="color:#66d9ef">case</span> PTRACE_SYSEMU:
+<span style="color:#ae81ff">1053</span>         <span style="color:#66d9ef">case</span> PTRACE_SYSEMU_SINGLESTEP:
+<span style="color:#ae81ff">1054</span> <span style="color:#960050;background-color:#1e0010">#</span>endif
+<span style="color:#ae81ff">1055</span>         <span style="color:#66d9ef">case</span> PTRACE_SYSCALL:
+<span style="color:#ae81ff">1056</span>         <span style="color:#66d9ef">case</span> PTRACE_CONT:
+<span style="color:#ae81ff">1057</span>                 <span style="color:#66d9ef">return</span> ptrace_resume(child, request, data);
+...
+<span style="color:#ae81ff">1088</span>         <span style="color:#66d9ef">default</span><span style="color:#f92672">:</span>
+<span style="color:#ae81ff">1089</span>                 <span style="color:#66d9ef">break</span>;
+<span style="color:#ae81ff">1090</span>         }
+<span style="color:#ae81ff">1091</span> 
+<span style="color:#ae81ff">1092</span>         <span style="color:#66d9ef">return</span> ret;
+<span style="color:#ae81ff">1093</span> }
+</code></pre></div><p>我们可以看到, 单步跟进请求会触发 <code>ptrace_resume()</code> 函数的执行，
+跳过去看同一文件下的 <code>ptrace_resume()</code> 函数：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">773</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">ptrace_resume</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">long</span> request,
+ <span style="color:#ae81ff">774</span>                          <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> data)
+ <span style="color:#ae81ff">775</span> {
+ <span style="color:#ae81ff">776</span>         <span style="color:#66d9ef">bool</span> need_siglock;
+ <span style="color:#ae81ff">777</span> 
+ <span style="color:#ae81ff">778</span>         <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>valid_signal(data))
+ <span style="color:#ae81ff">779</span>                 <span style="color:#66d9ef">return</span> <span style="color:#f92672">-</span>EIO;
+ <span style="color:#ae81ff">780</span> 
+ <span style="color:#ae81ff">781</span>         <span style="color:#66d9ef">if</span> (request <span style="color:#f92672">=</span><span style="color:#f92672">=</span> PTRACE_SYSCALL)
+ <span style="color:#ae81ff">782</span>                 set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+ <span style="color:#ae81ff">783</span>         <span style="color:#66d9ef">else</span>
+ <span style="color:#ae81ff">784</span>                 clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+ <span style="color:#ae81ff">785</span> 
+ <span style="color:#ae81ff">786</span> <span style="color:#960050;background-color:#1e0010">#</span>ifdef TIF_SYSCALL_EMU
+ <span style="color:#ae81ff">787</span>         <span style="color:#66d9ef">if</span> (request <span style="color:#f92672">=</span><span style="color:#f92672">=</span> PTRACE_SYSEMU <span style="color:#f92672">|</span><span style="color:#f92672">|</span> request <span style="color:#f92672">=</span><span style="color:#f92672">=</span> PTRACE_SYSEMU_SINGLESTEP)
+ <span style="color:#ae81ff">788</span>                 set_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+ <span style="color:#ae81ff">789</span>         <span style="color:#66d9ef">else</span>
+ <span style="color:#ae81ff">790</span>                 clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+ <span style="color:#ae81ff">791</span> <span style="color:#960050;background-color:#1e0010">#</span>endif
+ <span style="color:#ae81ff">792</span> 
+ <span style="color:#ae81ff">793</span>         <span style="color:#66d9ef">if</span> (is_singleblock(request)) {
+ <span style="color:#ae81ff">794</span>                 <span style="color:#66d9ef">if</span> (unlikely(<span style="color:#f92672">!</span>arch_has_block_step()))
+ <span style="color:#ae81ff">795</span>                         <span style="color:#66d9ef">return</span> <span style="color:#f92672">-</span>EIO;
+ <span style="color:#ae81ff">796</span>                 user_enable_block_step(child);
+ <span style="color:#ae81ff">797</span>         } <span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span> (is_singlestep(request) <span style="color:#f92672">|</span><span style="color:#f92672">|</span> is_sysemu_singlestep(request)) {
+ <span style="color:#ae81ff">798</span>                 <span style="color:#66d9ef">if</span> (unlikely(<span style="color:#f92672">!</span>arch_has_single_step()))
+ <span style="color:#ae81ff">799</span>                         <span style="color:#66d9ef">return</span> <span style="color:#f92672">-</span>EIO;
+ <span style="color:#ae81ff">800</span>                 user_enable_single_step(child);
+ <span style="color:#ae81ff">801</span>         } <span style="color:#66d9ef">else</span> {
+ <span style="color:#ae81ff">802</span>                 user_disable_single_step(child);
+ <span style="color:#ae81ff">803</span>         }
+ ...
+ <span style="color:#ae81ff">826</span>         <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+ <span style="color:#ae81ff">827</span> }
+</code></pre></div><p><code>is_singlestep()</code> 看起来像是用来判断是否为单步执行的测试，
+来看 kernel/ptrace.c 中的宏定义 <code>is_singlestep()</code>：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"> <span style="color:#ae81ff">755</span> <span style="color:#960050;background-color:#1e0010">#</span>ifdef PTRACE_SINGLESTEP
+ <span style="color:#ae81ff">756</span> <span style="color:#960050;background-color:#1e0010">#</span>define is_singlestep(request)          ((request) <span style="color:#f92672">=</span><span style="color:#f92672">=</span> PTRACE_SINGLESTEP)
+ <span style="color:#ae81ff">757</span> <span style="color:#960050;background-color:#1e0010">#</span><span style="color:#66d9ef">else</span>
+ <span style="color:#ae81ff">758</span> <span style="color:#960050;background-color:#1e0010">#</span>define is_singlestep(request)          <span style="color:#ae81ff">0</span>
+ <span style="color:#ae81ff">759</span> <span style="color:#960050;background-color:#1e0010">#</span>endif
+</code></pre></div><p><code>is_singlestep()</code> 用来判断是不是 <code>PTRACE_SINGLESTEP</code> 请求，
+如果是则进入 ./arch/x86/kernel/step.c 文件下的 <code>user_enable_single_step()</code> 函数中：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">211</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">user_enable_single_step</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child)
+<span style="color:#ae81ff">212</span> {
+<span style="color:#ae81ff">213</span>         enable_step(child, <span style="color:#ae81ff">0</span>);
+<span style="color:#ae81ff">214</span> }
+</code></pre></div><p><code>enable_step()</code> 函数：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">193</span> <span style="color:#75715e">/*
+</span><span style="color:#75715e">194  * Enable single or block step.
+</span><span style="color:#75715e">195  */</span>
+<span style="color:#ae81ff">196</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> enable_step(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">bool</span> block)
+<span style="color:#ae81ff">197</span> {
+<span style="color:#ae81ff">198</span>         <span style="color:#75715e">/*
+</span><span style="color:#75715e">199          * Make sure block stepping (BTF) is not enabled unless it should be.
+</span><span style="color:#75715e">200          * Note that we don&#39;t try to worry about any is_setting_trap_flag()
+</span><span style="color:#75715e">201          * instructions after the first when using block stepping.
+</span><span style="color:#75715e">202          * So no one should try to use debugger block stepping in a program
+</span><span style="color:#75715e">203          * that uses user-mode single stepping itself.
+</span><span style="color:#75715e">204          */</span>
+<span style="color:#ae81ff">205</span>         <span style="color:#66d9ef">if</span> (enable_single_step(child) <span style="color:#f92672">&amp;</span><span style="color:#f92672">&amp;</span> block)
+<span style="color:#ae81ff">206</span>                 set_task_blockstep(child, true);
+<span style="color:#ae81ff">207</span>         <span style="color:#66d9ef">else</span> <span style="color:#a6e22e">if</span> (test_tsk_thread_flag(child, TIF_BLOCKSTEP))
+<span style="color:#ae81ff">208</span>                 set_task_blockstep(child, false);
+<span style="color:#ae81ff">209</span> }
+</code></pre></div><p><code>enable_single_step()</code> 函数:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">109</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">enable_single_step</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child)
+<span style="color:#ae81ff">110</span> {
+<span style="color:#ae81ff">111</span>         <span style="color:#66d9ef">struct</span> pt_regs <span style="color:#f92672">*</span>regs <span style="color:#f92672">=</span> task_pt_regs(child);
+<span style="color:#ae81ff">112</span>         <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> oflags;
+<span style="color:#ae81ff">113</span> 
+<span style="color:#ae81ff">114</span>         <span style="color:#75715e">/*
+</span><span style="color:#75715e">115          * If we stepped into a sysenter/syscall insn, it trapped in
+</span><span style="color:#75715e">116          * kernel mode; do_debug() cleared TF and set TIF_SINGLESTEP.
+</span><span style="color:#75715e">117          * If user-mode had set TF itself, then it&#39;s still clear from
+</span><span style="color:#75715e">118          * do_debug() and we need to set it again to restore the user
+</span><span style="color:#75715e">119          * state so we don&#39;t wrongly set TIF_FORCED_TF below.
+</span><span style="color:#75715e">120          * If enable_single_step() was used last and that is what
+</span><span style="color:#75715e">121          * set TIF_SINGLESTEP, then both TF and TIF_FORCED_TF are
+</span><span style="color:#75715e">122          * already set and our bookkeeping is fine.
+</span><span style="color:#75715e">123          */</span>
+<span style="color:#ae81ff">124</span>         <span style="color:#66d9ef">if</span> (unlikely(test_tsk_thread_flag(child, TIF_SINGLESTEP)))
+<span style="color:#ae81ff">125</span>                 regs<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>flags <span style="color:#f92672">|</span><span style="color:#f92672">=</span> X86_EFLAGS_TF;
+<span style="color:#ae81ff">126</span> 
+<span style="color:#ae81ff">127</span>         <span style="color:#75715e">/*
+</span><span style="color:#75715e">128          * Always set TIF_SINGLESTEP - this guarantees that
+</span><span style="color:#75715e">129          * we single-step system calls etc..  This will also
+</span><span style="color:#75715e">130          * cause us to set TF when returning to user mode.
+</span><span style="color:#75715e">131          */</span>
+<span style="color:#ae81ff">132</span>         set_tsk_thread_flag(child, TIF_SINGLESTEP);
+<span style="color:#ae81ff">133</span> 
+<span style="color:#ae81ff">134</span>         oflags <span style="color:#f92672">=</span> regs<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>flags;
+<span style="color:#ae81ff">135</span> 
+<span style="color:#ae81ff">136</span>         <span style="color:#75715e">/* Set TF on the kernel stack.. */</span>
+<span style="color:#ae81ff">137</span>         regs<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>flags <span style="color:#f92672">|</span><span style="color:#f92672">=</span> X86_EFLAGS_TF;
+<span style="color:#ae81ff">138</span> 
+<span style="color:#ae81ff">139</span>         <span style="color:#75715e">/*
+</span><span style="color:#75715e">140          * ..but if TF is changed by the instruction we will trace,
+</span><span style="color:#75715e">141          * don&#39;t mark it as being &#34;us&#34; that set it, so that we
+</span><span style="color:#75715e">142          * won&#39;t clear it by hand later.
+</span><span style="color:#75715e">143          *
+</span><span style="color:#75715e">144          * Note that if we don&#39;t actually execute the popf because
+</span><span style="color:#75715e">145          * of a signal arriving right now or suchlike, we will lose
+</span><span style="color:#75715e">146          * track of the fact that it really was &#34;us&#34; that set it.
+</span><span style="color:#75715e">147          */</span>
+<span style="color:#ae81ff">148</span>         <span style="color:#66d9ef">if</span> (is_setting_trap_flag(child, regs)) {
+<span style="color:#ae81ff">149</span>                 clear_tsk_thread_flag(child, TIF_FORCED_TF);
+<span style="color:#ae81ff">150</span>                 <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+<span style="color:#ae81ff">151</span>         }
+<span style="color:#ae81ff">152</span> 
+<span style="color:#ae81ff">153</span>         <span style="color:#75715e">/*
+</span><span style="color:#75715e">154          * If TF was already set, check whether it was us who set it.
+</span><span style="color:#75715e">155          * If not, we should never attempt a block step.
+</span><span style="color:#75715e">156          */</span>
+<span style="color:#ae81ff">157</span>         <span style="color:#66d9ef">if</span> (oflags <span style="color:#f92672">&amp;</span> X86_EFLAGS_TF)
+<span style="color:#ae81ff">158</span>                 <span style="color:#66d9ef">return</span> test_tsk_thread_flag(child, TIF_FORCED_TF);
+<span style="color:#ae81ff">159</span> 
+<span style="color:#ae81ff">160</span>         set_tsk_thread_flag(child, TIF_FORCED_TF);
+<span style="color:#ae81ff">161</span> 
+<span style="color:#ae81ff">162</span>         <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">1</span>;
+<span style="color:#ae81ff">163</span> }
+</code></pre></div><p>这个函数最重要的操作就是设置 <code>X86_EFLAGS_TF</code> 标志位，也就是 x86 的 Trap 标志位。
+对于 x86 CPU，Trap 标志为将使 CPU 进入单步调试模式。
+到这里，我们已经能明白 <code>ptrace()</code> 单步执行的实现原理了。
+<code>ptrace()</code> 在单步执行结束后会回复原来的 Trap 标志位，
+具体操作是在 ./arch/x86/kernel/step.c 中的 <code>handle_signal()</code> 函数中：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#ae81ff">701</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span>
+<span style="color:#ae81ff">702</span> <span style="color:#a6e22e">handle_signal</span>(<span style="color:#66d9ef">struct</span> ksignal <span style="color:#f92672">*</span>ksig, <span style="color:#66d9ef">struct</span> pt_regs <span style="color:#f92672">*</span>regs)
+<span style="color:#ae81ff">703</span> {
+<span style="color:#ae81ff">704</span>         <span style="color:#66d9ef">bool</span> stepping, failed;
+<span style="color:#ae81ff">705</span>         <span style="color:#66d9ef">struct</span> fpu <span style="color:#f92672">*</span>fpu <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>current<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span><span style="color:#66d9ef">thread</span>.fpu;
+...
+<span style="color:#ae81ff">732</span>         <span style="color:#75715e">/*
+</span><span style="color:#75715e">733          * If TF is set due to a debugger (TIF_FORCED_TF), clear TF now
+</span><span style="color:#75715e">734          * so that register information in the sigcontext is correct and
+</span><span style="color:#75715e">735          * then notify the tracer before entering the signal handler.
+</span><span style="color:#75715e">736          */</span>
+<span style="color:#ae81ff">737</span>         stepping <span style="color:#f92672">=</span> test_thread_flag(TIF_SINGLESTEP);
+<span style="color:#ae81ff">738</span>         <span style="color:#66d9ef">if</span> (stepping)
+<span style="color:#ae81ff">739</span>                 user_disable_single_step(current);
+<span style="color:#ae81ff">740</span> 
+<span style="color:#ae81ff">741</span>         failed <span style="color:#f92672">=</span> (setup_rt_frame(ksig, regs) <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">0</span>);
+<span style="color:#ae81ff">742</span>         <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>failed) {
+<span style="color:#ae81ff">743</span>                 <span style="color:#75715e">/*
+</span><span style="color:#75715e">744                  * Clear the direction flag as per the ABI for function entry.
+</span><span style="color:#75715e">745                  *
+</span><span style="color:#75715e">746                  * Clear RF when entering the signal handler, because
+</span><span style="color:#75715e">747                  * it might disable possible debug exception from the
+</span><span style="color:#75715e">748                  * signal handler.
+</span><span style="color:#75715e">749                  *
+</span><span style="color:#75715e">750                  * Clear TF for the case when it wasn&#39;t set by debugger to
+</span><span style="color:#75715e">751                  * avoid the recursive send_sigtrap() in SIGTRAP handler.
+</span><span style="color:#75715e">752                  */</span>
+<span style="color:#ae81ff">753</span>                 regs<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>flags <span style="color:#f92672">&amp;</span><span style="color:#f92672">=</span> <span style="color:#f92672">~</span>(X86_EFLAGS_DF<span style="color:#f92672">|</span>X86_EFLAGS_RF<span style="color:#f92672">|</span>X86_EFLAGS_TF);
+<span style="color:#ae81ff">754</span>                 <span style="color:#75715e">/*
+</span><span style="color:#75715e">755                  * Ensure the signal handler starts with the new fpu state.
+</span><span style="color:#75715e">756                  */</span>
+<span style="color:#ae81ff">757</span>                 <span style="color:#66d9ef">if</span> (fpu<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>fpstate_active)
+<span style="color:#ae81ff">758</span>                         fpu__clear(fpu);
+<span style="color:#ae81ff">759</span>         }
+<span style="color:#ae81ff">760</span>         signal_setup_done(failed, ksig, stepping);
+<span style="color:#ae81ff">761</span> }
+</code></pre></div><p>这个函数调用 <code>user_disable_single_step()</code> 将 TF 标志为清零。</p>
+<h3 id="2-判断程序是否执行了-ptrace-单步跟进">2. 判断程序是否执行了 ptrace 单步跟进</h3>
+<p>我们知道 x86 的 <code>int3</code> 指令可以用来实现软中断，
+如何区分 <code>int3</code> 和 <code>ptrace()</code> 产生的程序中断？
+一开始我以来可以通过 TF 标志位去判断，
+单后面发现 <code>ptrace()</code> 的单步跟进执行完后 TF 标志为都已经被清零的，
+这应该是系统调用结束前调用 <code>handle_signal()</code> 清除掉的。
+通过 TF 标志为判断的方法行不通，后来在翻内核代码的过程中发现
+./arch/x86/include/uapi/asm/debugreg.h 文件中有一个 <code>DR_STEP</code> 宏定义:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"> <span style="color:#ae81ff">20</span> <span style="color:#960050;background-color:#1e0010">#</span>define DR_TRAP0        (<span style="color:#ae81ff">0x1</span>)           <span style="color:#75715e">/* db0 */</span>
+ <span style="color:#ae81ff">21</span> <span style="color:#960050;background-color:#1e0010">#</span>define DR_TRAP1        (<span style="color:#ae81ff">0x2</span>)           <span style="color:#75715e">/* db1 */</span>
+ <span style="color:#ae81ff">22</span> <span style="color:#960050;background-color:#1e0010">#</span>define DR_TRAP2        (<span style="color:#ae81ff">0x4</span>)           <span style="color:#75715e">/* db2 */</span>
+ <span style="color:#ae81ff">23</span> <span style="color:#960050;background-color:#1e0010">#</span>define DR_TRAP3        (<span style="color:#ae81ff">0x8</span>)           <span style="color:#75715e">/* db3 */</span>
+ <span style="color:#ae81ff">24</span> <span style="color:#960050;background-color:#1e0010">#</span>define DR_TRAP_BITS    (DR_TRAP0<span style="color:#f92672">|</span>DR_TRAP1<span style="color:#f92672">|</span>DR_TRAP2<span style="color:#f92672">|</span>DR_TRAP3)
+ <span style="color:#ae81ff">25</span> 
+ <span style="color:#ae81ff">26</span> <span style="color:#960050;background-color:#1e0010">#</span>define DR_STEP         (<span style="color:#ae81ff">0x4000</span>)        <span style="color:#75715e">/* single-step */</span>
+</code></pre></div><p>看着 <code>DR_STEP</code> 宏周围的代码和注释，很像是 x86 的调试寄存器相关的。
+<code>DR_STEP</code> 的注释 &ldquo;single-step&rdquo; 似乎表明这个宏和 <code>ptrace()</code>单步执行有关。
+之前倒是没注意到 x86 的调试寄存器和指令单步执行可能有关，
+继续搜了 kernel 代码中对 <code>DR_STEP</code> 的引用：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">C symbol: DR_STEP
+
+  File            Function              Line
+<span style="color:#ae81ff">0</span> debugreg.h      &lt;global&gt;               <span style="color:#ae81ff">26</span> <span style="color:#75715e">#define DR_STEP (0x4000)</span>
+<span style="color:#ae81ff">1</span> traps.h         get_si_code            <span style="color:#ae81ff">99</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span>condition &amp; DR_STEP<span style="color:#f92672">)</span>
+<span style="color:#ae81ff">2</span> hw_breakpoint.c hw_breakpoint_handler <span style="color:#ae81ff">457</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span>dr6 &amp; DR_STEP<span style="color:#f92672">)</span>
+<span style="color:#ae81ff">3</span> kgdb.c          single_step_cont      <span style="color:#ae81ff">510</span> <span style="color:#f92672">(</span>*<span style="color:#f92672">(</span>unsigned long *<span style="color:#f92672">)</span>ERR_PTR<span style="color:#f92672">(</span>args-&gt;err<span style="color:#f92672">)</span><span style="color:#f92672">)</span> &amp;<span style="color:#f92672">=</span> ~DR_STEP;
+<span style="color:#ae81ff">4</span> traps.c         do_debug              <span style="color:#ae81ff">623</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span><span style="color:#f92672">(</span>dr6 &amp; DR_STEP<span style="color:#f92672">)</span> <span style="color:#f92672">&amp;&amp;</span> kmemcheck_trap<span style="color:#f92672">(</span>regs<span style="color:#f92672">)</span><span style="color:#f92672">)</span>
+<span style="color:#ae81ff">5</span> traps.c         do_debug              <span style="color:#ae81ff">670</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span><span style="color:#f92672">(</span>dr6 &amp; DR_STEP<span style="color:#f92672">)</span> <span style="color:#f92672">&amp;&amp;</span> !user_mode<span style="color:#f92672">(</span>regs<span style="color:#f92672">)</span><span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+<span style="color:#ae81ff">6</span> traps.c         do_debug              <span style="color:#ae81ff">671</span> tsk-&gt;thread.debugreg6 &amp;<span style="color:#f92672">=</span> ~DR_STEP;
+<span style="color:#ae81ff">7</span> traps.c         do_debug              <span style="color:#ae81ff">676</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span>tsk-&gt;thread.debugreg6 &amp; <span style="color:#f92672">(</span>DR_STEP | DR_TRAP_BITS<span style="color:#f92672">)</span> <span style="color:#f92672">||</span> user_icebp<span style="color:#f92672">)</span>
+<span style="color:#ae81ff">8</span> kmmio.c         kmmio_die_notifier    <span style="color:#ae81ff">583</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span>val <span style="color:#f92672">=</span><span style="color:#f92672">=</span> DIE_DEBUG <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">(</span>*dr6_p &amp; DR_STEP<span style="color:#f92672">)</span><span style="color:#f92672">)</span>
+<span style="color:#ae81ff">9</span> kmmio.c         kmmio_die_notifier    <span style="color:#ae81ff">589</span> *dr6_p &amp;<span style="color:#f92672">=</span> ~DR_STEP;
+</code></pre></div><p>从输出结果上看，
+&ldquo;4 traps.c         do_debug              623 if ((dr6 &amp; DR_STEP) &amp;&amp; kmemcheck_trap(regs))&rdquo; 显示
+<code>DR_STEP</code> 应该和 dr6 调试寄存器有关。
+在 x86 CPU 中 dr6 是几个调试寄存器中作为状态寄存器使用的，
+<a href="https://en.wikipedia.org/wiki/X86_debug_register">wiki 上关于 dr6 寄存器的描述</a>
+只提到它的标志位和 dr0、dr1、dr2、dr3 寄存器所设置的硬件断点的触发有关。
+但我猜测 dr6 还有更丰富的功能，于是把 <a href="https://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-manual-325462.html">x86 系统编程手册</a>
+翻出来，
+在 <strong>17.2.3 Debug Status Register (DR6)</strong> 这一节中找到了 dr6 寄存器的完整说明，
+其中有一段和单步执行有关的描述：</p>
+<blockquote>
+<p><strong>BS (single step) flag (bit 14)</strong> — Indicates (when set) that the debug exception
+was triggered by the single-step execution mode (enabled with the TF flag in the
+EFLAGS register). The single-step mode is the highest-priority debug exception.
+When the BS flag is set, any of the other debug status bits also may be set.</p>
+</blockquote>
+<p>bit 14 也就是定义 <code>DR_STEP</code> 宏的 0x4000，
+根据文档，那么当程序执行完指令单步跟进后这个标志位会被设置，
+写了段<a href="https://github.com/kikimo/pygdb/blob/master/demos/hw_bp.c">测试代码</a>
+验证了下，果不其然，
+所以，通过 dr6 寄存器就可以直接判断是否利用 <code>ptrace()</code> 执行了指令单步跟进。</p>
+
+</article>
+
+
+
+</html>
