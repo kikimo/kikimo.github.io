@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>CFS bandwidth control 笔记（二） | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>CFS bandwidth control 笔记（二）</h1>
+    <time datetime="2019-01-30T23:36:46&#43;08:00">January 30, 2019</time>
+  </header>
+  <p>在<a href="https://coderatwork.cn/kernel/2018/12/23/notes-on-cfs-bandwidth-control_part_1.html">CFS bandwidth control 笔记（一）</a>中提到一个问题：</p>
+<blockquote>
+<p>两个形成父子关系的调度组， 他们的 CPU 带宽限制具体这么运行？</p>
+</blockquote>
+<p>对于这个问题，<a href="https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt">CFS Bandwidth Control</a>
+中的<code>Hierarchical considerations</code>一节里对进程组的带宽控制有以下描述：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">The interface enforces that an individual entity&#39;s bandwidth is always
+attainable, that is: max(c_i) &lt;= C. However, over-subscription in the
+aggregate case is explicitly allowed to enable work-conserving semantics
+within a hierarchy.
+  e.g. \Sum (c_i) may exceed C
+[ Where C is the parent&#39;s bandwidth, and c_i its children ]
+
+
+There are two ways in which a group may become throttled:
+	a. it fully consumes its own quota within a period
+	b. a parent&#39;s quota is fully consumed within its period
+
+In case b) above, even though the child may have runtime remaining it will not
+be allowed to until the parent&#39;s runtime is refreshed.
+</code></pre></div><p>根据如上表述，runq 中子节点的 bandwidth 总是小于父节点。
+接下来还提到 CFS 具体带宽限流的方式，有两种情况，分别是</p>
+<ol>
+<li>调度节点耗尽自己的 CPU 配额</li>
+<li>父节点 CPU 配额耗尽，父节点被限流直接导致子节点也被限流</li>
+</ol>
+<p>第二点已经可以会带我们在开篇里提出的问题了，
+接下来我们通过检查代码来确认这一点。
+CFS 调度器主体代码在<code>kernel/sched/fair.c</code>文件中，
+其中具体的限流函数是 <code>throttle_cfs_rq()</code>，
+从行数里我们可以看到，<code>throttle_cfs_rq()</code>
+通过<code>walk_tg_tree_from()</code>函数遍历整颗子树，
+然后调用<code>tg_throttle_down()</code>函数执行限流，
+这一点符合我们上面总结的 CFS 中<strong>父节点被限流子节点也被限流</strong>的特点。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">3605</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">throttle_cfs_rq</span>(<span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq)
+<span style="color:#ae81ff">3606</span> {
+<span style="color:#ae81ff">3607</span>     <span style="color:#66d9ef">struct</span> rq <span style="color:#f92672">*</span>rq <span style="color:#f92672">=</span> rq_of(cfs_rq);
+<span style="color:#ae81ff">3608</span>     <span style="color:#66d9ef">struct</span> cfs_bandwidth <span style="color:#f92672">*</span>cfs_b <span style="color:#f92672">=</span> tg_cfs_bandwidth(cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>tg);
+<span style="color:#ae81ff">3609</span>     <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>se;
+<span style="color:#ae81ff">3610</span>     <span style="color:#66d9ef">long</span> task_delta, dequeue <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+<span style="color:#ae81ff">3611</span>     <span style="color:#66d9ef">bool</span> empty;
+<span style="color:#ae81ff">3612</span> 
+<span style="color:#ae81ff">3613</span>     se <span style="color:#f92672">=</span> cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>tg<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>se[cpu_of(rq_of(cfs_rq))];
+<span style="color:#ae81ff">3614</span> 
+<span style="color:#ae81ff">3615</span>     <span style="color:#75715e">/* freeze hierarchy runnable averages while throttled */</span>
+<span style="color:#ae81ff">3616</span>     rcu_read_lock();
+<span style="color:#ae81ff">3617</span>     walk_tg_tree_from(cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>tg, tg_throttle_down, tg_nop, (<span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span>)rq);
+<span style="color:#ae81ff">3618</span>     rcu_read_unlock();
+<span style="color:#ae81ff">3619</span> 
+<span style="color:#ae81ff">3620</span>     task_delta <span style="color:#f92672">=</span> cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>h_nr_running;
+<span style="color:#ae81ff">3621</span>     for_each_sched_entity(se) {
+<span style="color:#ae81ff">3622</span>         <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>qcfs_rq <span style="color:#f92672">=</span> cfs_rq_of(se);
+<span style="color:#ae81ff">3623</span>         <span style="color:#75715e">/* throttled entity or throttle-on-deactivate */</span>
+<span style="color:#ae81ff">3624</span>         <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>se<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>on_rq)
+<span style="color:#ae81ff">3625</span>             <span style="color:#66d9ef">break</span>;
+<span style="color:#ae81ff">3626</span> 
+<span style="color:#ae81ff">3627</span>         <span style="color:#66d9ef">if</span> (dequeue)
+<span style="color:#ae81ff">3628</span>             dequeue_entity(qcfs_rq, se, DEQUEUE_SLEEP);
+<span style="color:#ae81ff">3629</span>         qcfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>h_nr_running <span style="color:#f92672">-</span><span style="color:#f92672">=</span> task_delta;
+<span style="color:#ae81ff">3630</span> 
+<span style="color:#ae81ff">3631</span>         <span style="color:#66d9ef">if</span> (qcfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>load.weight)
+<span style="color:#ae81ff">3632</span>             dequeue <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+<span style="color:#ae81ff">3633</span>     }
+<span style="color:#ae81ff">3634</span> 
+<span style="color:#ae81ff">3635</span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>se)
+<span style="color:#ae81ff">3636</span>         sub_nr_running(rq, task_delta);
+<span style="color:#ae81ff">3637</span> 
+<span style="color:#ae81ff">3638</span>     cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>throttled <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+<span style="color:#ae81ff">3639</span>     cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>throttled_clock <span style="color:#f92672">=</span> rq_clock(rq);
+<span style="color:#ae81ff">3640</span>     raw_spin_lock(<span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>lock);
+<span style="color:#ae81ff">3641</span>     empty <span style="color:#f92672">=</span> list_empty(<span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>throttled_cfs_rq);
+<span style="color:#ae81ff">3642</span> 
+<span style="color:#ae81ff">3643</span>     <span style="color:#75715e">/*
+</span><span style="color:#75715e">3644      * Add to the _head_ of the list, so that an already-started
+</span><span style="color:#75715e">3645      * distribute_cfs_runtime will not see us
+</span><span style="color:#75715e">3646      */</span>
+<span style="color:#ae81ff">3647</span>     list_add_rcu(<span style="color:#f92672">&amp;</span>cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>throttled_list, <span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>throttled_cfs_rq);
+<span style="color:#ae81ff">3648</span> 
+<span style="color:#ae81ff">3649</span>     <span style="color:#75715e">/*
+</span><span style="color:#75715e">3650      * If we&#39;re the first throttled task, make sure the bandwidth
+</span><span style="color:#75715e">3651      * timer is running.
+</span><span style="color:#75715e">3652      */</span>
+<span style="color:#ae81ff">3653</span>     <span style="color:#66d9ef">if</span> (empty)
+<span style="color:#ae81ff">3654</span>         start_cfs_bandwidth(cfs_b);
+<span style="color:#ae81ff">3655</span> 
+<span style="color:#ae81ff">3656</span>     raw_spin_unlock(<span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>lock);
+<span style="color:#ae81ff">3657</span> }
+</code></pre></div><p>接下来要搞清楚，CFS 在什么时候、如何判断 task group 需要被限流这个问题。
+为了搞清楚这个问题，从<code>throttle_cfs_rq()</code>的调用函数开始分析，
+我们找到了<code>check_cfs_rq_runtime()</code>这个函数，
+这个函数比较简单，它检测 task group 的带宽是否已经耗尽，
+如果是则调用<code>throttle_cfs_rq()</code>将 task group 限流。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">3974</span> <span style="color:#75715e">/* conditionally throttle active cfs_rq&#39;s from put_prev_entity() */</span>
+<span style="color:#ae81ff">3975</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">bool</span> check_cfs_rq_runtime(<span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq)
+<span style="color:#ae81ff">3976</span> {
+<span style="color:#ae81ff">3977</span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cfs_bandwidth_used())
+<span style="color:#ae81ff">3978</span>         <span style="color:#66d9ef">return</span> false;
+<span style="color:#ae81ff">3979</span> 
+<span style="color:#ae81ff">3980</span>     <span style="color:#a6e22e">if</span> (likely(<span style="color:#f92672">!</span>cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>runtime_enabled <span style="color:#f92672">|</span><span style="color:#f92672">|</span> cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>runtime_remaining <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span>))
+<span style="color:#ae81ff">3981</span>         <span style="color:#66d9ef">return</span> false;
+<span style="color:#ae81ff">3982</span> 
+<span style="color:#ae81ff">3983</span>     <span style="color:#75715e">/*
+</span><span style="color:#75715e">3984      * it&#39;s possible for a throttled entity to be forced into a running
+</span><span style="color:#75715e">3985      * state (e.g. set_curr_task), in this case we&#39;re finished.
+</span><span style="color:#75715e">3986      */</span>
+<span style="color:#ae81ff">3987</span>     <span style="color:#66d9ef">if</span> (cfs_rq_throttled(cfs_rq))
+<span style="color:#ae81ff">3988</span>         <span style="color:#66d9ef">return</span> true;
+<span style="color:#ae81ff">3989</span> 
+<span style="color:#ae81ff">3990</span>     <span style="color:#a6e22e">throttle_cfs_rq</span>(cfs_rq);
+<span style="color:#ae81ff">3991</span>     <span style="color:#66d9ef">return</span> true;
+<span style="color:#ae81ff">3992</span> }
+</code></pre></div><p>继续上溯<code>check_cfs_rq_runtime()</code>函数的调用者，
+我们找到<code>pick_next_task_fair()</code>函数，
+这个函数其实是 CFS 调度类<code>fair_sched_class</code>中的<code>pick_next_task</code>字段。
+我们只要关注这个函数中的<code>do {} while</code>循环即可，
+这个循环所的事情其实是一个自顶向下搜索可执行的 task_struct 的过程。
+CFS 中调度队列是一颗红黑树，
+红黑树的节点是<code>struct sched_entity</code>，
+<code>sched_entity</code>中既可以指向<code>struct task_struct</code>
+也可以指向<code>struct cfs_rq</code>（<code>struct cfs_rq</code>可理解为 task group）。
+每搜索到一个 task group 后<code>pick_next_task_fair()</code>
+都会调用<code>update_curr()</code>函数先更新他的 CPU 运行时间等数据，
+这些数据会直接影响后面<code>check_cfs_rq_runtime()</code>函数的限流检测。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">5271</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>
+<span style="color:#ae81ff">5272</span> <span style="color:#a6e22e">pick_next_task_fair</span>(<span style="color:#66d9ef">struct</span> rq <span style="color:#f92672">*</span>rq, <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>prev)
+<span style="color:#ae81ff">5273</span> {
+<span style="color:#ae81ff">5274</span>     <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>cfs;
+<span style="color:#ae81ff">5275</span>     <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>se;
+<span style="color:#ae81ff">5276</span>     <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>p;
+<span style="color:#ae81ff">5277</span>     <span style="color:#66d9ef">int</span> new_tasks;
+<span style="color:#ae81ff">5278</span> 
+<span style="color:#ae81ff">5279</span> again:
+<span style="color:#ae81ff">5280</span> <span style="color:#960050;background-color:#1e0010">#</span>ifdef CONFIG_FAIR_GROUP_SCHED
+<span style="color:#ae81ff">5281</span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>nr_running)
+<span style="color:#ae81ff">5282</span>         <span style="color:#66d9ef">goto</span> idle;
+<span style="color:#ae81ff">5283</span> 
+<span style="color:#ae81ff">5284</span>     <span style="color:#66d9ef">if</span> (prev<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>sched_class <span style="color:#f92672">!</span><span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>fair_sched_class)
+<span style="color:#ae81ff">5285</span>         <span style="color:#66d9ef">goto</span> simple;
+<span style="color:#ae81ff">5286</span> 
+<span style="color:#ae81ff">5287</span>     <span style="color:#75715e">/*
+</span><span style="color:#75715e">5288      * Because of the set_next_buddy() in dequeue_task_fair() it is rather
+</span><span style="color:#75715e">5289      * likely that a next task is from the same cgroup as the current.
+</span><span style="color:#75715e">5290      *
+</span><span style="color:#75715e">5291      * Therefore attempt to avoid putting and setting the entire cgroup
+</span><span style="color:#75715e">5292      * hierarchy, only change the part that actually changes.
+</span><span style="color:#75715e">5293      */</span>
+<span style="color:#ae81ff">5294</span> 
+<span style="color:#ae81ff">5295</span>     <span style="color:#66d9ef">do</span> {
+<span style="color:#ae81ff">5296</span>         <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>curr <span style="color:#f92672">=</span> cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>curr;
+<span style="color:#ae81ff">5297</span> 
+<span style="color:#ae81ff">5298</span>         <span style="color:#75715e">/*
+</span><span style="color:#75715e">5299          * Since we got here without doing put_prev_entity() we also
+</span><span style="color:#75715e">5300          * have to consider cfs_rq-&gt;curr. If it is still a runnable
+</span><span style="color:#75715e">5301          * entity, update_curr() will update its vruntime, otherwise
+</span><span style="color:#75715e">5302          * forget we&#39;ve ever seen it.
+</span><span style="color:#75715e">5303          */</span>
+<span style="color:#ae81ff">5304</span>         <span style="color:#66d9ef">if</span> (curr) {
+<span style="color:#ae81ff">5305</span>             <span style="color:#66d9ef">if</span> (curr<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>on_rq)
+<span style="color:#ae81ff">5306</span>                 update_curr(cfs_rq);
+<span style="color:#ae81ff">5307</span>             <span style="color:#66d9ef">else</span>
+<span style="color:#ae81ff">5308</span>                 curr <span style="color:#f92672">=</span> NULL;
+<span style="color:#ae81ff">5309</span> 
+<span style="color:#ae81ff">5310</span>             <span style="color:#75715e">/*
+</span><span style="color:#75715e">5311              * This call to check_cfs_rq_runtime() will do the
+</span><span style="color:#75715e">5312              * throttle and dequeue its entity in the parent(s).
+</span><span style="color:#75715e">5313              * Therefore the &#39;simple&#39; nr_running test will indeed
+</span><span style="color:#75715e">5314              * be correct.
+</span><span style="color:#75715e">5315              */</span>
+<span style="color:#ae81ff">5316</span>             <span style="color:#66d9ef">if</span> (unlikely(check_cfs_rq_runtime(cfs_rq)))
+<span style="color:#ae81ff">5317</span>                 <span style="color:#66d9ef">goto</span> simple;
+<span style="color:#ae81ff">5318</span>         }
+<span style="color:#ae81ff">5319</span> 
+<span style="color:#ae81ff">5320</span>         se <span style="color:#f92672">=</span> pick_next_entity(cfs_rq, curr);
+<span style="color:#ae81ff">5321</span>         cfs_rq <span style="color:#f92672">=</span> group_cfs_rq(se);
+<span style="color:#ae81ff">5322</span>     } <span style="color:#66d9ef">while</span> (cfs_rq);
+<span style="color:#ae81ff">5323</span> 
+<span style="color:#ae81ff">5324</span>     p <span style="color:#f92672">=</span> task_of(se);
+<span style="color:#ae81ff">5325</span> 
+<span style="color:#ae81ff">5326</span>     <span style="color:#75715e">/*
+</span><span style="color:#75715e">5327      * Since we haven&#39;t yet done put_prev_entity and if the selected task
+</span><span style="color:#75715e">5328      * is a different task than we started out with, try and touch the
+</span><span style="color:#75715e">5329      * least amount of cfs_rqs.
+</span><span style="color:#75715e">5330      */</span>
+<span style="color:#ae81ff">5331</span>     <span style="color:#66d9ef">if</span> (prev <span style="color:#f92672">!</span><span style="color:#f92672">=</span> p) {
+<span style="color:#ae81ff">5332</span>         <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>pse <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>prev<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>se;
+<span style="color:#ae81ff">5333</span> 
+<span style="color:#ae81ff">5334</span>         <span style="color:#66d9ef">while</span> (<span style="color:#f92672">!</span>(cfs_rq <span style="color:#f92672">=</span> is_same_group(se, pse))) {
+<span style="color:#ae81ff">5335</span>             <span style="color:#66d9ef">int</span> se_depth <span style="color:#f92672">=</span> se<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>depth;
+<span style="color:#ae81ff">5336</span>             <span style="color:#66d9ef">int</span> pse_depth <span style="color:#f92672">=</span> pse<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>depth;
+<span style="color:#ae81ff">5337</span> 
+<span style="color:#ae81ff">5338</span>             <span style="color:#66d9ef">if</span> (se_depth <span style="color:#f92672">&lt;</span><span style="color:#f92672">=</span> pse_depth) {
+<span style="color:#ae81ff">5339</span>                 put_prev_entity(cfs_rq_of(pse), pse);
+<span style="color:#ae81ff">5340</span>                 pse <span style="color:#f92672">=</span> parent_entity(pse);
+<span style="color:#ae81ff">5341</span>             }
+<span style="color:#ae81ff">5342</span>             <span style="color:#66d9ef">if</span> (se_depth <span style="color:#f92672">&gt;</span><span style="color:#f92672">=</span> pse_depth) {
+<span style="color:#ae81ff">5343</span>                 set_next_entity(cfs_rq_of(se), se);
+<span style="color:#ae81ff">5344</span>                 se <span style="color:#f92672">=</span> parent_entity(se);
+<span style="color:#ae81ff">5345</span>             }
+<span style="color:#ae81ff">5346</span>         }
+<span style="color:#ae81ff">5347</span> 
+<span style="color:#ae81ff">5348</span>         put_prev_entity(cfs_rq, pse);
+<span style="color:#ae81ff">5349</span>         set_next_entity(cfs_rq, se);
+<span style="color:#ae81ff">5350</span>     }
+<span style="color:#ae81ff">5351</span> 
+<span style="color:#ae81ff">5352</span>     <span style="color:#66d9ef">if</span> (hrtick_enabled(rq))
+<span style="color:#ae81ff">5353</span>         hrtick_start_fair(rq, p);
+<span style="color:#ae81ff">5354</span> 
+<span style="color:#ae81ff">5355</span>     <span style="color:#66d9ef">return</span> p;
+<span style="color:#ae81ff">5356</span> simple:
+<span style="color:#ae81ff">5357</span>     cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>cfs;
+<span style="color:#ae81ff">5358</span> <span style="color:#960050;background-color:#1e0010">#</span>endif
+<span style="color:#ae81ff">5359</span> 
+<span style="color:#ae81ff">5360</span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>nr_running)
+<span style="color:#ae81ff">5361</span>         <span style="color:#66d9ef">goto</span> idle;
+<span style="color:#ae81ff">5362</span> 
+<span style="color:#ae81ff">5363</span>     put_prev_task(rq, prev);
+<span style="color:#ae81ff">5364</span> 
+<span style="color:#ae81ff">5365</span>     <span style="color:#66d9ef">do</span> {
+<span style="color:#ae81ff">5366</span>         se <span style="color:#f92672">=</span> pick_next_entity(cfs_rq, NULL);
+<span style="color:#ae81ff">5367</span>         set_next_entity(cfs_rq, se);
+<span style="color:#ae81ff">5368</span>         cfs_rq <span style="color:#f92672">=</span> group_cfs_rq(se);
+<span style="color:#ae81ff">5369</span>     } <span style="color:#66d9ef">while</span> (cfs_rq);
+<span style="color:#ae81ff">5370</span> 
+<span style="color:#ae81ff">5371</span>     p <span style="color:#f92672">=</span> task_of(se);
+<span style="color:#ae81ff">5372</span> 
+<span style="color:#ae81ff">5373</span>     <span style="color:#66d9ef">if</span> (hrtick_enabled(rq))
+<span style="color:#ae81ff">5374</span>         hrtick_start_fair(rq, p);
+<span style="color:#ae81ff">5375</span> 
+<span style="color:#ae81ff">5376</span>     <span style="color:#66d9ef">return</span> p;
+<span style="color:#ae81ff">5377</span> 
+<span style="color:#ae81ff">5378</span> idle:
+<span style="color:#ae81ff">5379</span>     <span style="color:#75715e">/*
+</span><span style="color:#75715e">5380      * This is OK, because current is on_cpu, which avoids it being picked
+</span><span style="color:#75715e">5381      * for load-balance and preemption/IRQs are still disabled avoiding
+</span><span style="color:#75715e">5382      * further scheduler activity on it and we&#39;re being very careful to
+</span><span style="color:#75715e">5383      * re-start the picking loop.
+</span><span style="color:#75715e">5384      */</span>
+<span style="color:#ae81ff">5385</span>     lockdep_unpin_lock(<span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>lock);
+<span style="color:#ae81ff">5386</span>     new_tasks <span style="color:#f92672">=</span> idle_balance(rq);
+<span style="color:#ae81ff">5387</span>     lockdep_pin_lock(<span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>lock);
+<span style="color:#ae81ff">5388</span>     <span style="color:#75715e">/*
+</span><span style="color:#75715e">5389      * Because idle_balance() releases (and re-acquires) rq-&gt;lock, it is
+</span><span style="color:#75715e">5390      * possible for any higher priority task to appear. In that case we
+</span><span style="color:#75715e">5391      * must re-start the pick_next_entity() loop.
+</span><span style="color:#75715e">5392      */</span>
+<span style="color:#ae81ff">5393</span>     <span style="color:#66d9ef">if</span> (new_tasks <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">0</span>)
+<span style="color:#ae81ff">5394</span>         <span style="color:#66d9ef">return</span> RETRY_TASK;
+<span style="color:#ae81ff">5395</span> 
+<span style="color:#ae81ff">5396</span>     <span style="color:#66d9ef">if</span> (new_tasks <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span>)
+<span style="color:#ae81ff">5397</span>         <span style="color:#66d9ef">goto</span> again;
+<span style="color:#ae81ff">5398</span> 
+<span style="color:#ae81ff">5399</span>     <span style="color:#66d9ef">return</span> NULL;
+<span style="color:#ae81ff">5400</span> }
+</code></pre></div>
+</article>
+
+
+
+</html>

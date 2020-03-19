@@ -141,6 +141,18 @@ asm ( assembler template : output operands (optional) : input operands (optional
     </item>
     
     <item>
+      <title>CFS bandwidth control 笔记（二）</title>
+      <link>https://coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/</link>
+      <pubDate>Wed, 30 Jan 2019 23:36:46 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/</guid>
+      <description>在CFS bandwidth control 笔记（一）中提到一个问题：
+ 两个形成父子关系的调度组， 他们的 CPU 带宽限制具体这么运行？
+ 对于这个问题，CFS Bandwidth Control 中的Hierarchical considerations一节里对进程组的带宽控制有以下描述：
+The interface enforces that an individual entity&amp;#39;s bandwidth is always attainable, that is: max(c_i) &amp;lt;= C. However, over-subscription in the aggregate case is explicitly allowed to enable work-conserving semantics within a hierarchy. e.g. \Sum (c_i) may exceed C [ Where C is the parent&amp;#39;s bandwidth, and c_i its children ] There are two ways in which a group may become throttled: a.</description>
+    </item>
+    
+    <item>
       <title>go Map 并发读写问题处理</title>
       <link>https://coderatwork.cn/posts/2019-01-17-troubleshooting-go-concurrent-map-read-write-problem/</link>
       <pubDate>Thu, 17 Jan 2019 21:04:40 +0800</pubDate>
