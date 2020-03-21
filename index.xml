@@ -6,10 +6,21 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 22 Feb 2020 20:23:31 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 21 Mar 2020 16:20:23 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>CFS 调度算法中的数据结构</title>
+      <link>https://coderatwork.cn/posts/cfs-data-structure/</link>
+      <pubDate>Sat, 21 Mar 2020 16:20:23 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/cfs-data-structure/</guid>
+      <description>CFS 是当前 Linux 内核中默认使用的调度算法，它的全称是 Complete Fair Scheduler，中文的意思是完全公平调度算法。 如这个名字所体现出来的意思，CFS 调度算法尽量公平的为每个进程分配 CPU 时间。 CFS 算法的核心并不发复杂，它跟踪每个进程的 CPU 时间，每次调度总是选择当前 CPU 运行时间最小的进程。 在 CFS 出现之前，Linux 使用 O(1) 调度算法，这种算法为每个进程分配一个 nice value， 然后根据 nice value 分配进程的运行时间片。 这种算法存在诸多问题，其中之一是：优先级低的进程分配的时间片较小， 当系统运行的都是优先级低的进程时将会出现频繁的上下文切换，空耗 CPU 资源。 除此之外，O(1) 调度算法在进程优先级的计算上使用了很多难以理解的经验公式， 这些计算公式也许是有效的，但是人们无法解释他们是如何起作用的，这给系统的维护升级都带来麻烦。 CFS 的出现解决了这些问题，同时也为后来 CGroup 的 CPU 资源隔离打下基础。
+早先 Linux 内核中只有一个调度队列，后来为了提高多核场景下的并发效率，改成每个 CPU 单独分配一个调度队列。
+/* * This is the main, per-CPU runqueue data structure. * * Locking rule: those places that want to lock multiple runqueues * (such as the load balancing or the thread migration code), lock * acquire operations must be ordered by ascending &amp;amp;runqueue.</description>
+    </item>
     
     <item>
       <title>Ansible vs Shell Script</title>
