@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>Linux iowait | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/linux-iowait/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>Linux iowait</h1>
+    <time datetime="2020-03-26T09:20:16&#43;08:00">March 26, 2020</time>
+  </header>
+  <p>本文主要参考 <a href="http://veithen.io/2013/11/18/iowait-linux.html">The precise meaning of I/O wait time in Linux</a></p>
+<p>Linux 中 CPU 的使用统计被拆分成多个组成部分，
+最常见的如 sys 表示 CPU 在内核态的使用情况，usr CPU 在用户态的使用情况。
+iowait 也是其中一种，它表示 CPU 等待 io 操作的时间。
+和其他项相比 iowait 有一个非常特殊的地方：</p>
+<ol>
+<li>iowait 高的时候，CPU 的使用率也会变高，但此时 CPU 本身并不繁忙</li>
+<li>iowait 高的时候表示系统存在 io 瓶颈，但 iowait 低的时候并不代表系统 io 空闲</li>
+</ol>
+<p>第一点其实很好理解，iowait 高，表示 CPU 在等待 io 操作，CPU 自己其实正处于休眠状态，
+这个时候高 CPU 并不代表 CPU 使用率真的很高。
+既然 iowait 高的时候 CPU 本质上是处于休眠状态，此时如果有一个计算密集型的进程需要 CPU 资源，
+Linux 就可以把进程调度到休眠中的 CPU 上执行，
+这会到时该 CPU 的 usr/sys 变高，相应的它的 iowait 值就会降下来了，
+所以，当我们看到 iowait 低的时候，并不能得出系统 io 不繁忙的结论。</p>
+<p>我们可以通过一些简单的测试来验证以上的观点：</p>
+<p>我们通过<code>dd</code>指令来模拟 io 繁忙的情况，并且利用<code>taskset</code>把它调度到 CPU 4 上这执行：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">taskset 0x04 dd <span style="color:#66d9ef">if</span><span style="color:#f92672">=</span>/dev/sdc of<span style="color:#f92672">=</span>/dev/null bs<span style="color:#f92672">=</span>4M
+</code></pre></div><p>通过<code>mpstat</code>观察各个 CPU 的使用情况：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ mpstat -P ALL <span style="color:#ae81ff">2</span>
+...
+22时54分34秒  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle
+22时54分36秒  all    9.63    0.00    5.32    8.11    0.00    0.19    0.00    0.00    0.00   76.76
+22时54分36秒    <span style="color:#ae81ff">0</span>   10.45    0.00    4.98    1.00    0.00    0.50    0.00    0.00    0.00   83.08
+22时54分36秒    <span style="color:#ae81ff">1</span>   11.94    0.00    6.47    0.00    0.00    0.50    0.00    0.00    0.00   81.09
+22时54分36秒    <span style="color:#ae81ff">2</span>    6.67    0.00    8.21   64.10    0.00    0.51    0.00    0.00    0.00   20.51
+22时54分36秒    <span style="color:#ae81ff">3</span>   10.20    0.00    2.55    0.00    0.00    0.00    0.00    0.00    0.00   87.24
+22时54分36秒    <span style="color:#ae81ff">4</span>    8.72    0.00    5.13    0.00    0.00    0.00    0.00    0.00    0.00   86.15
+22时54分36秒    <span style="color:#ae81ff">5</span>    8.12    0.00    9.14    0.00    0.00    0.00    0.00    0.00    0.00   82.74
+22时54分36秒    <span style="color:#ae81ff">6</span>   10.71    0.00    3.06    0.00    0.00    0.00    0.00    0.00    0.00   86.22
+22时54分36秒    <span style="color:#ae81ff">7</span>   10.15    0.00    2.54    0.51    0.00    0.00    0.00    0.00    0.00   86.80
+
+22时54分36秒  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle
+22时54分38秒  all   11.12    0.00    5.56    7.39    0.00    0.32    0.00    0.00    0.00   75.62
+22时54分38秒    <span style="color:#ae81ff">0</span>   12.56    0.00    6.03    0.00    0.00    0.50    0.00    0.00    0.00   80.90
+22时54分38秒    <span style="color:#ae81ff">1</span>   10.10    0.00   10.61    0.00    0.00    0.51    0.00    0.00    0.00   78.79
+22时54分38秒    <span style="color:#ae81ff">2</span>    9.18    0.00   10.71   59.18    0.00    0.00    0.00    0.00    0.00   20.92
+22时54分38秒    <span style="color:#ae81ff">3</span>   13.57    0.00    3.02    0.00    0.00    0.50    0.00    0.00    0.00   82.91
+22时54分38秒    <span style="color:#ae81ff">4</span>   11.22    0.00    3.06    0.00    0.00    0.51    0.00    0.00    0.00   85.20
+22时54分38秒    <span style="color:#ae81ff">5</span>   11.00    0.00    4.00    0.00    0.00    0.50    0.00    0.00    0.00   84.50
+22时54分38秒    <span style="color:#ae81ff">6</span>   10.71    0.00    3.06    0.00    0.00    0.00    0.00    0.00    0.00   86.22
+22时54分38秒    <span style="color:#ae81ff">7</span>   10.61    0.00    4.04    0.00    0.00    0.00    0.00    0.00    0.00   85.35
+...
+</code></pre></div><p>可以看到 CPU 4 的 iowait 一直上升到 60% 左右。
+再来把一个计算密集型的进程调度到 CPU 4 上执行，然后观察 CPU 4 的使用情况：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">taskset 0x04 sh -c <span style="color:#e6db74">&#34;while true; do true; done&#34;</span>
+...
+22时57分42秒  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle
+22时57分44秒  all   11.03    0.00    5.36    6.55    0.00    0.25    0.00    0.00    0.00   76.81
+22时57分44秒    <span style="color:#ae81ff">0</span>    9.50    0.00    5.00    0.00    0.00    0.50    0.00    0.00    0.00   85.00
+22时57分44秒    <span style="color:#ae81ff">1</span>   10.34    0.00   10.34    0.00    0.00    0.49    0.00    0.00    0.00   78.82
+22时57分44秒    <span style="color:#ae81ff">2</span>   27.45    0.00   10.78   50.00    0.00    0.49    0.00    0.00    0.00   11.27
+22时57分44秒    <span style="color:#ae81ff">3</span>    6.06    0.00    5.05    0.00    0.00    0.51    0.00    0.00    0.00   88.38
+22时57分44秒    <span style="color:#ae81ff">4</span>    6.22    0.00    2.07    0.00    0.00    0.52    0.00    0.00    0.00   91.19
+22时57分44秒    <span style="color:#ae81ff">5</span>    6.70    0.00    2.58    0.52    0.00    0.00    0.00    0.00    0.00   90.21
+22时57分44秒    <span style="color:#ae81ff">6</span>   12.00    0.00    2.00    0.50    0.00    0.00    0.00    0.00    0.00   85.50
+22时57分44秒    <span style="color:#ae81ff">7</span>    9.09    0.00    4.55    0.51    0.00    0.00    0.00    0.00    0.00   85.86
+
+22时57分44秒  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle
+22时57分46秒  all   18.50    0.00    4.08    0.13    0.00    0.44    0.00    0.00    0.00   76.87
+22时57分46秒    <span style="color:#ae81ff">0</span>    8.42    0.00    7.43    0.50    0.00    0.50    0.00    0.00    0.00   83.17
+22时57分46秒    <span style="color:#ae81ff">1</span>    7.96    0.00    1.99    0.50    0.00    1.00    0.00    0.00    0.00   88.56
+22时57分46秒    <span style="color:#ae81ff">2</span>   95.98    0.00    4.02    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+22时57分46秒    <span style="color:#ae81ff">3</span>    7.58    0.00    4.04    0.00    0.00    0.00    0.00    0.00    0.00   88.38
+22时57分46秒    <span style="color:#ae81ff">4</span>    5.15    0.00    5.67    0.00    0.00    1.03    0.00    0.00    0.00   88.14
+22时57分46秒    <span style="color:#ae81ff">5</span>    7.46    0.00    2.99    0.00    0.00    0.00    0.00    0.00    0.00   89.55
+22时57分46秒    <span style="color:#ae81ff">6</span>    7.61    0.00    1.02    0.00    0.00    0.00    0.00    0.00    0.00   91.37
+22时57分46秒    <span style="color:#ae81ff">7</span>    7.54    0.00    5.03    0.00    0.00    0.00    0.00    0.00    0.00   87.44
+
+22时57分46秒  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle
+22时57分48秒  all   17.58    0.00    3.57    0.44    0.00    0.81    0.00    0.00    0.00   77.60
+22时57分48秒    <span style="color:#ae81ff">0</span>    6.86    0.00    7.84    0.49    0.00    0.98    0.00    0.00    0.00   83.82
+22时57分48秒    <span style="color:#ae81ff">1</span>   10.05    0.00    2.87    0.48    0.00    1.44    0.00    0.00    0.00   85.17
+22时57分48秒    <span style="color:#ae81ff">2</span>   93.00    0.00    3.00    0.00    0.00    4.00    0.00    0.00    0.00    0.00
+22时57分48秒    <span style="color:#ae81ff">3</span>    6.12    0.00    3.57    1.53    0.00    0.00    0.00    0.00    0.00   88.78
+22时57分48秒    <span style="color:#ae81ff">4</span>    7.46    0.00    3.48    1.00    0.00    0.00    0.00    0.00    0.00   88.06
+22时57分48秒    <span style="color:#ae81ff">5</span>    4.12    0.00    1.55    0.00    0.00    0.00    0.00    0.00    0.00   94.33
+22时57分48秒    <span style="color:#ae81ff">6</span>    7.54    0.00    2.51    0.50    0.00    0.00    0.00    0.00    0.00   89.45
+22时57分48秒    <span style="color:#ae81ff">7</span>    5.61    0.00    3.57    0.00    0.00    0.00    0.00    0.00    0.00   90.82
+</code></pre></div><p>可以看到 iowait 里面降下来了，而 usr 飙到将近 100。所以单纯的观察 iowait 无法对系统的 io 使用情况下结论。
+那如何确定系统的 io 使用情况呢？我们可以结合 iostat 来观察：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ iostat -d <span style="color:#ae81ff">2</span>
+...
+Device:            tps    kB_read/s    kB_wrtn/s    kB_read    kB_wrtn
+loop0             0.00         0.00         0.00          <span style="color:#ae81ff">8</span>          <span style="color:#ae81ff">0</span>
+sda               1.52       136.33         0.02   <span style="color:#ae81ff">13560549</span>       <span style="color:#ae81ff">2312</span>
+sdb               5.29        42.84        48.49    <span style="color:#ae81ff">4261263</span>    <span style="color:#ae81ff">4822780</span>
+sdc               1.21       553.01         0.00   <span style="color:#ae81ff">55006268</span>          <span style="color:#ae81ff">0</span>
+
+Device:            tps    kB_read/s    kB_wrtn/s    kB_read    kB_wrtn
+loop0             0.00         0.00         0.00          <span style="color:#ae81ff">0</span>          <span style="color:#ae81ff">0</span>
+sda               0.00         0.00         0.00          <span style="color:#ae81ff">0</span>          <span style="color:#ae81ff">0</span>
+sdb              17.50        72.00         0.00        <span style="color:#ae81ff">144</span>          <span style="color:#ae81ff">0</span>
+sdc             106.50     72704.00         0.00     <span style="color:#ae81ff">145408</span>          <span style="color:#ae81ff">0</span>
+
+Device:            tps    kB_read/s    kB_wrtn/s    kB_read    kB_wrtn
+loop0             0.00         0.00         0.00          <span style="color:#ae81ff">0</span>          <span style="color:#ae81ff">0</span>
+sda               0.00         0.00         0.00          <span style="color:#ae81ff">0</span>          <span style="color:#ae81ff">0</span>
+sdb              51.50       888.00        30.00       <span style="color:#ae81ff">1776</span>         <span style="color:#ae81ff">60</span>
+sdc             108.50     74240.00         0.00     <span style="color:#ae81ff">148480</span>          <span style="color:#ae81ff">0</span>
+</code></pre></div><p>可以很明显的看到 sdc 设备上有大量的读操作。</p>
+
+</article>
+
+
+
+</html>

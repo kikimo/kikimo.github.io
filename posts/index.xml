@@ -6,10 +6,21 @@
     <description>Recent content in Posts on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 21 Mar 2020 16:20:23 +0800</lastBuildDate>
+    <lastBuildDate>Thu, 26 Mar 2020 09:20:16 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Linux iowait</title>
+      <link>https://coderatwork.cn/posts/linux-iowait/</link>
+      <pubDate>Thu, 26 Mar 2020 09:20:16 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/linux-iowait/</guid>
+      <description>本文主要参考 The precise meaning of I/O wait time in Linux
+Linux 中 CPU 的使用统计被拆分成多个组成部分， 最常见的如 sys 表示 CPU 在内核态的使用情况，usr CPU 在用户态的使用情况。 iowait 也是其中一种，它表示 CPU 等待 io 操作的时间。 和其他项相比 iowait 有一个非常特殊的地方：
+ iowait 高的时候，CPU 的使用率也会变高，但此时 CPU 本身并不繁忙 iowait 高的时候表示系统存在 io 瓶颈，但 iowait 低的时候并不代表系统 io 空闲  第一点其实很好理解，iowait 高，表示 CPU 在等待 io 操作，CPU 自己其实正处于休眠状态， 这个时候高 CPU 并不代表 CPU 使用率真的很高。 既然 iowait 高的时候 CPU 本质上是处于休眠状态，此时如果有一个计算密集型的进程需要 CPU 资源， Linux 就可以把进程调度到休眠中的 CPU 上执行， 这会到时该 CPU 的 usr/sys 变高，相应的它的 iowait 值就会降下来了， 所以，当我们看到 iowait 低的时候，并不能得出系统 io 不繁忙的结论。</description>
+    </item>
     
     <item>
       <title>CFS 调度算法中的数据结构</title>
