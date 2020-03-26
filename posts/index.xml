@@ -6,10 +6,21 @@
     <description>Recent content in Posts on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 26 Mar 2020 09:20:16 +0800</lastBuildDate>
+    <lastBuildDate>Thu, 26 Mar 2020 09:21:41 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>编写 Ansible Connection 插件</title>
+      <link>https://coderatwork.cn/posts/ansible-connection-plugin/</link>
+      <pubDate>Thu, 26 Mar 2020 09:21:41 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/ansible-connection-plugin/</guid>
+      <description>1. Ansible Connection 插件 Ansible Connection 插件负责和受控主机之间的连接通信。 根据 Ansible 的设计，Connection 插件的核心功能包括三个方面：
+ 执行指令 上传文件 下载文件  执行指令接口可用于执行命令、脚本，所执行的脚本可通过上传指令接口传输到目标机上。 通过这几个接口的配合即可覆盖所有和远程主机通信的需求。 Ansible 的发行版自带丰富的连接插件，如默认使用的 ssh 连接插件，local 本地连接插件。 用户也可以根据需要自行编写连接插件。 所有的连接插件都需要继承基类 ansible.plugins.connection.ConnectionBase， 然后实现这个基类中定义的抽象方法，其中包括我们上面提到的三个核心通信接口， 我们来看 ConnectionBase 中的抽象方法定义：
+def ensure_connect(func): @wraps(func) def wrapped(self, *args, **kwargs): if not self._connected: self._connect() return func(self, *args, **kwargs) return wrapped class ConnectionBase(AnsiblePlugin): &amp;#39;&amp;#39;&amp;#39;A base class for connections to contain common code.&amp;#39;&amp;#39;&amp;#39; ... @abstractproperty def transport(self): &amp;#34;&amp;#34;&amp;#34;String used to identify this Connection class from other classes&amp;#34;&amp;#34;&amp;#34; pass @abstractmethod def _connect(self): &amp;#34;&amp;#34;&amp;#34;Connect to the host we&amp;#39;ve been initialized with&amp;#34;&amp;#34;&amp;#34; @ensure_connect @abstractmethod def exec_command(self, cmd, in_data=None, sudoable=True): &amp;#34;&amp;#34;&amp;#34;Run a command on the remote host.</description>
+    </item>
     
     <item>
       <title>Linux iowait</title>
