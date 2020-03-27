@@ -174,6 +174,16 @@ asm ( assembler template : output operands (optional) : input operands (optional
     </item>
     
     <item>
+      <title>一次 k8s 网络抖动问题排查</title>
+      <link>https://coderatwork.cn/posts/2019-05-26-troubleshooting-k8s-network-jitter/</link>
+      <pubDate>Sun, 26 May 2019 21:48:46 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/2019-05-26-troubleshooting-k8s-network-jitter/</guid>
+      <description>问题描述 某服务 A，最初只部署在虚拟机上，后来扩充部署了部分容器实例。 在扩充容器实例不久后就发现服务 rt 偶尔会出现短暂超时的情况， 而从监控上看，容器实例的性能明显比虚拟机差， 具体而言就是容器实例频繁出现 rt 超时的情况（rt 超时指 rt 大于特定的时间比如 50ms）。 超时时间一般持续 10s 左右，进一步查看监控数据发现所有超时的情况均出现在容器实例中。
+问题排查 1. CFS 排查方向 出问题的时候只有容器上的 A 应用，所以猜测网络层面没有问题， 因为如果网络层面有问题的话那受影响的可能就不只是 A 应用。 又考虑到出问题的都是容器实例，自然应该从容器和虚拟机的差异方面入手。 考虑容器和虚拟机最大的区别，很容易想到容器的 CGroup CPU 资源隔离。 k8s 通过 limit、request 参数来设置容器的 CPU 资源上下限。 limit、request 利用 CGroup CPU 参数配置来实现， 它本质上又是通过内核 CFS 调度算法来实现的。 limit 通过一种限流机制来实现对某一进程 CPU 使用的上限。 当时猜测 CFS 中的上限设置算法有 bug，google 一下，居然真的找到相关的 issue， CFS quotas can lead to unnecessary throttling #67577， 这个 issue 描述的问题和当前问题及其相似，于是我们先做了一个尝试，把 k8s pod 上的 limit 参数去掉。 去掉 limit 参数后，参数似乎生效了，通过监控发现容器中 rt 高的数据点较之前少了大概有 1/3， 但是没过多久有发现了容器超时的告警， 这直接说明 CFS 的这个 bug 不是 rt 超时的本质原因。</description>
+    </item>
+    
+    <item>
       <title>CFS bandwidth control 笔记（二）</title>
       <link>https://coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/</link>
       <pubDate>Wed, 30 Jan 2019 23:36:46 +0800</pubDate>
