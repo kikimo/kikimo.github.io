@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="generator" content="Hugo 0.63.2" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="canonical" href="https://coderatwork.cn/posts/analysis-of-ps-hang-01/">
+<link rel="canonical" href="https://www.coderatwork.cn/posts/analysis-of-ps-hang-01/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
-<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
-<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<link rel="stylesheet" href="https://www.coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://www.coderatwork.cn/css/classes.css">
 
 <header class="dark">
-  <a href="https://coderatwork.cn/">kikimo</a>
+  <a href="https://www.coderatwork.cn/">kikimo</a>
   <nav>
     
   </nav>
@@ -179,7 +179,7 @@ Wed Mar 20 2019 Jan Stancek &lt;jstancek@redhat.com&gt; [3.10.0-957.12.1.el7]
 - [kernel] futex: Use smp_store_release() in mark_wake_futex() (Waiman Long) [1690323 1547078]
 - [kernel] sched/wake_q: Fix wakeup ordering for wake_q (Waiman Long) [1690323 1547078]
 - [kernel] sched/wake_q: Document wake_q_add() (Waiman Long) [1690323 1547078]
-</code></pre></div><p>还看到<a href="https://lore.kernel.org/lkml/20181203053130.gwkw6kg72azt2npb@linux-r8p5/T/">内核邮件组对<code>rwsem</code>（这个应该就是我们前面提到的信号量）死锁问题的讨论</a>，
+</code></pre></div><p>还看到<a href="https://lore.kernel.org/patchwork/patch/1018850/">内核邮件组对<code>rwsem</code>（这个应该就是我们前面提到的信号量）死锁问题的讨论</a>，
 估计就是内核信号量的 bug 了（未完待续）。</p>
 
 </article>

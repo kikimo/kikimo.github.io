@@ -186,5 +186,5 @@ Wed Mar 20 2019 Jan Stancek <jstancek@redhat.com> [3.10.0-957.12.1.el7]
 - [kernel] sched/wake_q: Document wake_q_add() (Waiman Long) [1690323 1547078]
 ```
 
-还看到[内核邮件组对`rwsem`（这个应该就是我们前面提到的信号量）死锁问题的讨论](https://lore.kernel.org/lkml/20181203053130.gwkw6kg72azt2npb@linux-r8p5/T/)，
+还看到[内核邮件组对`rwsem`（这个应该就是我们前面提到的信号量）死锁问题的讨论](https://lore.kernel.org/patchwork/patch/1018850/)，
 估计就是内核信号量的 bug 了（未完待续）。

@@ -2,21 +2,21 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>kikimo</title>
-    <link>https://coderatwork.cn/</link>
+    <link>https://www.coderatwork.cn/</link>
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 26 Mar 2020 09:21:41 +0800</lastBuildDate>
     
-	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="https://www.coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
       <title>编写 Ansible Connection 插件</title>
-      <link>https://coderatwork.cn/posts/ansible-connection-plugin/</link>
+      <link>https://www.coderatwork.cn/posts/ansible-connection-plugin/</link>
       <pubDate>Thu, 26 Mar 2020 09:21:41 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/ansible-connection-plugin/</guid>
+      <guid>https://www.coderatwork.cn/posts/ansible-connection-plugin/</guid>
       <description>1. Ansible Connection 插件 Ansible Connection 插件负责和受控主机之间的连接通信。 根据 Ansible 的设计，Connection 插件的核心功能包括三个方面：
  执行指令 上传文件 下载文件  执行指令接口可用于执行命令、脚本，所执行的脚本可通过上传指令接口传输到目标机上。 通过这几个接口的配合即可覆盖所有和远程主机通信的需求。 Ansible 的发行版自带丰富的连接插件，如默认使用的 ssh 连接插件，local 本地连接插件。 用户也可以根据需要自行编写连接插件。 所有的连接插件都需要继承基类 ansible.plugins.connection.ConnectionBase， 然后实现这个基类中定义的抽象方法，其中包括我们上面提到的三个核心通信接口， 我们来看 ConnectionBase 中的抽象方法定义：
 def ensure_connect(func): @wraps(func) def wrapped(self, *args, **kwargs): if not self._connected: self._connect() return func(self, *args, **kwargs) return wrapped class ConnectionBase(AnsiblePlugin): &amp;#39;&amp;#39;&amp;#39;A base class for connections to contain common code.&amp;#39;&amp;#39;&amp;#39; ... @abstractproperty def transport(self): &amp;#34;&amp;#34;&amp;#34;String used to identify this Connection class from other classes&amp;#34;&amp;#34;&amp;#34; pass @abstractmethod def _connect(self): &amp;#34;&amp;#34;&amp;#34;Connect to the host we&amp;#39;ve been initialized with&amp;#34;&amp;#34;&amp;#34; @ensure_connect @abstractmethod def exec_command(self, cmd, in_data=None, sudoable=True): &amp;#34;&amp;#34;&amp;#34;Run a command on the remote host.</description>
@@ -24,10 +24,10 @@ def ensure_connect(func): @wraps(func) def wrapped(self, *args, **kwargs): if no
     
     <item>
       <title>Linux iowait</title>
-      <link>https://coderatwork.cn/posts/linux-iowait/</link>
+      <link>https://www.coderatwork.cn/posts/linux-iowait/</link>
       <pubDate>Thu, 26 Mar 2020 09:20:16 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/linux-iowait/</guid>
+      <guid>https://www.coderatwork.cn/posts/linux-iowait/</guid>
       <description>本文主要参考 The precise meaning of I/O wait time in Linux
 Linux 中 CPU 的使用统计被拆分成多个组成部分， 最常见的如 sys 表示 CPU 在内核态的使用情况，usr CPU 在用户态的使用情况。 iowait 也是其中一种，它表示 CPU 等待 io 操作的时间。 和其他项相比 iowait 有一个非常特殊的地方：
  iowait 高的时候，CPU 的使用率也会变高，但此时 CPU 本身并不繁忙 iowait 高的时候表示系统存在 io 瓶颈，但 iowait 低的时候并不代表系统 io 空闲  第一点其实很好理解，iowait 高，表示 CPU 在等待 io 操作，CPU 自己其实正处于休眠状态， 这个时候高 CPU 并不代表 CPU 使用率真的很高。 既然 iowait 高的时候 CPU 本质上是处于休眠状态，此时如果有一个计算密集型的进程需要 CPU 资源， Linux 就可以把进程调度到休眠中的 CPU 上执行， 这会到时该 CPU 的 usr/sys 变高，相应的它的 iowait 值就会降下来了， 所以，当我们看到 iowait 低的时候，并不能得出系统 io 不繁忙的结论。</description>
@@ -35,10 +35,10 @@ Linux 中 CPU 的使用统计被拆分成多个组成部分， 最常见的如 s
     
     <item>
       <title>CFS 调度算法中的数据结构</title>
-      <link>https://coderatwork.cn/posts/cfs-data-structure/</link>
+      <link>https://www.coderatwork.cn/posts/cfs-data-structure/</link>
       <pubDate>Sat, 21 Mar 2020 16:20:23 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/cfs-data-structure/</guid>
+      <guid>https://www.coderatwork.cn/posts/cfs-data-structure/</guid>
       <description>CFS 是当前 Linux 内核中默认使用的调度算法，它的全称是 Complete Fair Scheduler，中文的意思是完全公平调度算法。 如这个名字所体现出来的意思，CFS 调度算法尽量公平的为每个进程分配 CPU 时间。 CFS 算法的核心并不发复杂，它跟踪每个进程的 CPU 时间，每次调度总是选择当前 CPU 运行时间最小的进程。 在 CFS 出现之前，Linux 使用 O(1) 调度算法，这种算法为每个进程分配一个 nice value， 然后根据 nice value 分配进程的运行时间片。 这种算法存在诸多问题，其中之一是：优先级低的进程分配的时间片较小， 当系统运行的都是优先级低的进程时将会出现频繁的上下文切换，空耗 CPU 资源。 除此之外，O(1) 调度算法在进程优先级的计算上使用了很多难以理解的经验公式， 这些计算公式也许是有效的，但是人们无法解释他们是如何起作用的，这给系统的维护升级都带来麻烦。 CFS 的出现解决了这些问题，同时也为后来 CGroup 的 CPU 资源隔离打下基础。
 早先 Linux 内核中只有一个调度队列，后来为了提高多核场景下的并发效率，改成每个 CPU 单独分配一个调度队列。
 /* * This is the main, per-CPU runqueue data structure. * * Locking rule: those places that want to lock multiple runqueues * (such as the load balancing or the thread migration code), lock * acquire operations must be ordered by ascending &amp;amp;runqueue.</description>
@@ -46,10 +46,10 @@ Linux 中 CPU 的使用统计被拆分成多个组成部分， 最常见的如 s
     
     <item>
       <title>Ansible vs Shell Script</title>
-      <link>https://coderatwork.cn/posts/ansible-vs-shell-script/</link>
+      <link>https://www.coderatwork.cn/posts/ansible-vs-shell-script/</link>
       <pubDate>Sat, 22 Feb 2020 20:23:31 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/ansible-vs-shell-script/</guid>
+      <guid>https://www.coderatwork.cn/posts/ansible-vs-shell-script/</guid>
       <description>ansible 可以通过 playbook 用来完成节点的配置管理工作，如：基建部署、软件安装、服务管理等。 如果只是从完成的任务上看， ansible 的配置管理功能和 shell 脚本似乎是一样的， 既然如此，为什么还要花时间去部署、学习 ansible 呢？ 和 shell 脚本相比 ansible 有什么独特的优势？
 1. 声明式 vs 指令式 ansible 内置了大量功能模块， 这些模块大部分是声明式（Declarative）的。 声明式的特点是你告诉 ansible 你想要的是一个什么样的结果， ansible 来帮你达成这个目标。 和声明式相对应的是命令式（imperative）, shell 脚本代码就是命令式的。 以文件的操作为例， 假设我们要创建一个目录， 使用 shell 指令的操作是：
 $ mkdir /path/to/file 用 ansible 则是：
@@ -58,10 +58,10 @@ file: path: /path/to/file state: directory 乍看 ansible 这个操作跟 shell 
     
     <item>
       <title>利用 ansible 部署 zookeeper 集群</title>
-      <link>https://coderatwork.cn/posts/deploy-zookeeper-with-ansible/</link>
+      <link>https://www.coderatwork.cn/posts/deploy-zookeeper-with-ansible/</link>
       <pubDate>Sat, 22 Feb 2020 19:30:32 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/deploy-zookeeper-with-ansible/</guid>
+      <guid>https://www.coderatwork.cn/posts/deploy-zookeeper-with-ansible/</guid>
       <description>本文介绍如何利用 ansible 部署 zookeeper 集群。 zookeeper 的部署可以分为以下几个步骤：
  在部署节点创建部署目录 上传并解压 zookeeper 应用包 初始化 zookeeper 配置文件 启动 zookeeper 服务  步骤 1-3 可用 ansible task 来实现， 最后一个步骤使用 handler 来实现， 利用 handler 的好处在于： 只有步骤 1-3 中对节点配置做了变更后才会触发 zookeeper 重启。
 需要创建的部署目录有：
@@ -70,10 +70,10 @@ file: path: /path/to/file state: directory 乍看 ansible 这个操作跟 shell 
     
     <item>
       <title>Ansible Dynamic Inventory</title>
-      <link>https://coderatwork.cn/posts/ansible-dynamic-inventory/</link>
+      <link>https://www.coderatwork.cn/posts/ansible-dynamic-inventory/</link>
       <pubDate>Sat, 22 Feb 2020 14:50:45 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/ansible-dynamic-inventory/</guid>
+      <guid>https://www.coderatwork.cn/posts/ansible-dynamic-inventory/</guid>
       <description>ansible 默认从静态 inventory 文件/etc/ansible/hosts读取节点信息。 在构建自动化运维系统时， 一般我们的系统会动态的添加或者删除节点的操作， 这个时候使用 ansible 的静态 inventory 文件存放节点信息就难以满足我们的需求。 所幸 ansible 提供了 dynamic inventory 机制，让我们可以通过脚本的形式来提供节点信息。 ansible 通过-i参数指定 inventory 脚本：
 $ ansible all -i inventory.py --list-hosts hosts (3): 127.0.0.1 10.58.10.209 10.57.33.40 inventory.py就是我们编写的 dynamic inventory 脚本， 这个脚本需要提供两个命令行选项（可以理解为 dynamic inventory 需要满足的接口规范）：
 $ ./inventory.py usage: inventory.py [-h] [--list] [--host HOST] optional arguments: -h, --help show this help message and exit --list Get all hosts. --host HOST Get host vars. --list选项让脚本按照节点的分组，输出所有的节点信息：
@@ -82,10 +82,10 @@ $ ./inventory.py --list { &amp;#34;local&amp;#34;: [ &amp;#34;127.</description>
     
     <item>
       <title>ANSI 转义码(ANSI escape code)解析</title>
-      <link>https://coderatwork.cn/posts/parsing-ansi-escape-code/</link>
+      <link>https://www.coderatwork.cn/posts/parsing-ansi-escape-code/</link>
       <pubDate>Tue, 11 Feb 2020 22:54:39 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/parsing-ansi-escape-code/</guid>
+      <guid>https://www.coderatwork.cn/posts/parsing-ansi-escape-code/</guid>
       <description>ANSI 转义序列是命令行终端下用来控制光标位置、字体颜色以及其他终端选项的一项 in-bind signaling 标准。
  ANSI escape sequences are a standard for in-band signaling to control the cursor location, color, and other options on video text terminals and terminal emulators.
   In telecommunications, in-band signaling is the sending of control information within the same band or channel used for data such as voice or video. This is in contrast to out-of-band signaling which is sent over a different channel, or even over a separate network.</description>
@@ -93,10 +93,10 @@ $ ./inventory.py --list { &amp;#34;local&amp;#34;: [ &amp;#34;127.</description>
     
     <item>
       <title>原码、反码与补码</title>
-      <link>https://coderatwork.cn/posts/binary-form/</link>
+      <link>https://www.coderatwork.cn/posts/binary-form/</link>
       <pubDate>Wed, 05 Feb 2020 19:41:04 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/binary-form/</guid>
+      <guid>https://www.coderatwork.cn/posts/binary-form/</guid>
       <description>二进制数的表示形式有三种：原码、补码和反码。 任意形式的二进制数， 最高位（MSB）都表示符号位，0 表示正数，1 标致负数。 例如原码总：00000001b表示正一，10000001b表示负一。 任意形式的二进制数的正数表示法都一样，他们差别在于对负数的表示上，以-1为例：
  -1的原码的表示为10000001b -1的反码表示为11111110b，它是在原码的基础上，符号位不变，其余位取反 -1的补码表示为11111111b，它的计算方法是将-1的反码加一  反码的主要作用就是用来快速计算补码，而补码的意义在于统一正数的加减法操作：a - b可以直接用a + (b的补码)表示。
 补码运算的原理 这个推导是错的
@@ -109,20 +109,20 @@ $ ./inventory.py --list { &amp;#34;local&amp;#34;: [ &amp;#34;127.</description>
     
     <item>
       <title>Linux 中的 wake_q_add() 函数</title>
-      <link>https://coderatwork.cn/posts/linux-wake_q_add/</link>
+      <link>https://www.coderatwork.cn/posts/linux-wake_q_add/</link>
       <pubDate>Tue, 04 Feb 2020 11:14:56 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/linux-wake_q_add/</guid>
+      <guid>https://www.coderatwork.cn/posts/linux-wake_q_add/</guid>
       <description>wake_q_add()是 Linux 内代码中的一个函数， 它尝试将一个系统进程放置到等待唤醒的队列中：
 static bool __wake_q_add(struct wake_q_head *head, struct task_struct *task) { struct wake_q_node *node = &amp;amp;task-&amp;gt;wake_q; /* * Atomically grab the task, if -&amp;gt;wake_q is !nil already it means * its already queued (either by us or someone else) and will get the * wakeup due to that. * * In order to ensure that a pending wakeup will observe our pending * state, even in the failed case, an explicit smp_mb() must be used.</description>
     </item>
     
     <item>
       <title>GCC 内联汇编</title>
-      <link>https://coderatwork.cn/posts/gcc-inline-asm/</link>
+      <link>https://www.coderatwork.cn/posts/gcc-inline-asm/</link>
       <pubDate>Mon, 03 Feb 2020 19:55:21 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/gcc-inline-asm/</guid>
+      <guid>https://www.coderatwork.cn/posts/gcc-inline-asm/</guid>
       <description>GCC 支持内联汇编， 格式如下：
 asm ( assembler template : output operands (optional) : input operands (optional) : list of clobbered registers (optional) ); asm 又可以写作 __asm__, __asm__主要用来避免命名冲突。 assembler template 就是内联的汇编代码， output operands, input operands, list of clobbered registers分别指代 输入操作数，输入操作数，修饰寄存器列表。 参数的顺序从左到右使用数字序号来引用， 例如%0表示第一个参数。 以下是几个 GCC 内联汇编的例子：
 1. 内存操作数(Memory operand constraint(m)) __asm__(&amp;#34;sidt %0\n&amp;#34; : :&amp;#34;m&amp;#34;(loc)); 以上代码的作用等同于*loc = idt（idt 表示中断向量表）, &amp;quot;m&amp;quot;表示操作数位于内存中， 其中%0表示第一个参数也就是loc。
@@ -131,20 +131,20 @@ asm ( assembler template : output operands (optional) : input operands (optional
     
     <item>
       <title>ps 指令 hang 死原因分析（一）</title>
-      <link>https://coderatwork.cn/posts/analysis-of-ps-hang-01/</link>
+      <link>https://www.coderatwork.cn/posts/analysis-of-ps-hang-01/</link>
       <pubDate>Mon, 03 Feb 2020 14:35:42 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/analysis-of-ps-hang-01/</guid>
+      <guid>https://www.coderatwork.cn/posts/analysis-of-ps-hang-01/</guid>
       <description>一台服务器出了问题， 登陆上去执行ps aux命令没有响应， ctrl+c也无法退出。 重新登陆机器执行ps aux又挂住没法操作了。 只能再登陆机器， 跑strace ps aux观察，又卡住了：
 # strace ps aux stat(&amp;#34;/proc/180944&amp;#34;, {st_mode=S_IFDIR|0555, st_size=0, ...}) = 0 open(&amp;#34;/proc/180944/stat&amp;#34;, O_RDONLY) = 6 read(6, &amp;#34;180944 (ps) D 1 180804 31034 0 -&amp;#34;..., 2048) = 330 close(6) = 0 open(&amp;#34;/proc/180944/status&amp;#34;, O_RDONLY) = 6 read(6, &amp;#34;Name:\tps\nUmask:\t0022\nState:\tD (d&amp;#34;..., 2048) = 1205 close(6) = 0 open(&amp;#34;/proc/180944/cmdline&amp;#34;, O_RDONLY) = 6 read(6, &amp;#34;ps\0-ef\0&amp;#34;, 131072) = 7 read(6, &amp;#34;&amp;#34;, 131065) = 0 close(6) = 0 stat(&amp;#34;/etc/localtime&amp;#34;, {st_mode=S_IFREG|0644, st_size=388, .</description>
     </item>
     
     <item>
       <title>Linux 中的 cmpxchg 宏</title>
-      <link>https://coderatwork.cn/posts/linux-cmpxchg/</link>
+      <link>https://www.coderatwork.cn/posts/linux-cmpxchg/</link>
       <pubDate>Sun, 02 Feb 2020 23:51:12 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/linux-cmpxchg/</guid>
+      <guid>https://www.coderatwork.cn/posts/linux-cmpxchg/</guid>
       <description>cmpxchg 是 intel CPU 指令集中的一条指令， 这条指令经常用来实现原子锁， 我们来看 intel 文档中对这条指令的介绍：
  Compares the value in the AL, AX, EAX, or RAX register with the first operand (destination operand). If the two values are equal, the second operand (source operand) is loaded into the destination operand. Otherwise, the destination operand is loaded into the AL, AX, EAX or RAX register. RAX register is available only in 64-bit mode.
   This instruction can be used with a LOCK prefix to allow the instruction to be executed atomically.</description>
@@ -152,10 +152,10 @@ asm ( assembler template : output operands (optional) : input operands (optional
     
     <item>
       <title>ICMP 和 ping</title>
-      <link>https://coderatwork.cn/posts/icmp-and-ping/</link>
+      <link>https://www.coderatwork.cn/posts/icmp-and-ping/</link>
       <pubDate>Sat, 01 Feb 2020 14:55:06 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/icmp-and-ping/</guid>
+      <guid>https://www.coderatwork.cn/posts/icmp-and-ping/</guid>
       <description>ICMP(internet control management protocol) 是四层的协议。 根据 Understanding LINUX NETWORK INTERNALS Chapter 25 中的介绍，ICMP 的主要作用是交换控制信息：
  The Internet Control Message Protocol (ICMP) is a transport protocol used by Internet hosts to exchange control messages, notably error notifications and information requests.
  Linux 内核的协议栈中包含了 ICMP， 不过这个协议比较有意思， 它的实现是一半在内核态一半在用户态。 我们经常使用 ping 指令来测试某个节点是否在线， ping 指令用的便是 ICMP 协议， 它向目标机器发送 ICMP echo request 报文，并等待目标机器发回的 ICMP echo response 报文， 这些操作都是在用户态下完成的。 目标节点接收到 ICMP echo request 报文后会自动发送 ICMP echo response 报文， 基本上没人听说过 ping server 应用，因为接收报文和回应报文的操作是内核中的 ICMP 协议自动完成的。</description>
@@ -163,10 +163,10 @@ asm ( assembler template : output operands (optional) : input operands (optional
     
     <item>
       <title>为什么 DNS 中应该避免 CNAME 记录和 MX 记录共存</title>
-      <link>https://coderatwork.cn/posts/dns-cname-mx-record-conflict/</link>
+      <link>https://www.coderatwork.cn/posts/dns-cname-mx-record-conflict/</link>
       <pubDate>Fri, 31 Jan 2020 21:02:45 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/dns-cname-mx-record-conflict/</guid>
+      <guid>https://www.coderatwork.cn/posts/dns-cname-mx-record-conflict/</guid>
       <description>DNS 协议不允许 CNAME 记录和 MX 记录共存。 造成这种约束的主要原因在于：
  DNS 会对 CNAME 记录走递归解析 CNAME 记录的优先级高于 MX 记录  递归 DNS 服务器在查询某个常规域名记录（非 CNAME 记录）时， 如果在本地 cache 中已有该域名有对应的 CNAME 记录， 则会开始用该别名记录来重启查询， 这样 MX 记录会被 CNAME 别名记录的 MX 记录所覆盖。 这个过程，如果我们把 MX 记录替换成 A 记录理解起来也许就更容易了。 实际上，不只是 MX 记录，CNAME 记录和其他非 CNAME 记录都会造成冲突， 除了特殊的 DNSSEC 记录。
 以下摘自 wiki CNAME record
@@ -175,20 +175,20 @@ asm ( assembler template : output operands (optional) : input operands (optional
     
     <item>
       <title>一次 k8s 网络抖动问题排查</title>
-      <link>https://coderatwork.cn/posts/2019-05-26-troubleshooting-k8s-network-jitter/</link>
+      <link>https://www.coderatwork.cn/posts/2019-05-26-troubleshooting-k8s-network-jitter/</link>
       <pubDate>Sun, 26 May 2019 21:48:46 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/2019-05-26-troubleshooting-k8s-network-jitter/</guid>
+      <guid>https://www.coderatwork.cn/posts/2019-05-26-troubleshooting-k8s-network-jitter/</guid>
       <description>问题描述 某服务 A，最初只部署在虚拟机上，后来扩充部署了部分容器实例。 在扩充容器实例不久后就发现服务 rt 偶尔会出现短暂超时的情况， 而从监控上看，容器实例的性能明显比虚拟机差， 具体而言就是容器实例频繁出现 rt 超时的情况（rt 超时指 rt 大于特定的时间比如 50ms）。 超时时间一般持续 10s 左右，进一步查看监控数据发现所有超时的情况均出现在容器实例中。
 问题排查 1. CFS 排查方向 出问题的时候只有容器上的 A 应用，所以猜测网络层面没有问题， 因为如果网络层面有问题的话那受影响的可能就不只是 A 应用。 又考虑到出问题的都是容器实例，自然应该从容器和虚拟机的差异方面入手。 考虑容器和虚拟机最大的区别，很容易想到容器的 CGroup CPU 资源隔离。 k8s 通过 limit、request 参数来设置容器的 CPU 资源上下限。 limit、request 利用 CGroup CPU 参数配置来实现， 它本质上又是通过内核 CFS 调度算法来实现的。 limit 通过一种限流机制来实现对某一进程 CPU 使用的上限。 当时猜测 CFS 中的上限设置算法有 bug，google 一下，居然真的找到相关的 issue， CFS quotas can lead to unnecessary throttling #67577， 这个 issue 描述的问题和当前问题及其相似，于是我们先做了一个尝试，把 k8s pod 上的 limit 参数去掉。 去掉 limit 参数后，参数似乎生效了，通过监控发现容器中 rt 高的数据点较之前少了大概有 1/3， 但是没过多久有发现了容器超时的告警， 这直接说明 CFS 的这个 bug 不是 rt 超时的本质原因。</description>
     </item>
     
     <item>
       <title>CFS bandwidth control 笔记（二）</title>
-      <link>https://coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/</link>
+      <link>https://www.coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/</link>
       <pubDate>Wed, 30 Jan 2019 23:36:46 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/</guid>
+      <guid>https://www.coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/</guid>
       <description>在CFS bandwidth control 笔记（一）中提到一个问题：
  两个形成父子关系的调度组， 他们的 CPU 带宽限制具体这么运行？
  对于这个问题，CFS Bandwidth Control 中的Hierarchical considerations一节里对进程组的带宽控制有以下描述：
@@ -197,10 +197,10 @@ The interface enforces that an individual entity&amp;#39;s bandwidth is always a
     
     <item>
       <title>go Map 并发读写问题处理</title>
-      <link>https://coderatwork.cn/posts/2019-01-17-troubleshooting-go-concurrent-map-read-write-problem/</link>
+      <link>https://www.coderatwork.cn/posts/2019-01-17-troubleshooting-go-concurrent-map-read-write-problem/</link>
       <pubDate>Thu, 17 Jan 2019 21:04:40 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/2019-01-17-troubleshooting-go-concurrent-map-read-write-problem/</guid>
+      <guid>https://www.coderatwork.cn/posts/2019-01-17-troubleshooting-go-concurrent-map-read-write-problem/</guid>
       <description>几个月前碰到一起线上 go 应用崩溃问题， 查看日志，注意到其中有一条信息：
 fatal error: concurrent map read and map write 回去查了下，代码里面确实有Map的并发读写， 但是涉及到Map相关的操作都用sync.RWMutex做了读写保护， 我把代码拉出来仔细看了一个晚上，愣是没看出啥问题。 这个问题后来交个另外一个同事去跟进， 同事构造了几个单元测试代码，很快就把问题重现出来了。 但是怎么修这个 bug，他说这个问题是由于三方库引起的， 不好修，所以问题后来就这么一直放着。 过了足足两个月，我感觉这问题不解决有点危险，万一哪天线上又复发就尴尬了， 就专门抽个下午的时间去研究这个问题。 代码拉下来，把同事当时写的单元测试跑起来， 很快程序就又爆出concurrent map read and map write问题。 正准备深入研究一番，然而一看同事写的测试代码顿时就无语了， 挖槽，测试代码里自身就有一个 map 的并发读写，跑起来不报这个问题才怪。 心里暗暗叫苦，TM 还是要从零开始分析。 那还是从场景复现开始做起，从之前的故障堆栈日志来看， 对于由哪个Map数据存在并发访问是比较明显的， 所以准备从代码梳理开始做起，查看哪些地方有涉及到这个Map数据的读、写操作， 然后针对这几处访问点构造并发访问场景。 一开始 review 代码的时候，发现这代码有点奇怪。 这些代码都是我几个月前写的，当时是把所有代码中的静态检查告警都搞定了才上线的， 然而今天却又看到了一堆的告警。 一开始是几个fmt.Printf的告警，顺手改掉了， 然后看到一个让我虎躯一震的静态检查告警：
 XXX passes lock by value 仔细检查代码，发现在那个地方，有个结构体参数传值， 结构体中有一个sync.RWMutex字段， 其他地方也有涉及到这个结构体的参数传递，但传的是结构体指针， 那个地方当时眼睛瘸了，没注意到是值传递， 因为不是指针传值，所以和其他地方比它其实是在对不同的sync.RWMutex执行操作， 引起Map并发访问问题也就不奇怪了。
@@ -209,10 +209,10 @@ XXX passes lock by value 仔细检查代码，发现在那个地方，有个结�
     
     <item>
       <title>CFS bandwidth control 笔记（一）</title>
-      <link>https://coderatwork.cn/posts/2018-12-23-notes-on-cfs-bandwidth-control_part_1/</link>
+      <link>https://www.coderatwork.cn/posts/2018-12-23-notes-on-cfs-bandwidth-control_part_1/</link>
       <pubDate>Sun, 23 Dec 2018 11:54:46 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/2018-12-23-notes-on-cfs-bandwidth-control_part_1/</guid>
+      <guid>https://www.coderatwork.cn/posts/2018-12-23-notes-on-cfs-bandwidth-control_part_1/</guid>
       <description>1. 什么是 CFS bandwidth control CFS bandwidth control [1]是 Linux 内核中用来实现 CPU 带宽控制的一种机制， 它可以设定一个进程组（task group）可使用的 CPU 时间的上限，注意是上限， CPU 的使用上限。
 2. 为什么需要 CFS bandwidth control 上面我们已经提到 CFS bandwidth control 的主要目的是设定进程组的 CPU 使用上限， 为什么需要 CFS banwidth control 来控制 CPU 使用上限呢？ 原因有两点：
 1. 最初的 CFS 调度器不支持设定 CPU 上限 2. 实际应用场景中需要控制进程的的 CPU 使用上限  最初的 CFS 只能控制进程的 CPU 使用下限， 更准确的表述应该是它只能控制进程全速运行时 CPU 的使用下限。 这一点和 CFS 的实现有关。 CFS 是根据权重也就是 cfs.share 参数、进程的运行时间（vruntime）来尽量保证 CPU 时间的公平分配。 假设系统中只运行 A 和 B 进程，其调度权重分别为 100、200， 那么 CFS 可保证 A 至少能占有 1/3 的 CPU， B 占有 2/3 的 CPU 时间。 但是， 如果 B 一直处于休眠状态，那么 CFS 可以一直调度执行 A 让它占有超过 1/3 的 CPU 使用时间。 CFS 的这个特点可以造成 CPU 资源的过度使用。 CPU 资源的过度使用可能会造成诸如：系统负载过高，系统响应延迟等问题。 所以内核需要一种机制来限制进程能使用的 CPU 时间的上限。 CPU bandwidth control 还有一个重要的应用场景就是用户按需购买资源， 譬如用户购买 0.</description>
@@ -220,10 +220,10 @@ XXX passes lock by value 仔细检查代码，发现在那个地方，有个结�
     
     <item>
       <title>一起内核 hard LOCKUP 问题分析</title>
-      <link>https://coderatwork.cn/posts/2018-12-14-analysis-of-a-kernel-hard-lockup-problem/</link>
+      <link>https://www.coderatwork.cn/posts/2018-12-14-analysis-of-a-kernel-hard-lockup-problem/</link>
       <pubDate>Fri, 14 Dec 2018 19:54:46 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/2018-12-14-analysis-of-a-kernel-hard-lockup-problem/</guid>
+      <guid>https://www.coderatwork.cn/posts/2018-12-14-analysis-of-a-kernel-hard-lockup-problem/</guid>
       <description>前段时间碰到一起服务器宕机故障， 机器重启后在 /var/crash 找到了崭新的 crash dump 文件夹， 看来是一起新鲜出炉的 kernel crash 故障。 在 crash 目录下的 vmcore-dmesg.txt 文件中发现一系列如下形式的 kernel hard LOCKUP[1]日志：
 [xxxxxx.xxxxxx] NMI watchdog: Watchdog detected hard LOCKUP on cpu x [xxxxxx.xxxxxx] NMI watchdog: Watchdog detected hard LOCKUP on cpu y [xxxxxx.xxxxxx] NMI watchdog: Watchdog detected hard LOCKUP on cpu z 这是一台核数不少的物理机， 日志显示几乎有一半的 CPU 发生了 hard LOCKUP. 开动 crash[2]分析， kernel crash 的堆栈现场如下：
 crash&amp;gt; bt PID: 0 TASK: ffff8820d3ad8fd0 CPU: x COMMAND: &amp;#34;swapper/x&amp;#34; #0 [ffff883ffde859f0] machine_kexec at ffffffff8105c4cb #1 [ffff883ffde85a50] __crash_kexec at ffffffff81104a32 #2 [ffff883ffde85b20] panic at ffffffff8169dc5f #3 [ffff883ffde85ba0] nmi_panic at ffffffff8108771f #4 [ffff883ffde85bb0] watchdog_overflow_callback at ffffffff8112fa75 #5 [ffff883ffde85bc8] __perf_event_overflow at ffffffff8116e561 #6 [ffff883ffde85c00] perf_event_overflow at ffffffff811770b4 #7 [ffff883ffde85c10] intel_pmu_handle_irq at ffffffff81009f78 #8 [ffff883ffde85e38] perf_event_nmi_handler at ffffffff816ac06b #9 [ffff883ffde85e58] nmi_handle at ffffffff816ad427 #10 [ffff883ffde85eb0] do_nmi at ffffffff816ad65d #11 [ffff883ffde85ef0] end_repeat_nmi at ffffffff816ac8d3 [exception RIP: tick_nohz_stop_sched_tick+755] RIP: ffffffff810f3483 RSP: ffff8820d3aebe50 RFLAGS: 00000002 RAX: 0000000035696841 RBX: 0002b313f9231dc0 RCX: 000000000000001f RDX: 0000000000000005 RSI: 0002b313e403c95f RDI: ffff883ffde8fe80 RBP: ffff8820d3aebe98 R8: ffff8820d3ae8000 R9: 000000012d45c83d R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000005 R13: 000000012d45c9a0 R14: ffff883ffde8fe80 R15: ffff8820d3ae8000 ORIG_RAX: ffffffffffffffff CS: 0010 SS: 0018 --- &amp;lt;NMI exception stack&amp;gt; --- #12 [ffff8820d3aebe50] tick_nohz_stop_sched_tick at ffffffff810f3483 #13 [ffff8820d3aebe60] sched_clock at ffffffff81033619 #14 [ffff8820d3aebea0] __tick_nohz_idle_enter at ffffffff810f359f #15 [ffff8820d3aebed0] tick_nohz_idle_enter at ffffffff810f3adf #16 [ffff8820d3aebee0] cpu_startup_entry at ffffffff810e7b1a #17 [ffff8820d3aebf28] start_secondary at ffffffff81051af6 根据堆栈现场可以观察到一下几点：</description>
@@ -231,10 +231,10 @@ crash&amp;gt; bt PID: 0 TASK: ffff8820d3ad8fd0 CPU: x COMMAND: &amp;#34;swapper/
     
     <item>
       <title>cron 僵尸进程问题分析</title>
-      <link>https://coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/</link>
+      <link>https://www.coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/</link>
       <pubDate>Sat, 14 Apr 2018 21:57:46 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/</guid>
+      <guid>https://www.coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/</guid>
       <description>前段时间遇到一个比较诡异的问题, 一台服务器上突然出现了许多僵尸进程。 多数时候，这些僵尸进程出现在早上，大概到了下午又自动消失。 第二天又重复这样的情况。
 查了下，这些僵尸进程的父进程都是一些挂在 cron 下的 bash 进程。
 猜测是 cron 每天早上定时执行了某些任务留下了这些僵尸进程． 为什么会出现僵尸进程，以及，为什么这些僵尸进程到了下午又自己消失了？ 一开始希望直接从 cron 配置定位产生僵尸进程的任务， 检查发现这台机器上配置了相当数量的 cron 任务，逐一排查过去不现实，只能寻找其他思路．
@@ -246,20 +246,20 @@ crash&amp;gt; bt PID: 0 TASK: ffff8820d3ad8fd0 CPU: x COMMAND: &amp;#34;swapper/
     
     <item>
       <title>ptrace 如何实现单步跟进</title>
-      <link>https://coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/</link>
+      <link>https://www.coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/</link>
       <pubDate>Mon, 18 Sep 2017 21:57:46 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/</guid>
+      <guid>https://www.coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/</guid>
       <description>1. ptrace() 单步跟进（PTRACE_SINGLESTEP）源码分析 ptrace() 是一个重要的 Linux 系统调用，它的代码在 kernel/ptrace.c 文件中。 ptrace() 可以实现诸如暂停进程、观察进程内存数据、进程指令单步执行等功能， 它可以用来实现调试器，例如 gdb 调试器便是基于 ptrace() 实现的。 以 Linux 4.10.17 版本的代码为例，我们来分析 ptrace() 函数单步跟进功能的实现。 ptrace() 函数的定义如下：
 1114 SYSCALL_DEFINE4(ptrace, long, request, long, pid, unsigned long, addr, 1115 unsigned long, data) 1116 { 1117 struct task_struct *child; 1118 long ret; ... 1149 ret = arch_ptrace(child, request, addr, data); 1150 if (ret || request != PTRACE_DETACH) 1151 ptrace_unfreeze_traced(child); 1152 1153 out_put_task_struct: 1154 put_task_struct(child); 1155 out: 1156 return ret; 1157 } ptrace() 函数的一些操作是平台相关的， 这些平台相关的操作被放置到 arch_ptrace() 函数中， 对于不同的 CPU，arch_ptrace() 函数有不一样的实现。 我们要分析的单步执行功能就是一个平台相关的操作， 所以接下来要去看 x86 平台上 arch_ptrace() 函数的实现。 x86 的 arch_ptrace() 函数在文件 arch/x86/kernel/ptrace.</description>
     </item>
     
     <item>
       <title>利用 ptrace 设置硬件断点</title>
-      <link>https://coderatwork.cn/posts/2017-08-15-setting-hardware-breakpoint-using-ptrace/</link>
+      <link>https://www.coderatwork.cn/posts/2017-08-15-setting-hardware-breakpoint-using-ptrace/</link>
       <pubDate>Tue, 15 Aug 2017 21:57:46 +0800</pubDate>
       
-      <guid>https://coderatwork.cn/posts/2017-08-15-setting-hardware-breakpoint-using-ptrace/</guid>
+      <guid>https://www.coderatwork.cn/posts/2017-08-15-setting-hardware-breakpoint-using-ptrace/</guid>
       <description>x86 CPU 为断点调试提供了硬件上的支持。 x86 CPU 上设有专门的调试寄存器， 通过设置这些寄存器， 可以为进程设置代码执行断点和内存读写断点， 这些断点统称为硬件断点。 Linux 上的 ptrace() 系统调用可以用来设置 x86 CPU 上的这些调试寄存器， 所以我们可以利用 ptrace 来给进程设置硬件断点。 这篇文章将介绍如何利用 ptrace() 来设置硬件断点。
 1. 硬件断点 x86 CPU 上的共有8个调试寄存器: DR0 - DR7。 其中 DR0 - DR3 为地址寄存器， 这四个寄存器是用来存放断点地址的， 只有四个断点地址寄存器意味着最多可以同时设置四个硬件断点。 DR4 和 DR5 是保留寄存器，并不使用。 DR6 是状态寄存器，设置硬件断点的过程中并没有用到该寄存器，这里不做更多介绍。 DR7 是控制寄存器，这个寄存是上有一系列的标志位。 通过设置 DR7 寄存器上的标志位可以设定某个断点的类型(读写断点或者执行断点)，断点是否有效等。 我们来看下 DR7 寄存器中各个标志位具体的含义：
 0 - 7 标志位控制 DR0 - DR3 寄存器指定的断点是否处于激活状态。 G 和 L 域分别代表 global 和 local 范围。 Gray Hat Python[1]中说用户态的调试中设定 G 和 L 位没有区别。 看了下 wiki 上的介绍：</description>

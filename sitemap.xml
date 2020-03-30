@@ -3,131 +3,131 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
-    <loc>https://coderatwork.cn/</loc>
+    <loc>https://www.coderatwork.cn/</loc>
     <lastmod>2020-03-26T09:21:41+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/</loc>
+    <loc>https://www.coderatwork.cn/posts/</loc>
     <lastmod>2020-03-26T09:21:41+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/ansible-connection-plugin/</loc>
+    <loc>https://www.coderatwork.cn/posts/ansible-connection-plugin/</loc>
     <lastmod>2020-03-26T09:21:41+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/linux-iowait/</loc>
+    <loc>https://www.coderatwork.cn/posts/linux-iowait/</loc>
     <lastmod>2020-03-26T09:20:16+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/cfs-data-structure/</loc>
+    <loc>https://www.coderatwork.cn/posts/cfs-data-structure/</loc>
     <lastmod>2020-03-21T16:20:23+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/ansible-vs-shell-script/</loc>
+    <loc>https://www.coderatwork.cn/posts/ansible-vs-shell-script/</loc>
     <lastmod>2020-02-22T20:23:31+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/deploy-zookeeper-with-ansible/</loc>
+    <loc>https://www.coderatwork.cn/posts/deploy-zookeeper-with-ansible/</loc>
     <lastmod>2020-02-22T19:30:32+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/ansible-dynamic-inventory/</loc>
+    <loc>https://www.coderatwork.cn/posts/ansible-dynamic-inventory/</loc>
     <lastmod>2020-02-22T14:50:45+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/parsing-ansi-escape-code/</loc>
+    <loc>https://www.coderatwork.cn/posts/parsing-ansi-escape-code/</loc>
     <lastmod>2020-02-11T22:54:39+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/binary-form/</loc>
+    <loc>https://www.coderatwork.cn/posts/binary-form/</loc>
     <lastmod>2020-02-05T19:41:04+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/linux-wake_q_add/</loc>
+    <loc>https://www.coderatwork.cn/posts/linux-wake_q_add/</loc>
     <lastmod>2020-02-04T11:14:56+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/gcc-inline-asm/</loc>
+    <loc>https://www.coderatwork.cn/posts/gcc-inline-asm/</loc>
     <lastmod>2020-02-03T19:55:21+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/analysis-of-ps-hang-01/</loc>
+    <loc>https://www.coderatwork.cn/posts/analysis-of-ps-hang-01/</loc>
     <lastmod>2020-02-03T14:35:42+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/linux-cmpxchg/</loc>
+    <loc>https://www.coderatwork.cn/posts/linux-cmpxchg/</loc>
     <lastmod>2020-02-02T23:51:12+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/icmp-and-ping/</loc>
+    <loc>https://www.coderatwork.cn/posts/icmp-and-ping/</loc>
     <lastmod>2020-02-01T14:55:06+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/dns-cname-mx-record-conflict/</loc>
+    <loc>https://www.coderatwork.cn/posts/dns-cname-mx-record-conflict/</loc>
     <lastmod>2020-01-31T21:02:45+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/2019-05-26-troubleshooting-k8s-network-jitter/</loc>
+    <loc>https://www.coderatwork.cn/posts/2019-05-26-troubleshooting-k8s-network-jitter/</loc>
     <lastmod>2019-05-26T21:48:46+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/</loc>
+    <loc>https://www.coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/</loc>
     <lastmod>2019-01-30T23:36:46+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/2019-01-17-troubleshooting-go-concurrent-map-read-write-problem/</loc>
+    <loc>https://www.coderatwork.cn/posts/2019-01-17-troubleshooting-go-concurrent-map-read-write-problem/</loc>
     <lastmod>2019-01-17T21:04:40+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/2018-12-23-notes-on-cfs-bandwidth-control_part_1/</loc>
+    <loc>https://www.coderatwork.cn/posts/2018-12-23-notes-on-cfs-bandwidth-control_part_1/</loc>
     <lastmod>2018-12-23T11:54:46+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/2018-12-14-analysis-of-a-kernel-hard-lockup-problem/</loc>
+    <loc>https://www.coderatwork.cn/posts/2018-12-14-analysis-of-a-kernel-hard-lockup-problem/</loc>
     <lastmod>2018-12-14T19:54:46+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/</loc>
+    <loc>https://www.coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/</loc>
     <lastmod>2018-04-14T21:57:46+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/</loc>
+    <loc>https://www.coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/</loc>
     <lastmod>2017-09-18T21:57:46+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/posts/2017-08-15-setting-hardware-breakpoint-using-ptrace/</loc>
+    <loc>https://www.coderatwork.cn/posts/2017-08-15-setting-hardware-breakpoint-using-ptrace/</loc>
     <lastmod>2017-08-15T21:57:46+08:00</lastmod>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/categories/</loc>
+    <loc>https://www.coderatwork.cn/categories/</loc>
   </url>
   
   <url>
-    <loc>https://coderatwork.cn/tags/</loc>
+    <loc>https://www.coderatwork.cn/tags/</loc>
   </url>
   
 </urlset>

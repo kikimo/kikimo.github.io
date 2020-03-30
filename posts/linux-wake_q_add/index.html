@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="generator" content="Hugo 0.63.2" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="canonical" href="https://coderatwork.cn/posts/linux-wake_q_add/">
+<link rel="canonical" href="https://www.coderatwork.cn/posts/linux-wake_q_add/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
-<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
-<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<link rel="stylesheet" href="https://www.coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://www.coderatwork.cn/css/classes.css">
 
 <header class="dark">
-  <a href="https://coderatwork.cn/">kikimo</a>
+  <a href="https://www.coderatwork.cn/">kikimo</a>
   <nav>
     
   </nav>
@@ -177,13 +177,13 @@
 <ol>
 <li>
 <p>判断<code>task</code>进程是否已经在某个<code>wake_q</code> 队列中（<code>task-&gt;wake_q-&gt;next</code> 是否等于<code>NULL</code>）,
-如果是，则先将<code>task-&gt;wake_q-&gt;next</code>设置为<code>WAKE_Q_TAIL</code>
+如果是，则先将<code>task-&gt;wake_q-&gt;next</code>设置为<code>WAKE_Q_TAIL</code>并返回<code>NULL</code>，
 （<code>WAKE_Q_TAIL</code>应该是用于表示队列尾，作用类似于哨兵节点）,
 否则函数返回<code>WAKE_Q_TAIL</code>，
-这个流程使用宏<code>cmpxchg</code>保证操作的原子性。</p>
+这步操作使用<code>cmpxchg</code>宏保证操作的原子性。</p>
 </li>
 <li>
-<p>如果<code>task</code>不在某个<code>wake_q</code>中，进一步将<code>task</code>添加到<code>head</code>指向的<code>wait_q</code>中，注意到这里的指针操作，它使用了 Linus 提到过的二级队列二级指针操作技巧。</p>
+<p>如果<code>task</code>不在某个<code>wake_q</code>中，进一步将<code>task</code>添加到<code>head</code>指向的队列<code>wait_q</code>中，注意到这里的指针操作，它<strong>通过二级指针操作把一个元素添加到队列尾部</strong>，这个技巧 Linus 曾经在某个帖子里专门提到过。</p>
 </li>
 </ol>
 <p><code>wake_q_add()</code>如果成功吧<code>task</code>添加到唤醒队列后会增加<code>task</code>的引用，

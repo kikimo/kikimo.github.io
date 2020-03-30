@@ -1,4 +1,4 @@
-baseURL = "https://coderatwork.cn/"
+baseURL = "https://www.coderatwork.cn/"
 languageCode = "en-us"
 title = "kikimo"
 theme = "contrast-hugo"

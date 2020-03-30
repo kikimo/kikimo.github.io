@@ -166,12 +166,12 @@ extern void wake_up_q(struct wake_q_head *head);
 
 从代码上看,`wake_q_add()` 函数的主要是：
 1. 判断`task`进程是否已经在某个`wake_q` 队列中（`task->wake_q->next` 是否等于`NULL`）,
-如果是，则先将`task->wake_q->next`设置为`WAKE_Q_TAIL`
+如果是，则先将`task->wake_q->next`设置为`WAKE_Q_TAIL`并返回`NULL`，
 （`WAKE_Q_TAIL`应该是用于表示队列尾，作用类似于哨兵节点）,
 否则函数返回`WAKE_Q_TAIL`，
-这个流程使用宏`cmpxchg`保证操作的原子性。
+这步操作使用`cmpxchg`宏保证操作的原子性。
 
-2. 如果`task`不在某个`wake_q`中，进一步将`task`添加到`head`指向的`wait_q`中，注意到这里的指针操作，它使用了 Linus 提到过的二级队列二级指针操作技巧。
+2. 如果`task`不在某个`wake_q`中，进一步将`task`添加到`head`指向的队列`wait_q`中，注意到这里的指针操作，它**通过二级指针操作把一个元素添加到队列尾部**，这个技巧 Linus 曾经在某个帖子里专门提到过。
 
 `wake_q_add()`如果成功吧`task`添加到唤醒队列后会增加`task`的引用，
 所以在调用`wake_q_add()`之前调用方应该未持有`task`的引用(`get_task_struct(task);`);
