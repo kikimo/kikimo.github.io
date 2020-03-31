@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>ps 指令 hang 死原因分析（二） | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://www.coderatwork.cn/posts/analysis-of-ps-hang-02/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://www.coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://www.coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://www.coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>ps 指令 hang 死原因分析（二）</h1>
+    <time datetime="2020-03-31T11:13:27&#43;08:00">March 31, 2020</time>
+  </header>
+  <p><a href="https://www.coderatwork.cn/posts/analysis-of-ps-hang-01/">上一篇</a>关于 ps 指令 hang 死原因的分析我们提到<a href="https://lore.kernel.org/patchwork/patch/1018850/">内核读写锁的补丁</a>，
+作者在这个补丁里提到读写锁导致进程死锁的一种情况：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">From: Xie Yongji &lt;xieyongji@baidu.com&gt;
+
+Our system encountered a problem recently, the khungtaskd detected
+some process hang on mmap_sem. But the odd thing was that one task which
+is not on mmap_sem.wait_list still sleeps in rwsem_down_read_failed().
+Through code inspection, we found a potential bug can lead to this.
+
+Imaging this:
+
+Thread 1                                  Thread 2
+                                          down_write();
+rwsem_down_read_failed()
+ raw_spin_lock_irq(&amp;sem-&gt;wait_lock);
+ list_add_tail(&amp;waiter.list, &amp;wait_list);
+ raw_spin_unlock_irq(&amp;sem-&gt;wait_lock);
+                                          __up_write();
+                                           rwsem_wake();
+                                            __rwsem_mark_wake();
+                                             wake_q_add();
+                                             list_del(&amp;waiter-&gt;list);
+                                             waiter-&gt;task = NULL;
+ while (true) {
+  set_current_state(TASK_UNINTERRUPTIBLE);
+  if (!waiter.task) // true
+      break;
+ }
+ __set_current_state(TASK_RUNNING);
+
+Now Thread 1 is queued in Thread 2&#39;s wake_q without sleeping. Then
+Thread 1 call rwsem_down_read_failed() again because Thread 3
+hold the lock, if Thread 3 tries to queue Thread 1 before Thread 2
+do wakeup, it will fail and miss wakeup:
+
+Thread 1                                  Thread 2      Thread 3
+                                                        down_write();
+rwsem_down_read_failed()
+ raw_spin_lock_irq(&amp;sem-&gt;wait_lock);
+ list_add_tail(&amp;waiter.list, &amp;wait_list);
+ raw_spin_unlock_irq(&amp;sem-&gt;wait_lock);
+                                                        __rwsem_mark_wake();
+                                                         wake_q_add();
+                                          wake_up_q();
+                                                         waiter-&gt;task = NULL;
+ while (true) {
+  set_current_state(TASK_UNINTERRUPTIBLE);
+  if (!waiter.task) // false
+      break;
+  schedule();
+ }
+                                                        wake_up_q(&amp;wake_q);
+
+In another word, that means we might issue the wakeup before setting the reader
+waiter to nil. If so, the wakeup may do nothing when it was called before reader
+set task state to TASK_UNINTERRUPTIBLE. Then we would have no chance to wake up
+the reader any more, and cause other writers such as &#34;ps&#34; command stuck on it.
+
+This patch is not verified because we still have no way to reproduce the problem.
+But I&#39;d like to ask for some comments from community firstly.
+</code></pre></div><p>先来了解一些读写锁的运行逻辑。</p>
+<p><code>rwsem_down_read_failed()</code>函数在线程获取读锁失败的时候被调用，它的核心逻辑：</p>
+<ol>
+<li>把当前进程加入读写锁的等待队列中</li>
+<li>while 循环，让进程进入 uninterruptible 状态，知道被其他进程唤醒</li>
+</ol>
+<p>持有写锁的线程在释放锁后会唤醒读写锁等待队列中的线程，它的核心逻辑：</p>
+<ol>
+<li>通过<code>wake_q_add()</code>将等待线程添加到唤醒队列中</li>
+<li><code>waiter-&gt;task = NULL</code>这一步操作将是等待现成可被换线的前提条件（参看 while 循环里的代码逻辑）</li>
+<li>调用<code>wake_up_q()</code>将线程唤醒</li>
+</ol>
+<p>这个补丁里作者提出一种异常的执行序列，导致线程进入 uninterruptible 状态后永远不会再被唤醒。
+首先 Thread 1 获取读锁失败于是把自己加入到读写锁的等待队列中。
+Thread 2 持有写锁，它释放写锁后会尝试唤醒 Thread 1，此时 Thread 1 为 running 装填且在 Thread 2 的唤醒队列中，
+Thread 2 还未执行唤醒操作。
+Thread 3 得到写锁权限，Thread 1 再次尝试获取读锁且失败。
+Thread 3 释放写锁并尝试将 Thread 1 添加到它的唤醒对列中，
+这步操作会失败因为 Thread 1 此时还在 Thread 2 的唤醒队列中。
+Thread 1 执行唤醒操作但是这步操作没有意义因为 Thread 1 还在 running 状态。
+Thread 1 进入 uninterruptible 休眠状态。
+Thread 3 唤醒等待队列中的线程，但是 Thread 1 不在Thread 3 的等待队列中，
+此时 Thread 1 永远都没机会再被唤醒了，这就是线程死锁的原因。</p>
+<p>对于补丁中给出的执行序列看起来还是有点疑问的：
+Thread 3 在 Thread 1 进入 while 循环之前执行了<code>waiter-&gt;task = NULL</code>，
+如此一来 Thread 1 在 while 循环里面的<code>if (!waiter.task)</code>测试应该是true，
+while 循环就终止了 Thread 1 接着又进入 running 状态了。
+所以，正确的代码执行顺序应该是<code>waiter-&gt;task = NULL</code>在<code>if (!waiter.task)</code>语句之后执行，如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 1                                  Thread 2      Thread 3
+                                                        down_write();
+rwsem_down_read_failed()
+ raw_spin_lock_irq(&amp;sem-&gt;wait_lock);
+ list_add_tail(&amp;waiter.list, &amp;wait_list);
+ raw_spin_unlock_irq(&amp;sem-&gt;wait_lock);
+                                                        __rwsem_mark_wake();
+                                                         wake_q_add();
+                                          wake_up_q();
+ while (true) {
+  set_current_state(TASK_UNINTERRUPTIBLE);
+  if (!waiter.task) // false
+      break;
+                                                         waiter-&gt;task = NULL;
+  schedule();
+ }
+                                                        wake_up_q(&amp;wake_q);
+</code></pre></div>
+</article>
+
+
+
+</html>

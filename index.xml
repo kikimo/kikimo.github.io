@@ -6,10 +6,20 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 26 Mar 2020 09:21:41 +0800</lastBuildDate>
+    <lastBuildDate>Tue, 31 Mar 2020 11:13:27 +0800</lastBuildDate>
     
 	<atom:link href="https://www.coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>ps 指令 hang 死原因分析（二）</title>
+      <link>https://www.coderatwork.cn/posts/analysis-of-ps-hang-02/</link>
+      <pubDate>Tue, 31 Mar 2020 11:13:27 +0800</pubDate>
+      
+      <guid>https://www.coderatwork.cn/posts/analysis-of-ps-hang-02/</guid>
+      <description>上一篇关于 ps 指令 hang 死原因的分析我们提到内核读写锁的补丁， 作者在这个补丁里提到读写锁导致进程死锁的一种情况：
+From: Xie Yongji &amp;lt;xieyongji@baidu.com&amp;gt; Our system encountered a problem recently, the khungtaskd detected some process hang on mmap_sem. But the odd thing was that one task which is not on mmap_sem.wait_list still sleeps in rwsem_down_read_failed(). Through code inspection, we found a potential bug can lead to this. Imaging this: Thread 1 Thread 2 down_write(); rwsem_down_read_failed() raw_spin_lock_irq(&amp;amp;sem-&amp;gt;wait_lock); list_add_tail(&amp;amp;waiter.list, &amp;amp;wait_list); raw_spin_unlock_irq(&amp;amp;sem-&amp;gt;wait_lock); __up_write(); rwsem_wake(); __rwsem_mark_wake(); wake_q_add(); list_del(&amp;amp;waiter-&amp;gt;list); waiter-&amp;gt;task = NULL; while (true) { set_current_state(TASK_UNINTERRUPTIBLE); if (!</description>
+    </item>
     
     <item>
       <title>编写 Ansible Connection 插件</title>
