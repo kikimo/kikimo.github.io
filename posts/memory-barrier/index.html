@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>内存屏障笔记 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/memory-barrier/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>内存屏障笔记</h1>
+    <time datetime="2020-03-31T20:34:43&#43;08:00">March 31, 2020</time>
+  </header>
+  <p>在多核的并发的场景下，程序可能会产生预期外的指令重排现象，例如原本的代码是：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C">a <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span> 
+b <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>
+</code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C">a <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>;
+b <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>;
+</code></pre></div><p>实际执行效果可能会变成：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">while</span> (b <span style="color:#f92672">=</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>) {
+}
+printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%d</span><span style="color:#e6db74">&#34;</span>, a)
+</code></pre></div><p>防止这种指令重排的方法就是使用内存屏障。
+这篇文章我们简要内存屏障的原理。
+要理解内存屏障首先我们需要知道以上代码为什么会产生指令重排。
+要理解指令重排的原因我们就需要理解现代多核计算机的设计架构。
+（导致指令重排的原因有多重，如编译器重排等，我们这边只介绍和内存屏障有关的指令重排问题）。
+现代多核 CPU 的设计中，每个 CPU 都有独立的缓存，
+因此 CPU 之间需要保证缓存一致性，
+目前这是通过缓存一致性协议 MESI 来完成的。</p>
+<p>store buffer 和 invalidate queue 带来新的问题。</p>
+<ol>
+<li>CPU 1 执行<code>a = 1;</code>发现 a 不在缓存中，于是在 store buffer 中设置<code>a = 1</code>，并发送 invalidate 消息</li>
+<li>CPU 2 收到 invalidate 消息并存放到 invalidate queue 中</li>
+<li>CPU 1 执行<code>b = 2</code>, b 在缓存中，直接修改缓存中的值</li>
+<li>CPU 2 通过 MESI 协议或得 CPU 1 中变量 b 的值为 2</li>
+<li>CPU 2 读取缓存中 a 变量的值，此时 a 的值尚未被 invalidate queue 中的数据刷新，<code>print(&quot;%d&quot;, a)</code>打印 1</li>
+<li>CPU 2 刷新 invalidate queue 将 a 的值刷新为 2</li>
+</ol>
+
+</article>
+
+
+
+</html>
