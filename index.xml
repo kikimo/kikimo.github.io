@@ -6,10 +6,21 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Tue, 31 Mar 2020 11:13:27 +0800</lastBuildDate>
+    <lastBuildDate>Sun, 11 Oct 2020 22:16:53 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>eBPF 原理简介</title>
+      <link>https://coderatwork.cn/posts/principle-of-bpf/</link>
+      <pubDate>Sun, 11 Oct 2020 22:16:53 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/principle-of-bpf/</guid>
+      <description>eBPf 是一种强大的 Linux 跟踪技术，要了解 eBPF 的原理首先需要了解它的前身 BPF 技术。 BPF 是一种网络包过滤技术， 在 BPF 出现之前也存在其他的网络包过滤技术， 例如 SunOS 上的 NIT 技术和 DEC 上的 Ultrix Packet Filter 技术。 相较于之前存在的技术 BPF 在效率上具有非常明显的优势， 具体的性能对比可以参考这篇文章：The BSD Packet Filter: A New Architecture for User-level Packet Capture。 为什么 BPF 能在性能上取得大幅度的优势？ 这其中最重要的原因之一在于 BPF 中过滤过滤表达式计算模型上的革新。 BPF 和之前存在的过滤技术都会根据用户输入的过滤表达式计算的结果来判断是否要过滤某个网络包。 BPF 之前的技术使用的是把过滤表达式解析为表达式数，然后通过遍历这颗树来结算判定结果， 这个过程这本质上就使用堆栈模型来计算逆波兰表达式，在性能上它存在两个问题：
+ 过多的访存操作拖慢的速度（堆栈存放于内存中） 存在冗余的计算，例如对于表达式expr1 or expr2, 如果计算出expr1为真那么就可以直接返回了，但是expr2还是会被计算一遍  BPF 的创新点在于它设计了一套中间代码（可与 Java 字节码类比），它首先将过滤表达式编译为 BPF 中间代码，然后通过执行中间代码来计算过滤表达式。 这套字节代码设计的核心有两点：
+ 基于寄存器的设计（区别与之前基于堆栈的计算模型），这使得数据可以方便的存在类似 x86 CPU 上的寄存器上，效率和得到明显提高 使用 CFG （control flow graph）过滤模型来翻译过滤表达式，这避免了树形模型中的冗余表达式计算的问题，同时也可以避免网络报文内容的重复解析(TODO: 说清楚 how)  BPF 诞生于 1992 年，也算历史悠久。 在 2014 年的时候 Alexei Starovoitov 对它进行了大幅度的改进，扩充和改进了它的指令集，使它得以更好的适配 64 位机器同时具备更强的表达能力。 既然我们可以把网络过滤表达式编译成 BPF 字节码，我们也可以把 C 代码活着它的一个子集合编译成 BPF 字节码。 既然我们可以把 BPF 用于网络包的过滤，我们是否也可把它用于更广泛的用途，比如，Linux 系统 trace？ 答案使肯定的，我们可以结合 Linux Trace Point、Kprobe 等技术，非常方便的实现内核的跟踪。 后续出现的 bcc 编译器可以直接把类 C 代码编译成 eBPF 字节码然后通过bpf系统调用执行。 这些 bcc 编译的 C 代码可以注册为Linux 跟踪系统某个跟踪点的回调函数，它可以直接操作跟踪点上线问中的信息，比如进程结构体之类， 本质上可以理解为一种更强大的过滤程序。</description>
+    </item>
     
     <item>
       <title>ps 指令 hang 死原因分析（二）</title>
