@@ -44,9 +44,6 @@ SSL 通信的本质是利用非对称加密算法来传输对称算法的密钥�
 非对称加密算法有多种，如 RSA、DSA、ECDSA 等，
 这里我以 RSA 算法为例介绍利用 openssl 生成证书的一系列操作。</p>
 <h3 id="1-生成-rsa-key">1. 生成 rsa key</h3>
-<h1 id="2048-private-key-size">2048 private key size</h1>
-<h1 id="today-2048-bit-rsa-keys-are-considered-secure-and-thats-what-you-should-use">Today, 2048-bit RSA keys are considered secure, and that’s what you should use.</h1>
-<h1 id="aim-also-to-use-2048-bits-for-dsa-keys-and-at-least-224-bits-for-ecdsa">Aim also to use 2048 bits for DSA keys and at least 224 bits for ECDSA.</h1>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl genrsa -aes128 -out fd.key 2048
 </code></pre></div><p><code>-aes-128</code>表示用<code>aes-128</code>加密算法保护密钥，设置了这个选项后系统会让你输入密码，其他可选项还有<code>-aes-256</code>, <code>-aes-192</code>。
 2048 是 RSA 密钥的长度，也可以选 1024，一般认为 2048 才足够安全。</p>

@@ -30,10 +30,6 @@ SSL 通信的本质是利用非对称加密算法来传输对称算法的密钥�
 
 ### 1. 生成 rsa key
 
-# 2048 private key size
-# Today, 2048-bit RSA keys are considered secure, and that’s what you should use.
-# Aim also to use 2048 bits for DSA keys and at least 224 bits for ECDSA.
-
 ```txt
 $ openssl genrsa -aes128 -out fd.key 2048
 ```
