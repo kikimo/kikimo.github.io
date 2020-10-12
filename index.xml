@@ -17,7 +17,7 @@
       <pubDate>Mon, 12 Oct 2020 09:12:05 +0800</pubDate>
       
       <guid>https://coderatwork.cn/posts/get-sys-cpus/</guid>
-      <description>经常碰到需要了解系统 CPU 信息的场景， 例如你登录一台服务器想知道这台服务器大概是什么配置， 或者在应用的场景中我们根据 CPU 数量来配置服务的线程数。 我们可以通过cat /proc/cpuinfo指令来获取机器的 CPU 信息。 对于 Java 应用则可以调用runtime.availableProcessors()， Go 则会自动调用runtime.GOMAXPROCS()获取可以 CPU 信息，且根据这一信息来设置 GC、MPG 中的 Processor 等配置。 通常情况下这些获取 CPU 等方法不会有问题，但在容器场景，这些办法就不灵了。
+      <description>经常碰到需要了解系统 CPU 信息的场景， 例如你登录一台服务器想知道这台服务器大概是什么配置， 或者在应用的场景中我们根据 CPU 数量来配置服务的线程数。 我们可以通过cat /proc/cpuinfo指令来获取机器的 CPU 信息。 对于 Java 应用则可以调用runtime.availableProcessors()， Go 则会自动调用runtime.GOMAXPROCS()获取可以 CPU 信息，且根据这一信息来设置 GC、MPG 中的 Processor 等配置。 通常情况下这些获取 CPU 等方法不会有问题，但在容器环境下，这些办法就有问题了。
 首先容器中是没有自己的 proc 文件系统的，所以也就没办法执行cat /proc/cpuinfo。 一个解决的办法是通过 lxcfs 挂在一个伪造的/proc/cpuinfo， 我们甚至可以让这个伪造的/proc/cpuinfo和容器的 CPU 配置一致， 比如容器配置是四核，lxcfs 挂在的/proc/cpuinfo也显示四核 CPU。 所以 lxcfs 就能解决所有问题了吗？ 显然事情没这么简单，通过简单的测试，可以发现即便配置了伪造的/proc/cpuinfo， Java、Go 依然获取了错误的 CPU 信息。
 public class Docker { public static void main(String[] args) { Runtime runtime = Runtime.getRuntime(); int processors = runtime.availableProcessors(); // long maxMemory = runtime.maxMemory();  System.</description>
     </item>

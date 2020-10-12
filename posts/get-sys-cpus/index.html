@@ -27,7 +27,7 @@
 我们可以通过<code>cat /proc/cpuinfo</code>指令来获取机器的 CPU 信息。
 对于 Java 应用则可以调用<code>runtime.availableProcessors()</code>，
 Go 则会自动调用<code>runtime.GOMAXPROCS()</code>获取可以 CPU 信息，且根据这一信息来设置 GC、MPG 中的 Processor 等配置。
-通常情况下这些获取 CPU 等方法不会有问题，但在容器场景，这些办法就不灵了。</p>
+通常情况下这些获取 CPU 等方法不会有问题，但在容器环境下，这些办法就有问题了。</p>
 <p>首先容器中是没有自己的 proc 文件系统的，所以也就没办法执行<code>cat /proc/cpuinfo</code>。
 一个解决的办法是通过 lxcfs 挂在一个伪造的<code>/proc/cpuinfo</code>，
 我们甚至可以让这个伪造的<code>/proc/cpuinfo</code>和容器的 CPU 配置一致，
@@ -74,7 +74,7 @@ Number of processors: 40
 </code></pre></div><p>strace 结果显示，Java 读取了<code>/sys/devices/system/cpu/online</code>文件，
 这个文件内容是<code>0-39\n</code>也就是机器的 CPU 信息。
 另外 Java 还调用了<code>sched_getaffinity()</code>这个系统调用，这个调用同样可以获取系统的 CPU 信息。
-另外 strace 执行的时候一定要加<code>-ff</code>参数，因为这些调用不是在 Java 的祝进程中产生的。</p>
+执行 strace 的时候一定要加<code>-ff</code>参数，因为这些调用不是在 Java 的祝进程中产生的。</p>
 <p>再看 Go 如何获取 CPU 信息：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># ./ncpu
 cpus: 40
