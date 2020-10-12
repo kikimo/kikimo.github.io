@@ -3,17 +3,22 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
-    <loc>https://coderatwork.cn/posts/principle-of-bpf/</loc>
-    <lastmod>2020-10-11T22:16:53+08:00</lastmod>
-  </url>
-  
-  <url>
     <loc>https://coderatwork.cn/</loc>
-    <lastmod>2020-10-11T22:16:53+08:00</lastmod>
+    <lastmod>2020-10-12T09:12:05+08:00</lastmod>
   </url>
   
   <url>
     <loc>https://coderatwork.cn/posts/</loc>
+    <lastmod>2020-10-12T09:12:05+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://coderatwork.cn/posts/get-sys-cpus/</loc>
+    <lastmod>2020-10-12T09:12:05+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://coderatwork.cn/posts/principle-of-bpf/</loc>
     <lastmod>2020-10-11T22:16:53+08:00</lastmod>
   </url>
   
