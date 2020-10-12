@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>利用 openssl 生成公钥匙证书 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.63.2" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/gen-cert-by-openssl/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>利用 openssl 生成公钥匙证书</h1>
+    <time datetime="2020-10-12T21:27:41&#43;08:00">October 12, 2020</time>
+  </header>
+  <p>SSL 通信需要用到私钥/公钥证书。
+SSL 通信的本质是利用非对称加密算法来传输对称算法的密钥，通信的时候利用对称算法加密流量。
+对称加密算法的效率高，但前提是能够先安全协商和传输对称加密的密钥。
+非对称加密算法的特点是加密效率不高，但它的加密密钥的解密密钥不一样，因此可以利用它的这一特点来实现对称加密密钥的传输。
+具体的过程为：客户端利用公钥（这个公钥对外界所有人公开）加密好对称算法的密钥，然后发送给服务端，
+这时候只有拥有私钥的服务端能够解密客户端的信息，服务端解密出客户端发送的密钥后就可以用于后续普通流量的加解密了。
+这里还有一个带解决的问题是，客户端如何验证它从公开渠道或得的公钥？
+目前的解决办法就是引入三方机构，这些三方机构被成为 CA（Certificate Authority）,
+目前目前大部分操作系统、浏览器都会装有主流 CA 机构的公钥证书。
+当某个机构需要提供可信的公钥的时，它首先拿它的公钥生成一份证书签名请求也就是 CSR（Certificate Sign Request）,
+然后把这份 CSR 发送给某个 CA，CA 利用他们的私钥给需要做验证的公钥做签名，得到的结果就是一份带签名的公钥，也就是公钥证书 cert。
+客户端可以用他们系统或浏览器上预装的 CA 机构的公钥来验证证书的合法性。</p>
+<p>总结以上介绍中的几个重要概念：</p>
+<ol>
+<li>公钥/私钥</li>
+<li>CA: 给证书做签名的权威机构</li>
+<li>证书签名请求（csr）</li>
+<li>证书(cert)：签名过的公钥</li>
+</ol>
+<p>可以用 openssl 来生成公钥/私钥、csr、证书等一列操作。
+非对称加密算法有多种，如 RSA、DSA、ECDSA 等，
+这里我以 RSA 算法为例介绍利用 openssl 生成证书的一系列操作。</p>
+<h3 id="1-生成-rsa-key">1. 生成 rsa key</h3>
+<h1 id="2048-private-key-size">2048 private key size</h1>
+<h1 id="today-2048-bit-rsa-keys-are-considered-secure-and-thats-what-you-should-use">Today, 2048-bit RSA keys are considered secure, and that’s what you should use.</h1>
+<h1 id="aim-also-to-use-2048-bits-for-dsa-keys-and-at-least-224-bits-for-ecdsa">Aim also to use 2048 bits for DSA keys and at least 224 bits for ECDSA.</h1>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl genrsa -aes128 -out fd.key 2048
+</code></pre></div><p><code>-aes-128</code>表示用<code>aes-128</code>加密算法保护密钥，设置了这个选项后系统会让你输入密码，其他可选项还有<code>-aes-256</code>, <code>-aes-192</code>。
+2048 是 RSA 密钥的长度，也可以选 1024，一般认为 2048 才足够安全。</p>
+<p>查看 rsa key 的内容</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl rsa -text -in fd.key
+</code></pre></div><p>（展示出来的内容可以看到有两个素数、一些指数、模什么的，跟 RSA 算法有关，不深究）</p>
+<h3 id="2-生成-rsa-公钥">2. 生成 rsa 公钥</h3>
+<p>非对称加密算法的公钥/私钥都是成对的，
+但是上面我们只看到一个 rsa key？
+实际上 rsa key 中同时包含了公钥和私钥的信息，我们可以通过一下指令从 rsa key 中解压出公钥信息：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl rsa -in fd.key -pubout -out fd-public.key
+</code></pre></div><h3 id="3-生成-csr">3. 生成 csr</h3>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl req -new -key fd.key -out fd.csr
+</code></pre></div><p>查看 csr 内容：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl req -text -in fd.csr -noout
+</code></pre></div><h3 id="4-给公钥签名">4. 给公钥签名</h3>
+<p>这里我们自己当 CA 给生成的公钥做签名，根据上一步骤生成的 csr 生成一本自签名证书：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl x509 -req -days 8848 -in fd.csr -signkey fd.key -out fd.crt
+</code></pre></div><p><code>-day</code>是证书的有效时间（那个 x509 是什么意思）。
+这个过程是交互式的，openssl 会问题一系列的问题，想用默认选项的化就输入.号，注意不是直接回车。
+诸多问题中比较重要的是 CN 这个字段的设置：它可以用于制定这本这是是给哪个域名用的，不要乱填。</p>
+<p>也可以直接跳过 csr 这一步直接生成证书：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl  req -new -x509 -days 8848 -key fd.key -out fd.crt
+</code></pre></div><p>查看证书内容：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl x509 -text -in fd.crt -noout
+</code></pre></div>
+</article>
+
+
+
+</html>
