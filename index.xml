@@ -6,10 +6,23 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Mon, 12 Oct 2020 21:27:41 +0800</lastBuildDate>
+    <lastBuildDate>Tue, 13 Oct 2020 12:59:53 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>etcd 安全通信</title>
+      <link>https://coderatwork.cn/posts/etcd-secure-transport/</link>
+      <pubDate>Tue, 13 Oct 2020 12:59:53 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/etcd-secure-transport/</guid>
+      <description>etcd 中的安全通信包括两中场景，客户端和 etcd 服务端之间的安全通信，etcd 集群节点之间的安全通信。 这两种场景使用的都是 ssl 来实现安全通信。 etcd 中的 ssl 可以设置为服务器单向安全通信也可以设置服务器、客户端双向安全通信。
+1. 设置服务端安全通信 $ etcd --name infra0 --data-dir infra0 \ --cert-file=/path/to/server.crt --key-file=/path/to/server.key \ --advertise-client-urls=https://127.0.0.1:2379 --listen-client-urls=https://127.0.0.1:2379 客户端链接服务端时需要指定 CA 公钥证书以验证服务端的公钥证书：
+$ curl --cacert /path/to/ca.crt https://127.0.0.1:2379/v2/keys/foo -XPUT -d value=bar -v 或者也可用-k参数让 curl 跳过证书验证环节：
+$ curl -k https://127.0.0.1:2379/v2/keys/foo -XPUT -d value=bar -v 2. 验证客户端 服务端配置：
+etcd --name infra0 --data-dir infra0 \ --client-cert-auth --trusted-ca-file=/path/to/ca.crt --cert-file=/path/to/server.crt --key-file=/path/to/server.key \ --advertise-client-urls https://127.0.0.1:2379 --listen-client-urls https://127.0.0.1:2379 --client-cert-auth开启客户端请求验证， 客户请求，需要指定客户端公钥证书、私钥这两参数，服务端会用它的 CA 证书验证客户端的公钥证书：</description>
+    </item>
     
     <item>
       <title>利用 openssl 生成公钥匙证书</title>
