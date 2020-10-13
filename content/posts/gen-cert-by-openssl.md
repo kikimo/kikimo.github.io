@@ -84,6 +84,17 @@ $ openssl x509 -req -days 8848 -in fd.csr -signkey fd.key -out fd.crt
 $ openssl  req -new -x509 -days 8848 -key fd.key -out fd.crt
 ```
 
+给其他证书签名，假设我们：
+
+```txt
+$ # 给 etcd 生成密钥
+$ openssl genrsa -out etcd.key 2048
+$ # 生成 etcd.key 的证书签名请求
+$ openssl req -new -key etcc.key -out etcd.csr
+$ # 用 fd.key 做 CA 给 etcd.csr 签名
+$ openssl x509 -req -in etcd.csr -CA ./fd.crt -CAkey ./fd.key -out etcd.crt -days 8848 -CAcreateserial
+```
+
 查看证书内容：
 
 ```txt

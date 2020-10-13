@@ -67,6 +67,13 @@ SSL 通信的本质是利用非对称加密算法来传输对称算法的密钥�
 诸多问题中比较重要的是 CN 这个字段的设置：它可以用于制定这本这是是给哪个域名用的，不要乱填。</p>
 <p>也可以直接跳过 csr 这一步直接生成证书：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl  req -new -x509 -days 8848 -key fd.key -out fd.crt
+</code></pre></div><p>给其他证书签名，假设我们：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ # 给 etcd 生成密钥
+$ openssl genrsa -out etcd.key 2048
+$ # 生成 etcd.key 的证书签名请求
+$ openssl req -new -key etcc.key -out etcd.csr
+$ # 用 fd.key 做 CA 给 etcd.csr 签名
+$ openssl x509 -req -in etcd.csr -CA ./fd.crt -CAkey ./fd.key -out etcd.crt -days 8848 -CAcreateserial
 </code></pre></div><p>查看证书内容：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl x509 -text -in fd.crt -noout
 </code></pre></div>
