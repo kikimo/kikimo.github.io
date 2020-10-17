@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>编写 Ansible Connection 插件 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/ansible-connection-plugin/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -39,111 +39,111 @@ Ansible 的发行版自带丰富的连接插件，如默认使用的 ssh 连接�
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python">
 <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">ensure_connect</span>(func):
     <span style="color:#a6e22e">@wraps</span>(func)
-    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">wrapped</span>(self, <span style="color:#f92672">*</span>args, <span style="color:#f92672">*</span><span style="color:#f92672">*</span>kwargs):
+    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">wrapped</span>(self, <span style="color:#f92672">*</span>args, <span style="color:#f92672">**</span>kwargs):
         <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> self<span style="color:#f92672">.</span>_connected:
             self<span style="color:#f92672">.</span>_connect()
-        <span style="color:#66d9ef">return</span> func(self, <span style="color:#f92672">*</span>args, <span style="color:#f92672">*</span><span style="color:#f92672">*</span>kwargs)
+        <span style="color:#66d9ef">return</span> func(self, <span style="color:#f92672">*</span>args, <span style="color:#f92672">**</span>kwargs)
     <span style="color:#66d9ef">return</span> wrapped
 
 <span style="color:#66d9ef">class</span> <span style="color:#a6e22e">ConnectionBase</span>(AnsiblePlugin):
-    <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;&#39;&#39;</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">    A base class for connections to contain common code.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">    </span><span style="color:#e6db74">&#39;&#39;&#39;</span>
-    <span style="color:#f92672">.</span><span style="color:#f92672">.</span><span style="color:#f92672">.</span>
+    <span style="color:#e6db74">&#39;&#39;&#39;
+</span><span style="color:#e6db74">    A base class for connections to contain common code.
+</span><span style="color:#e6db74">    &#39;&#39;&#39;</span>
+    <span style="color:#f92672">...</span>
     <span style="color:#a6e22e">@abstractproperty</span>
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">transport</span>(self):
-        <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;&#34;&#34;</span><span style="color:#e6db74">String used to identify this Connection class from other classes</span><span style="color:#e6db74">&#34;&#34;&#34;</span>
+        <span style="color:#e6db74">&#34;&#34;&#34;String used to identify this Connection class from other classes&#34;&#34;&#34;</span>
         <span style="color:#66d9ef">pass</span>
 
     <span style="color:#a6e22e">@abstractmethod</span>
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_connect</span>(self):
-        <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;&#34;&#34;</span><span style="color:#e6db74">Connect to the host we</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">ve been initialized with</span><span style="color:#e6db74">&#34;&#34;&#34;</span>
+        <span style="color:#e6db74">&#34;&#34;&#34;Connect to the host we&#39;ve been initialized with&#34;&#34;&#34;</span>
 
     <span style="color:#a6e22e">@ensure_connect</span>
     <span style="color:#a6e22e">@abstractmethod</span>
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">exec_command</span>(self, cmd, in_data<span style="color:#f92672">=</span>None, sudoable<span style="color:#f92672">=</span>True):
-        <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;&#34;&#34;</span><span style="color:#e6db74">Run a command on the remote host.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        :arg cmd: byte string containing the command</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        :kwarg in_data: If set, this data is passed to the command</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">s stdin.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            This is used to implement pipelining.  Currently not all</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            connection plugins implement pipelining.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        :kwarg sudoable: Tell the connection plugin if we</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">re executing</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            a command via a privilege escalation mechanism.  This may affect</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            how the connection plugin returns data.  Note that not all</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            connections can handle privilege escalation.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        :returns: a tuple of (return code, stdout, stderr)  The return code is</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            an int while stdout and stderr are both byte strings.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        When a command is executed, it goes through multiple commands to get</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        there.  It looks approximately like this::</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            [LocalShell] ConnectionCommand [UsersLoginShell (*)] ANSIBLE_SHELL_EXECUTABLE [(BecomeCommand ANSIBLE_SHELL_EXECUTABLE)] Command</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        :LocalShell: Is optional.  It is run locally to invoke the</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            ``Connection Command``.  In most instances, the</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            ``ConnectionCommand`` can be invoked directly instead.  The ssh</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            connection plugin which can have values that need expanding</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            locally specified via ssh_args is the sole known exception to</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            this.  Shell metacharacters in the command itself should be</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            processed on the remote machine, not on the local machine so no</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            shell is needed on the local machine.  (Example, ``/bin/sh``)</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        :ConnectionCommand: This is the command that connects us to the remote</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            machine to run the rest of the command.  ``ansible_user``,</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            ``ansible_ssh_host`` and so forth are fed to this piece of the</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            command to connect to the correct host (Examples ``ssh``,</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            ``chroot``)</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        :UsersLoginShell: This shell may or may not be created depending on</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            the ConnectionCommand used by the connection plugin.  This is the</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            shell that the ``ansible_user`` has configured as their login</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            shell.  In traditional UNIX parlance, this is the last field of</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            a user</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">s ``/etc/passwd`` entry   We do not specifically try to run</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            the ``UsersLoginShell`` when we connect.  Instead it is implicit</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            in the actions that the ``ConnectionCommand`` takes when it</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            connects to a remote machine.  ``ansible_shell_type`` may be set</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            to inform ansible of differences in how the ``UsersLoginShell``</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            handles things like quoting if a shell has different semantics</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            than the Bourne shell.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        :ANSIBLE_SHELL_EXECUTABLE: This is the shell set via the inventory var</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            ``ansible_shell_executable`` or via</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            ``constants.DEFAULT_EXECUTABLE`` if the inventory var is not set.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            We explicitly invoke this shell so that we have predictable</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            quoting rules at this point.  ``ANSIBLE_SHELL_EXECUTABLE`` is only</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            settable by the user because some sudo setups may only allow</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            invoking a specific shell.  (For instance, ``/bin/bash`` may be</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            allowed but ``/bin/sh``, our default, may not).  We invoke this</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            twice, once after the ``ConnectionCommand`` and once after the</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            ``BecomeCommand``.  After the ConnectionCommand, this is run by</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            the ``UsersLoginShell``.  After the ``BecomeCommand`` we specify</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            that the ``ANSIBLE_SHELL_EXECUTABLE`` is being invoked directly.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        :BecomeComand ANSIBLE_SHELL_EXECUTABLE: Is the command that performs</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            privilege escalation.  Setting this up is performed by the action</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            plugin prior to running ``exec_command``. So we just get passed</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            :param:`cmd` which has the BecomeCommand already added.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            (Examples: sudo, su)  If we have a BecomeCommand then we will</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            invoke a ANSIBLE_SHELL_EXECUTABLE shell inside of it so that we</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            have a consistent view of quoting.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        :Command: Is the command we</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">re actually trying to run remotely.</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">            (Examples: mkdir -p $HOME/.ansible, python $HOME/.ansible/tmp-script-file)</span><span style="color:#e6db74">
-</span><span style="color:#e6db74"></span><span style="color:#e6db74">        </span><span style="color:#e6db74">&#34;&#34;&#34;</span>
+        <span style="color:#e6db74">&#34;&#34;&#34;Run a command on the remote host.
+</span><span style="color:#e6db74">
+</span><span style="color:#e6db74">        :arg cmd: byte string containing the command
+</span><span style="color:#e6db74">        :kwarg in_data: If set, this data is passed to the command&#39;s stdin.
+</span><span style="color:#e6db74">            This is used to implement pipelining.  Currently not all
+</span><span style="color:#e6db74">            connection plugins implement pipelining.
+</span><span style="color:#e6db74">        :kwarg sudoable: Tell the connection plugin if we&#39;re executing
+</span><span style="color:#e6db74">            a command via a privilege escalation mechanism.  This may affect
+</span><span style="color:#e6db74">            how the connection plugin returns data.  Note that not all
+</span><span style="color:#e6db74">            connections can handle privilege escalation.
+</span><span style="color:#e6db74">        :returns: a tuple of (return code, stdout, stderr)  The return code is
+</span><span style="color:#e6db74">            an int while stdout and stderr are both byte strings.
+</span><span style="color:#e6db74">
+</span><span style="color:#e6db74">        When a command is executed, it goes through multiple commands to get
+</span><span style="color:#e6db74">        there.  It looks approximately like this::
+</span><span style="color:#e6db74">
+</span><span style="color:#e6db74">            [LocalShell] ConnectionCommand [UsersLoginShell (*)] ANSIBLE_SHELL_EXECUTABLE [(BecomeCommand ANSIBLE_SHELL_EXECUTABLE)] Command
+</span><span style="color:#e6db74">        :LocalShell: Is optional.  It is run locally to invoke the
+</span><span style="color:#e6db74">            ``Connection Command``.  In most instances, the
+</span><span style="color:#e6db74">            ``ConnectionCommand`` can be invoked directly instead.  The ssh
+</span><span style="color:#e6db74">            connection plugin which can have values that need expanding
+</span><span style="color:#e6db74">            locally specified via ssh_args is the sole known exception to
+</span><span style="color:#e6db74">            this.  Shell metacharacters in the command itself should be
+</span><span style="color:#e6db74">            processed on the remote machine, not on the local machine so no
+</span><span style="color:#e6db74">            shell is needed on the local machine.  (Example, ``/bin/sh``)
+</span><span style="color:#e6db74">        :ConnectionCommand: This is the command that connects us to the remote
+</span><span style="color:#e6db74">            machine to run the rest of the command.  ``ansible_user``,
+</span><span style="color:#e6db74">            ``ansible_ssh_host`` and so forth are fed to this piece of the
+</span><span style="color:#e6db74">            command to connect to the correct host (Examples ``ssh``,
+</span><span style="color:#e6db74">            ``chroot``)
+</span><span style="color:#e6db74">        :UsersLoginShell: This shell may or may not be created depending on
+</span><span style="color:#e6db74">            the ConnectionCommand used by the connection plugin.  This is the
+</span><span style="color:#e6db74">            shell that the ``ansible_user`` has configured as their login
+</span><span style="color:#e6db74">            shell.  In traditional UNIX parlance, this is the last field of
+</span><span style="color:#e6db74">            a user&#39;s ``/etc/passwd`` entry   We do not specifically try to run
+</span><span style="color:#e6db74">            the ``UsersLoginShell`` when we connect.  Instead it is implicit
+</span><span style="color:#e6db74">            in the actions that the ``ConnectionCommand`` takes when it
+</span><span style="color:#e6db74">            connects to a remote machine.  ``ansible_shell_type`` may be set
+</span><span style="color:#e6db74">            to inform ansible of differences in how the ``UsersLoginShell``
+</span><span style="color:#e6db74">            handles things like quoting if a shell has different semantics
+</span><span style="color:#e6db74">            than the Bourne shell.
+</span><span style="color:#e6db74">        :ANSIBLE_SHELL_EXECUTABLE: This is the shell set via the inventory var
+</span><span style="color:#e6db74">            ``ansible_shell_executable`` or via
+</span><span style="color:#e6db74">            ``constants.DEFAULT_EXECUTABLE`` if the inventory var is not set.
+</span><span style="color:#e6db74">            We explicitly invoke this shell so that we have predictable
+</span><span style="color:#e6db74">            quoting rules at this point.  ``ANSIBLE_SHELL_EXECUTABLE`` is only
+</span><span style="color:#e6db74">            settable by the user because some sudo setups may only allow
+</span><span style="color:#e6db74">            invoking a specific shell.  (For instance, ``/bin/bash`` may be
+</span><span style="color:#e6db74">            allowed but ``/bin/sh``, our default, may not).  We invoke this
+</span><span style="color:#e6db74">            twice, once after the ``ConnectionCommand`` and once after the
+</span><span style="color:#e6db74">            ``BecomeCommand``.  After the ConnectionCommand, this is run by
+</span><span style="color:#e6db74">            the ``UsersLoginShell``.  After the ``BecomeCommand`` we specify
+</span><span style="color:#e6db74">            that the ``ANSIBLE_SHELL_EXECUTABLE`` is being invoked directly.
+</span><span style="color:#e6db74">        :BecomeComand ANSIBLE_SHELL_EXECUTABLE: Is the command that performs
+</span><span style="color:#e6db74">            privilege escalation.  Setting this up is performed by the action
+</span><span style="color:#e6db74">            plugin prior to running ``exec_command``. So we just get passed
+</span><span style="color:#e6db74">            :param:`cmd` which has the BecomeCommand already added.
+</span><span style="color:#e6db74">            (Examples: sudo, su)  If we have a BecomeCommand then we will
+</span><span style="color:#e6db74">            invoke a ANSIBLE_SHELL_EXECUTABLE shell inside of it so that we
+</span><span style="color:#e6db74">            have a consistent view of quoting.
+</span><span style="color:#e6db74">        :Command: Is the command we&#39;re actually trying to run remotely.
+</span><span style="color:#e6db74">            (Examples: mkdir -p $HOME/.ansible, python $HOME/.ansible/tmp-script-file)
+</span><span style="color:#e6db74">        &#34;&#34;&#34;</span>
         <span style="color:#66d9ef">pass</span>
 
-    <span style="color:#f92672">.</span><span style="color:#f92672">.</span><span style="color:#f92672">.</span>
+    <span style="color:#f92672">...</span>
 
     <span style="color:#a6e22e">@ensure_connect</span>
     <span style="color:#a6e22e">@abstractmethod</span>
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">put_file</span>(self, in_path, out_path):
-        <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;&#34;&#34;</span><span style="color:#e6db74">Transfer a file from local to remote</span><span style="color:#e6db74">&#34;&#34;&#34;</span>
+        <span style="color:#e6db74">&#34;&#34;&#34;Transfer a file from local to remote&#34;&#34;&#34;</span>
         <span style="color:#66d9ef">pass</span>
 
     <span style="color:#a6e22e">@ensure_connect</span>
     <span style="color:#a6e22e">@abstractmethod</span>
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">fetch_file</span>(self, in_path, out_path):
-        <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;&#34;&#34;</span><span style="color:#e6db74">Fetch a file from remote to local; callers are expected to have pre-created the directory chain for out_path</span><span style="color:#e6db74">&#34;&#34;&#34;</span>
+        <span style="color:#e6db74">&#34;&#34;&#34;Fetch a file from remote to local; callers are expected to have pre-created the directory chain for out_path&#34;&#34;&#34;</span>
         <span style="color:#66d9ef">pass</span>
 
     <span style="color:#a6e22e">@abstractmethod</span>
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">close</span>(self):
-        <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;&#34;&#34;</span><span style="color:#e6db74">Terminate the connection</span><span style="color:#e6db74">&#34;&#34;&#34;</span>
+        <span style="color:#e6db74">&#34;&#34;&#34;Terminate the connection&#34;&#34;&#34;</span>
         <span style="color:#66d9ef">pass</span>
 
 </code></pre></div><ol>
@@ -175,17 +175,17 @@ __metaclass__ <span style="color:#f92672">=</span> type
 display <span style="color:#f92672">=</span> Display()
 
 <span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Connection</span>(ConnectionBase):
-    <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;&#39;&#39;</span><span style="color:#e6db74"> Local based connections </span><span style="color:#e6db74">&#39;&#39;&#39;</span>
+    <span style="color:#e6db74">&#39;&#39;&#39; Local based connections &#39;&#39;&#39;</span>
 
-    transport <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">local</span><span style="color:#e6db74">&#39;</span>
+    transport <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;local&#39;</span>
     has_pipelining <span style="color:#f92672">=</span> True
 
-    <span style="color:#66d9ef">def</span> __init__(self, <span style="color:#f92672">*</span>args, <span style="color:#f92672">*</span><span style="color:#f92672">*</span>kwargs):
-        super(Connection, self)<span style="color:#f92672">.</span>__init__(<span style="color:#f92672">*</span>args, <span style="color:#f92672">*</span><span style="color:#f92672">*</span>kwargs)
+    <span style="color:#66d9ef">def</span> __init__(self, <span style="color:#f92672">*</span>args, <span style="color:#f92672">**</span>kwargs):
+        super(Connection, self)<span style="color:#f92672">.</span>__init__(<span style="color:#f92672">*</span>args, <span style="color:#f92672">**</span>kwargs)
         self<span style="color:#f92672">.</span>cwd <span style="color:#f92672">=</span> None
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_connect</span>(self):
-        <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;&#39;&#39;</span><span style="color:#e6db74"> connect to the local host; nothing to do here </span><span style="color:#e6db74">&#39;&#39;&#39;</span>
+        <span style="color:#e6db74">&#39;&#39;&#39; connect to the local host; nothing to do here &#39;&#39;&#39;</span>
         <span style="color:#66d9ef">return</span> self
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">exec_command</span>(self, cmd, in_data<span style="color:#f92672">=</span>None, sudoable<span style="color:#f92672">=</span>True):
@@ -197,43 +197,43 @@ display <span style="color:#f92672">=</span> Display()
 
         files <span style="color:#f92672">=</span> {}
         <span style="color:#66d9ef">if</span> in_data:
-            files[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">stdin</span><span style="color:#e6db74">&#39;</span>] <span style="color:#f92672">=</span> StringIO(in_data)
+            files[<span style="color:#e6db74">&#39;stdin&#39;</span>] <span style="color:#f92672">=</span> StringIO(in_data)
 
-        resp <span style="color:#f92672">=</span> requests<span style="color:#f92672">.</span>post(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">http://{}:8700/exec</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(addr), data<span style="color:#f92672">=</span>{<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">command</span><span style="color:#e6db74">&#39;</span>: cmd}, files<span style="color:#f92672">=</span>files)
+        resp <span style="color:#f92672">=</span> requests<span style="color:#f92672">.</span>post(<span style="color:#e6db74">&#39;http://{}:8700/exec&#39;</span><span style="color:#f92672">.</span>format(addr), data<span style="color:#f92672">=</span>{<span style="color:#e6db74">&#39;command&#39;</span>: cmd}, files<span style="color:#f92672">=</span>files)
         <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> resp<span style="color:#f92672">.</span>ok:
-            <span style="color:#66d9ef">raise</span> AnsibleConnectionFailure(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">Failed to exec command on {}: {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(addr, resp<span style="color:#f92672">.</span>reason))
+            <span style="color:#66d9ef">raise</span> AnsibleConnectionFailure(<span style="color:#e6db74">&#39;Failed to exec command on {}: {}&#39;</span><span style="color:#f92672">.</span>format(addr, resp<span style="color:#f92672">.</span>reason))
 
         data <span style="color:#f92672">=</span> resp<span style="color:#f92672">.</span>json()
-        <span style="color:#66d9ef">return</span> data[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">status</span><span style="color:#e6db74">&#39;</span>], data[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">stdout</span><span style="color:#e6db74">&#39;</span>], data[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">stderr</span><span style="color:#e6db74">&#39;</span>]
+        <span style="color:#66d9ef">return</span> data[<span style="color:#e6db74">&#39;status&#39;</span>], data[<span style="color:#e6db74">&#39;stdout&#39;</span>], data[<span style="color:#e6db74">&#39;stderr&#39;</span>]
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">put_file</span>(self, in_path, out_path):
         <span style="color:#66d9ef">with</span> open(in_path) <span style="color:#66d9ef">as</span> fp:
             remote_addr <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_play_context<span style="color:#f92672">.</span>remote_addr
-            resp <span style="color:#f92672">=</span> requests<span style="color:#f92672">.</span>put(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">http://{}:8700/upload</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(remote_addr), data<span style="color:#f92672">=</span>{<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">dest</span><span style="color:#e6db74">&#39;</span>: out_path}, files<span style="color:#f92672">=</span>{<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">src</span><span style="color:#e6db74">&#39;</span>: fp})
+            resp <span style="color:#f92672">=</span> requests<span style="color:#f92672">.</span>put(<span style="color:#e6db74">&#39;http://{}:8700/upload&#39;</span><span style="color:#f92672">.</span>format(remote_addr), data<span style="color:#f92672">=</span>{<span style="color:#e6db74">&#39;dest&#39;</span>: out_path}, files<span style="color:#f92672">=</span>{<span style="color:#e6db74">&#39;src&#39;</span>: fp})
 
             <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> resp<span style="color:#f92672">.</span>ok:
-                <span style="color:#66d9ef">raise</span> AnsibleConnectionFailure(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">Failed to upload file: {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(resp<span style="color:#f92672">.</span>reason))
+                <span style="color:#66d9ef">raise</span> AnsibleConnectionFailure(<span style="color:#e6db74">&#39;Failed to upload file: {}&#39;</span><span style="color:#f92672">.</span>format(resp<span style="color:#f92672">.</span>reason))
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">fetch_file</span>(self, in_path, out_path):
-        <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;&#39;&#39;</span><span style="color:#e6db74"> fetch a file from local to local -- for compatibility </span><span style="color:#e6db74">&#39;&#39;&#39;</span>
+        <span style="color:#e6db74">&#39;&#39;&#39; fetch a file from local to local -- for compatibility &#39;&#39;&#39;</span>
         super(Connection, self)<span style="color:#f92672">.</span>fetch_file(in_path, out_path)
 
-        display<span style="color:#f92672">.</span>vvv(<span style="color:#e6db74">u</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">FETCH {0} TO {1}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(in_path, out_path), host<span style="color:#f92672">=</span>self<span style="color:#f92672">.</span>_play_context<span style="color:#f92672">.</span>remote_addr)
+        display<span style="color:#f92672">.</span>vvv(<span style="color:#e6db74">u</span><span style="color:#e6db74">&#34;FETCH {0} TO {1}&#34;</span><span style="color:#f92672">.</span>format(in_path, out_path), host<span style="color:#f92672">=</span>self<span style="color:#f92672">.</span>_play_context<span style="color:#f92672">.</span>remote_addr)
         self<span style="color:#f92672">.</span>put_file(in_path, out_path)
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">close</span>(self):
-        <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;&#39;&#39;</span><span style="color:#e6db74"> terminate the connection; nothing to do here </span><span style="color:#e6db74">&#39;&#39;&#39;</span>
+        <span style="color:#e6db74">&#39;&#39;&#39; terminate the connection; nothing to do here &#39;&#39;&#39;</span>
         self<span style="color:#f92672">.</span>_connected <span style="color:#f92672">=</span> False
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">fetch_file</span>(self, in_path, out_path):
-        <span style="color:#66d9ef">raise</span> AnsibleError(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">not unimplemented</span><span style="color:#e6db74">&#34;</span>)
+        <span style="color:#66d9ef">raise</span> AnsibleError(<span style="color:#e6db74">&#34;not unimplemented&#34;</span>)
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">close</span>(self):
         <span style="color:#66d9ef">pass</span>
 </code></pre></div><p>我们使用 requests 库直接调用 agent 的 HTTP 接口，这在 Mac 下可能会产生如下错误：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">TASK <span style="color:#f92672">[</span>Test credstash lookup plugin -- get the password with a context defined here<span style="color:#f92672">]</span> ***********************************************************************************************************************************************************************************************
-objc<span style="color:#f92672">[</span>6763<span style="color:#f92672">]</span>: +<span style="color:#f92672">[</span>__NSPlaceholderDate initialize<span style="color:#f92672">]</span> may have been in progress in another thread when fork<span style="color:#f92672">(</span><span style="color:#f92672">)</span> was called.
-objc<span style="color:#f92672">[</span>6763<span style="color:#f92672">]</span>: +<span style="color:#f92672">[</span>__NSPlaceholderDate initialize<span style="color:#f92672">]</span> may have been in progress in another thread when fork<span style="color:#f92672">(</span><span style="color:#f92672">)</span> was called. We cannot safely call it or ignore it in the fork<span style="color:#f92672">(</span><span style="color:#f92672">)</span> child process. Crashing instead. Set a breakpoint on objc_initializeAfterForkError to debug.
+objc<span style="color:#f92672">[</span>6763<span style="color:#f92672">]</span>: +<span style="color:#f92672">[</span>__NSPlaceholderDate initialize<span style="color:#f92672">]</span> may have been in progress in another thread when fork<span style="color:#f92672">()</span> was called.
+objc<span style="color:#f92672">[</span>6763<span style="color:#f92672">]</span>: +<span style="color:#f92672">[</span>__NSPlaceholderDate initialize<span style="color:#f92672">]</span> may have been in progress in another thread when fork<span style="color:#f92672">()</span> was called. We cannot safely call it or ignore it in the fork<span style="color:#f92672">()</span> child process. Crashing instead. Set a breakpoint on objc_initializeAfterForkError to debug.
 </code></pre></div><p>通过设置环境变量可以解决这一问题：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">export OBJC_DISABLE_INITIALIZE_FORK_SAFETY<span style="color:#f92672">=</span>YES
 </code></pre></div><p>具体可以看这个<a href="https://github.com/ansible/ansible/issues/31869">Ansible issue</a></p>

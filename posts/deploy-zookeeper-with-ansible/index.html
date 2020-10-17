@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>利用 ansible 部署 zookeeper 集群 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/deploy-zookeeper-with-ansible/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -52,7 +52,7 @@ zookeeper 的部署可以分为以下几个步骤：</p>
 <p>上传 zookeeper 包：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">    - <span style="color:#66d9ef">name</span>: Upload zookeeper package
       <span style="color:#66d9ef">unarchive</span>:
-        <span style="color:#66d9ef">src</span>: ./infra_pkgs/apache-zookeeper<span style="color:#ae81ff">-3.5</span><span style="color:#ae81ff">.7</span>-bin.tar.gz
+        <span style="color:#66d9ef">src</span>: ./infra_pkgs/apache-zookeeper<span style="color:#ae81ff">-3.5.7</span>-bin.tar.gz
         <span style="color:#66d9ef">dest</span>: /opt/infra
       <span style="color:#66d9ef">notify</span>: Restart zookeeper service
 </code></pre></div><p>这里使用<code>unarchive</code>模块来传输和解压 zookeeper 包，
@@ -132,7 +132,7 @@ export PATH<span style="color:#f92672">=</span>$PATH:$ZK_HOME/bin
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">  <span style="color:#66d9ef">handlers</span>:
     - <span style="color:#66d9ef">name</span>: Restart zookeeper service
       <span style="color:#66d9ef">shell</span>:
-        <span style="color:#66d9ef">cmd</span>: /opt/infra/apache-zookeeper<span style="color:#ae81ff">-3.5</span><span style="color:#ae81ff">.7</span>-bin/bin/zkServer.sh restart
+        <span style="color:#66d9ef">cmd</span>: /opt/infra/apache-zookeeper<span style="color:#ae81ff">-3.5.7</span>-bin/bin/zkServer.sh restart
 </code></pre></div><p>这里通过<code>shell</code>模块直接执行指令<code>/opt/infra/apache-zookeeper-3.5.7-bin/bin/zkServer.sh restart</code>来重启 zookeeper 服务，
 这个做法目前有个问题，
 如果服务启动失败了整个部署脚本仍然会显示部署成功，
@@ -161,7 +161,7 @@ export PATH<span style="color:#f92672">=</span>$PATH:$ZK_HOME/bin
           - /tmp/zookeeper
     - <span style="color:#66d9ef">name</span>: Upload zookeeper package
       <span style="color:#66d9ef">unarchive</span>:
-        <span style="color:#66d9ef">src</span>: ./infra_pkgs/apache-zookeeper<span style="color:#ae81ff">-3.5</span><span style="color:#ae81ff">.7</span>-bin.tar.gz
+        <span style="color:#66d9ef">src</span>: ./infra_pkgs/apache-zookeeper<span style="color:#ae81ff">-3.5.7</span>-bin.tar.gz
         <span style="color:#66d9ef">dest</span>: /opt/infra
       <span style="color:#66d9ef">notify</span>: Restart zookeeper service
     - <span style="color:#66d9ef">name</span>: Init zookeeper config
@@ -173,7 +173,7 @@ export PATH<span style="color:#f92672">=</span>$PATH:$ZK_HOME/bin
   <span style="color:#66d9ef">handlers</span>:
     - <span style="color:#66d9ef">name</span>: Restart zookeeper service
       <span style="color:#66d9ef">shell</span>:
-        <span style="color:#66d9ef">cmd</span>: /opt/infra/apache-zookeeper<span style="color:#ae81ff">-3.5</span><span style="color:#ae81ff">.7</span>-bin/bin/zkServer.sh restart
+        <span style="color:#66d9ef">cmd</span>: /opt/infra/apache-zookeeper<span style="color:#ae81ff">-3.5.7</span>-bin/bin/zkServer.sh restart
 </code></pre></div><p>通过管道映射处理，
 我们把<code>zk_servers</code>变量中的节点 IP 地址提取出来，
 这些 IP 是我们要部署的目标机器：<code>{{ zk_servers | map(attribute='ip') | list }}</code>。</p>

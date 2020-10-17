@@ -3,17 +3,22 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
-    <loc>https://coderatwork.cn/posts/etcd-secure-transport/</loc>
-    <lastmod>2020-10-13T12:59:53+08:00</lastmod>
-  </url>
-  
-  <url>
     <loc>https://coderatwork.cn/</loc>
-    <lastmod>2020-10-13T12:59:53+08:00</lastmod>
+    <lastmod>2020-10-17T19:30:34+08:00</lastmod>
   </url>
   
   <url>
     <loc>https://coderatwork.cn/posts/</loc>
+    <lastmod>2020-10-17T19:30:34+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://coderatwork.cn/posts/ubuntu-input-method/</loc>
+    <lastmod>2020-10-17T19:30:34+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://coderatwork.cn/posts/etcd-secure-transport/</loc>
     <lastmod>2020-10-13T12:59:53+08:00</lastmod>
   </url>
   

@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>CFS bandwidth control 笔记（二） | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -58,46 +58,46 @@ CFS 调度器主体代码在<code>kernel/sched/fair.c</code>文件中，
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">3605</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">throttle_cfs_rq</span>(<span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq)
 <span style="color:#ae81ff">3606</span> {
 <span style="color:#ae81ff">3607</span>     <span style="color:#66d9ef">struct</span> rq <span style="color:#f92672">*</span>rq <span style="color:#f92672">=</span> rq_of(cfs_rq);
-<span style="color:#ae81ff">3608</span>     <span style="color:#66d9ef">struct</span> cfs_bandwidth <span style="color:#f92672">*</span>cfs_b <span style="color:#f92672">=</span> tg_cfs_bandwidth(cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>tg);
+<span style="color:#ae81ff">3608</span>     <span style="color:#66d9ef">struct</span> cfs_bandwidth <span style="color:#f92672">*</span>cfs_b <span style="color:#f92672">=</span> tg_cfs_bandwidth(cfs_rq<span style="color:#f92672">-&gt;</span>tg);
 <span style="color:#ae81ff">3609</span>     <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>se;
 <span style="color:#ae81ff">3610</span>     <span style="color:#66d9ef">long</span> task_delta, dequeue <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
 <span style="color:#ae81ff">3611</span>     <span style="color:#66d9ef">bool</span> empty;
 <span style="color:#ae81ff">3612</span> 
-<span style="color:#ae81ff">3613</span>     se <span style="color:#f92672">=</span> cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>tg<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>se[cpu_of(rq_of(cfs_rq))];
+<span style="color:#ae81ff">3613</span>     se <span style="color:#f92672">=</span> cfs_rq<span style="color:#f92672">-&gt;</span>tg<span style="color:#f92672">-&gt;</span>se[cpu_of(rq_of(cfs_rq))];
 <span style="color:#ae81ff">3614</span> 
 <span style="color:#ae81ff">3615</span>     <span style="color:#75715e">/* freeze hierarchy runnable averages while throttled */</span>
 <span style="color:#ae81ff">3616</span>     rcu_read_lock();
-<span style="color:#ae81ff">3617</span>     walk_tg_tree_from(cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>tg, tg_throttle_down, tg_nop, (<span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span>)rq);
+<span style="color:#ae81ff">3617</span>     walk_tg_tree_from(cfs_rq<span style="color:#f92672">-&gt;</span>tg, tg_throttle_down, tg_nop, (<span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span>)rq);
 <span style="color:#ae81ff">3618</span>     rcu_read_unlock();
 <span style="color:#ae81ff">3619</span> 
-<span style="color:#ae81ff">3620</span>     task_delta <span style="color:#f92672">=</span> cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>h_nr_running;
+<span style="color:#ae81ff">3620</span>     task_delta <span style="color:#f92672">=</span> cfs_rq<span style="color:#f92672">-&gt;</span>h_nr_running;
 <span style="color:#ae81ff">3621</span>     for_each_sched_entity(se) {
 <span style="color:#ae81ff">3622</span>         <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>qcfs_rq <span style="color:#f92672">=</span> cfs_rq_of(se);
 <span style="color:#ae81ff">3623</span>         <span style="color:#75715e">/* throttled entity or throttle-on-deactivate */</span>
-<span style="color:#ae81ff">3624</span>         <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>se<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>on_rq)
+<span style="color:#ae81ff">3624</span>         <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>se<span style="color:#f92672">-&gt;</span>on_rq)
 <span style="color:#ae81ff">3625</span>             <span style="color:#66d9ef">break</span>;
 <span style="color:#ae81ff">3626</span> 
 <span style="color:#ae81ff">3627</span>         <span style="color:#66d9ef">if</span> (dequeue)
 <span style="color:#ae81ff">3628</span>             dequeue_entity(qcfs_rq, se, DEQUEUE_SLEEP);
-<span style="color:#ae81ff">3629</span>         qcfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>h_nr_running <span style="color:#f92672">-</span><span style="color:#f92672">=</span> task_delta;
+<span style="color:#ae81ff">3629</span>         qcfs_rq<span style="color:#f92672">-&gt;</span>h_nr_running <span style="color:#f92672">-=</span> task_delta;
 <span style="color:#ae81ff">3630</span> 
-<span style="color:#ae81ff">3631</span>         <span style="color:#66d9ef">if</span> (qcfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>load.weight)
+<span style="color:#ae81ff">3631</span>         <span style="color:#66d9ef">if</span> (qcfs_rq<span style="color:#f92672">-&gt;</span>load.weight)
 <span style="color:#ae81ff">3632</span>             dequeue <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
 <span style="color:#ae81ff">3633</span>     }
 <span style="color:#ae81ff">3634</span> 
 <span style="color:#ae81ff">3635</span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>se)
 <span style="color:#ae81ff">3636</span>         sub_nr_running(rq, task_delta);
 <span style="color:#ae81ff">3637</span> 
-<span style="color:#ae81ff">3638</span>     cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>throttled <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
-<span style="color:#ae81ff">3639</span>     cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>throttled_clock <span style="color:#f92672">=</span> rq_clock(rq);
-<span style="color:#ae81ff">3640</span>     raw_spin_lock(<span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>lock);
-<span style="color:#ae81ff">3641</span>     empty <span style="color:#f92672">=</span> list_empty(<span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>throttled_cfs_rq);
+<span style="color:#ae81ff">3638</span>     cfs_rq<span style="color:#f92672">-&gt;</span>throttled <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+<span style="color:#ae81ff">3639</span>     cfs_rq<span style="color:#f92672">-&gt;</span>throttled_clock <span style="color:#f92672">=</span> rq_clock(rq);
+<span style="color:#ae81ff">3640</span>     raw_spin_lock(<span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-&gt;</span>lock);
+<span style="color:#ae81ff">3641</span>     empty <span style="color:#f92672">=</span> list_empty(<span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-&gt;</span>throttled_cfs_rq);
 <span style="color:#ae81ff">3642</span> 
 <span style="color:#ae81ff">3643</span>     <span style="color:#75715e">/*
 </span><span style="color:#75715e">3644      * Add to the _head_ of the list, so that an already-started
 </span><span style="color:#75715e">3645      * distribute_cfs_runtime will not see us
 </span><span style="color:#75715e">3646      */</span>
-<span style="color:#ae81ff">3647</span>     list_add_rcu(<span style="color:#f92672">&amp;</span>cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>throttled_list, <span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>throttled_cfs_rq);
+<span style="color:#ae81ff">3647</span>     list_add_rcu(<span style="color:#f92672">&amp;</span>cfs_rq<span style="color:#f92672">-&gt;</span>throttled_list, <span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-&gt;</span>throttled_cfs_rq);
 <span style="color:#ae81ff">3648</span> 
 <span style="color:#ae81ff">3649</span>     <span style="color:#75715e">/*
 </span><span style="color:#75715e">3650      * If we&#39;re the first throttled task, make sure the bandwidth
@@ -106,7 +106,7 @@ CFS 调度器主体代码在<code>kernel/sched/fair.c</code>文件中，
 <span style="color:#ae81ff">3653</span>     <span style="color:#66d9ef">if</span> (empty)
 <span style="color:#ae81ff">3654</span>         start_cfs_bandwidth(cfs_b);
 <span style="color:#ae81ff">3655</span> 
-<span style="color:#ae81ff">3656</span>     raw_spin_unlock(<span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>lock);
+<span style="color:#ae81ff">3656</span>     raw_spin_unlock(<span style="color:#f92672">&amp;</span>cfs_b<span style="color:#f92672">-&gt;</span>lock);
 <span style="color:#ae81ff">3657</span> }
 </code></pre></div><p>接下来要搞清楚，CFS 在什么时候、如何判断 task group 需要被限流这个问题。
 为了搞清楚这个问题，从<code>throttle_cfs_rq()</code>的调用函数开始分析，
@@ -119,7 +119,7 @@ CFS 调度器主体代码在<code>kernel/sched/fair.c</code>文件中，
 <span style="color:#ae81ff">3977</span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cfs_bandwidth_used())
 <span style="color:#ae81ff">3978</span>         <span style="color:#66d9ef">return</span> false;
 <span style="color:#ae81ff">3979</span> 
-<span style="color:#ae81ff">3980</span>     <span style="color:#a6e22e">if</span> (likely(<span style="color:#f92672">!</span>cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>runtime_enabled <span style="color:#f92672">|</span><span style="color:#f92672">|</span> cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>runtime_remaining <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span>))
+<span style="color:#ae81ff">3980</span>     <span style="color:#a6e22e">if</span> (likely(<span style="color:#f92672">!</span>cfs_rq<span style="color:#f92672">-&gt;</span>runtime_enabled <span style="color:#f92672">||</span> cfs_rq<span style="color:#f92672">-&gt;</span>runtime_remaining <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span>))
 <span style="color:#ae81ff">3981</span>         <span style="color:#66d9ef">return</span> false;
 <span style="color:#ae81ff">3982</span> 
 <span style="color:#ae81ff">3983</span>     <span style="color:#75715e">/*
@@ -147,17 +147,17 @@ CFS 中调度队列是一颗红黑树，
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">5271</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>
 <span style="color:#ae81ff">5272</span> <span style="color:#a6e22e">pick_next_task_fair</span>(<span style="color:#66d9ef">struct</span> rq <span style="color:#f92672">*</span>rq, <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>prev)
 <span style="color:#ae81ff">5273</span> {
-<span style="color:#ae81ff">5274</span>     <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>cfs;
+<span style="color:#ae81ff">5274</span>     <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-&gt;</span>cfs;
 <span style="color:#ae81ff">5275</span>     <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>se;
 <span style="color:#ae81ff">5276</span>     <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>p;
 <span style="color:#ae81ff">5277</span>     <span style="color:#66d9ef">int</span> new_tasks;
 <span style="color:#ae81ff">5278</span> 
 <span style="color:#ae81ff">5279</span> again:
 <span style="color:#ae81ff">5280</span> <span style="color:#960050;background-color:#1e0010">#</span>ifdef CONFIG_FAIR_GROUP_SCHED
-<span style="color:#ae81ff">5281</span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>nr_running)
+<span style="color:#ae81ff">5281</span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cfs_rq<span style="color:#f92672">-&gt;</span>nr_running)
 <span style="color:#ae81ff">5282</span>         <span style="color:#66d9ef">goto</span> idle;
 <span style="color:#ae81ff">5283</span> 
-<span style="color:#ae81ff">5284</span>     <span style="color:#66d9ef">if</span> (prev<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>sched_class <span style="color:#f92672">!</span><span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>fair_sched_class)
+<span style="color:#ae81ff">5284</span>     <span style="color:#66d9ef">if</span> (prev<span style="color:#f92672">-&gt;</span>sched_class <span style="color:#f92672">!=</span> <span style="color:#f92672">&amp;</span>fair_sched_class)
 <span style="color:#ae81ff">5285</span>         <span style="color:#66d9ef">goto</span> simple;
 <span style="color:#ae81ff">5286</span> 
 <span style="color:#ae81ff">5287</span>     <span style="color:#75715e">/*
@@ -169,7 +169,7 @@ CFS 中调度队列是一颗红黑树，
 </span><span style="color:#75715e">5293      */</span>
 <span style="color:#ae81ff">5294</span> 
 <span style="color:#ae81ff">5295</span>     <span style="color:#66d9ef">do</span> {
-<span style="color:#ae81ff">5296</span>         <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>curr <span style="color:#f92672">=</span> cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>curr;
+<span style="color:#ae81ff">5296</span>         <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>curr <span style="color:#f92672">=</span> cfs_rq<span style="color:#f92672">-&gt;</span>curr;
 <span style="color:#ae81ff">5297</span> 
 <span style="color:#ae81ff">5298</span>         <span style="color:#75715e">/*
 </span><span style="color:#75715e">5299          * Since we got here without doing put_prev_entity() we also
@@ -178,7 +178,7 @@ CFS 中调度队列是一颗红黑树，
 </span><span style="color:#75715e">5302          * forget we&#39;ve ever seen it.
 </span><span style="color:#75715e">5303          */</span>
 <span style="color:#ae81ff">5304</span>         <span style="color:#66d9ef">if</span> (curr) {
-<span style="color:#ae81ff">5305</span>             <span style="color:#66d9ef">if</span> (curr<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>on_rq)
+<span style="color:#ae81ff">5305</span>             <span style="color:#66d9ef">if</span> (curr<span style="color:#f92672">-&gt;</span>on_rq)
 <span style="color:#ae81ff">5306</span>                 update_curr(cfs_rq);
 <span style="color:#ae81ff">5307</span>             <span style="color:#66d9ef">else</span>
 <span style="color:#ae81ff">5308</span>                 curr <span style="color:#f92672">=</span> NULL;
@@ -204,18 +204,18 @@ CFS 中调度队列是一颗红黑树，
 </span><span style="color:#75715e">5328      * is a different task than we started out with, try and touch the
 </span><span style="color:#75715e">5329      * least amount of cfs_rqs.
 </span><span style="color:#75715e">5330      */</span>
-<span style="color:#ae81ff">5331</span>     <span style="color:#66d9ef">if</span> (prev <span style="color:#f92672">!</span><span style="color:#f92672">=</span> p) {
-<span style="color:#ae81ff">5332</span>         <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>pse <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>prev<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>se;
+<span style="color:#ae81ff">5331</span>     <span style="color:#66d9ef">if</span> (prev <span style="color:#f92672">!=</span> p) {
+<span style="color:#ae81ff">5332</span>         <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>pse <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>prev<span style="color:#f92672">-&gt;</span>se;
 <span style="color:#ae81ff">5333</span> 
 <span style="color:#ae81ff">5334</span>         <span style="color:#66d9ef">while</span> (<span style="color:#f92672">!</span>(cfs_rq <span style="color:#f92672">=</span> is_same_group(se, pse))) {
-<span style="color:#ae81ff">5335</span>             <span style="color:#66d9ef">int</span> se_depth <span style="color:#f92672">=</span> se<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>depth;
-<span style="color:#ae81ff">5336</span>             <span style="color:#66d9ef">int</span> pse_depth <span style="color:#f92672">=</span> pse<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>depth;
+<span style="color:#ae81ff">5335</span>             <span style="color:#66d9ef">int</span> se_depth <span style="color:#f92672">=</span> se<span style="color:#f92672">-&gt;</span>depth;
+<span style="color:#ae81ff">5336</span>             <span style="color:#66d9ef">int</span> pse_depth <span style="color:#f92672">=</span> pse<span style="color:#f92672">-&gt;</span>depth;
 <span style="color:#ae81ff">5337</span> 
-<span style="color:#ae81ff">5338</span>             <span style="color:#66d9ef">if</span> (se_depth <span style="color:#f92672">&lt;</span><span style="color:#f92672">=</span> pse_depth) {
+<span style="color:#ae81ff">5338</span>             <span style="color:#66d9ef">if</span> (se_depth <span style="color:#f92672">&lt;=</span> pse_depth) {
 <span style="color:#ae81ff">5339</span>                 put_prev_entity(cfs_rq_of(pse), pse);
 <span style="color:#ae81ff">5340</span>                 pse <span style="color:#f92672">=</span> parent_entity(pse);
 <span style="color:#ae81ff">5341</span>             }
-<span style="color:#ae81ff">5342</span>             <span style="color:#66d9ef">if</span> (se_depth <span style="color:#f92672">&gt;</span><span style="color:#f92672">=</span> pse_depth) {
+<span style="color:#ae81ff">5342</span>             <span style="color:#66d9ef">if</span> (se_depth <span style="color:#f92672">&gt;=</span> pse_depth) {
 <span style="color:#ae81ff">5343</span>                 set_next_entity(cfs_rq_of(se), se);
 <span style="color:#ae81ff">5344</span>                 se <span style="color:#f92672">=</span> parent_entity(se);
 <span style="color:#ae81ff">5345</span>             }
@@ -230,10 +230,10 @@ CFS 中调度队列是一颗红黑树，
 <span style="color:#ae81ff">5354</span> 
 <span style="color:#ae81ff">5355</span>     <span style="color:#66d9ef">return</span> p;
 <span style="color:#ae81ff">5356</span> simple:
-<span style="color:#ae81ff">5357</span>     cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>cfs;
+<span style="color:#ae81ff">5357</span>     cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-&gt;</span>cfs;
 <span style="color:#ae81ff">5358</span> <span style="color:#960050;background-color:#1e0010">#</span>endif
 <span style="color:#ae81ff">5359</span> 
-<span style="color:#ae81ff">5360</span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>nr_running)
+<span style="color:#ae81ff">5360</span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cfs_rq<span style="color:#f92672">-&gt;</span>nr_running)
 <span style="color:#ae81ff">5361</span>         <span style="color:#66d9ef">goto</span> idle;
 <span style="color:#ae81ff">5362</span> 
 <span style="color:#ae81ff">5363</span>     put_prev_task(rq, prev);
@@ -258,9 +258,9 @@ CFS 中调度队列是一颗红黑树，
 </span><span style="color:#75715e">5382      * further scheduler activity on it and we&#39;re being very careful to
 </span><span style="color:#75715e">5383      * re-start the picking loop.
 </span><span style="color:#75715e">5384      */</span>
-<span style="color:#ae81ff">5385</span>     lockdep_unpin_lock(<span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>lock);
+<span style="color:#ae81ff">5385</span>     lockdep_unpin_lock(<span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-&gt;</span>lock);
 <span style="color:#ae81ff">5386</span>     new_tasks <span style="color:#f92672">=</span> idle_balance(rq);
-<span style="color:#ae81ff">5387</span>     lockdep_pin_lock(<span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>lock);
+<span style="color:#ae81ff">5387</span>     lockdep_pin_lock(<span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-&gt;</span>lock);
 <span style="color:#ae81ff">5388</span>     <span style="color:#75715e">/*
 </span><span style="color:#75715e">5389      * Because idle_balance() releases (and re-acquires) rq-&gt;lock, it is
 </span><span style="color:#75715e">5390      * possible for any higher priority task to appear. In that case we

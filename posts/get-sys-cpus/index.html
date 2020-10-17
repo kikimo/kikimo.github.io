@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>获取系统 CPU 数量 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/get-sys-cpus/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -37,14 +37,14 @@ Go 则会自动调用<code>runtime.GOMAXPROCS()</code>获取可以 CPU 信息，
 Java、Go 依然获取了错误的 CPU 信息。</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-Java" data-lang="Java"><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Docker</span> <span style="color:#f92672">{</span>
 
-  <span style="color:#66d9ef">public</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">main</span><span style="color:#f92672">(</span>String<span style="color:#f92672">[</span><span style="color:#f92672">]</span> args<span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+  <span style="color:#66d9ef">public</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">main</span><span style="color:#f92672">(</span>String<span style="color:#f92672">[]</span> args<span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
 
-    Runtime runtime <span style="color:#f92672">=</span> Runtime<span style="color:#f92672">.</span><span style="color:#a6e22e">getRuntime</span><span style="color:#f92672">(</span><span style="color:#f92672">)</span><span style="color:#f92672">;</span>
+    Runtime runtime <span style="color:#f92672">=</span> Runtime<span style="color:#f92672">.</span><span style="color:#a6e22e">getRuntime</span><span style="color:#f92672">();</span>
 
-    <span style="color:#66d9ef">int</span> processors <span style="color:#f92672">=</span> runtime<span style="color:#f92672">.</span><span style="color:#a6e22e">availableProcessors</span><span style="color:#f92672">(</span><span style="color:#f92672">)</span><span style="color:#f92672">;</span>
+    <span style="color:#66d9ef">int</span> processors <span style="color:#f92672">=</span> runtime<span style="color:#f92672">.</span><span style="color:#a6e22e">availableProcessors</span><span style="color:#f92672">();</span>
     <span style="color:#75715e">// long maxMemory = runtime.maxMemory();
 </span><span style="color:#75715e"></span>
-    System<span style="color:#f92672">.</span><span style="color:#a6e22e">out</span><span style="color:#f92672">.</span><span style="color:#a6e22e">format</span><span style="color:#f92672">(</span><span style="color:#e6db74">&#34;Number of processors: %d\n&#34;</span><span style="color:#f92672">,</span> processors<span style="color:#f92672">)</span><span style="color:#f92672">;</span>
+    System<span style="color:#f92672">.</span><span style="color:#a6e22e">out</span><span style="color:#f92672">.</span><span style="color:#a6e22e">format</span><span style="color:#f92672">(</span><span style="color:#e6db74">&#34;Number of processors: %d\n&#34;</span><span style="color:#f92672">,</span> processors<span style="color:#f92672">);</span>
     <span style="color:#75715e">// System.out.format(&#34;Max memory: %d bytes\n&#34;, maxMemory);
 </span><span style="color:#75715e"></span>  <span style="color:#f92672">}</span>
 <span style="color:#f92672">}</span>

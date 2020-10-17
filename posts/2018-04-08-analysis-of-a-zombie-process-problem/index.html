@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>cron 僵尸进程问题分析 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -82,24 +82,24 @@ cron worker 通过显式的 <code>wait()</code> 调用来回收它子进程的�
 </span><span style="color:#75715e"> 97          */</span>
  <span style="color:#ae81ff">98</span>         (<span style="color:#66d9ef">void</span>) signal(SIGCHLD, SIG_DFL);
 ...
-<span style="color:#ae81ff">535</span>         <span style="color:#66d9ef">for</span> (; children <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span>; children<span style="color:#f92672">-</span><span style="color:#f92672">-</span>) {
+<span style="color:#ae81ff">535</span>         <span style="color:#66d9ef">for</span> (; children <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span>; children<span style="color:#f92672">--</span>) {
 <span style="color:#ae81ff">536</span>             WAIT_T waiter;
 <span style="color:#ae81ff">537</span>             PID_T pid;
 <span style="color:#ae81ff">538</span> 
-<span style="color:#ae81ff">539</span>             <span style="color:#a6e22e">Debug</span>(DPROC, (<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">[%ld] waiting for grandchild #%d to finish</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+<span style="color:#ae81ff">539</span>             <span style="color:#a6e22e">Debug</span>(DPROC, (<span style="color:#e6db74">&#34;[%ld] waiting for grandchild #%d to finish</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
 <span style="color:#ae81ff">540</span>                     (<span style="color:#66d9ef">long</span>) getpid(), children))
-<span style="color:#ae81ff">541</span>                 <span style="color:#66d9ef">while</span> ((pid <span style="color:#f92672">=</span> wait(<span style="color:#f92672">&amp;</span>waiter)) <span style="color:#f92672">&lt;</span> OK <span style="color:#f92672">&amp;</span><span style="color:#f92672">&amp;</span> errno <span style="color:#f92672">=</span><span style="color:#f92672">=</span> EINTR) ;
+<span style="color:#ae81ff">541</span>                 <span style="color:#66d9ef">while</span> ((pid <span style="color:#f92672">=</span> wait(<span style="color:#f92672">&amp;</span>waiter)) <span style="color:#f92672">&lt;</span> OK <span style="color:#f92672">&amp;&amp;</span> errno <span style="color:#f92672">==</span> EINTR) ;
 <span style="color:#ae81ff">542</span>             <span style="color:#a6e22e">if</span> (pid <span style="color:#f92672">&lt;</span> OK) {
 <span style="color:#ae81ff">543</span>                 Debug(DPROC,
-<span style="color:#ae81ff">544</span>                     (<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">[%ld] no more grandchildren--mail written?</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+<span style="color:#ae81ff">544</span>                     (<span style="color:#e6db74">&#34;[%ld] no more grandchildren--mail written?</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
 <span style="color:#ae81ff">545</span>                         (<span style="color:#66d9ef">long</span>) getpid()))
 <span style="color:#ae81ff">546</span>                     <span style="color:#66d9ef">break</span>;
 <span style="color:#ae81ff">547</span>             }
-<span style="color:#ae81ff">548</span>             Debug(DPROC, (<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">[%ld] grandchild #%ld finished, status=%04x</span><span style="color:#e6db74">&#34;</span>,
+<span style="color:#ae81ff">548</span>             Debug(DPROC, (<span style="color:#e6db74">&#34;[%ld] grandchild #%ld finished, status=%04x&#34;</span>,
 <span style="color:#ae81ff">549</span>                     (<span style="color:#66d9ef">long</span>) getpid(), (<span style="color:#66d9ef">long</span>) pid, WEXITSTATUS(waiter)))
-<span style="color:#ae81ff">550</span>                 <span style="color:#66d9ef">if</span> (WIFSIGNALED(waiter) <span style="color:#f92672">&amp;</span><span style="color:#f92672">&amp;</span> WCOREDUMP(waiter))
-<span style="color:#ae81ff">551</span>                 Debug(DPROC, (<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">, dumped core</span><span style="color:#e6db74">&#34;</span>)) 
-<span style="color:#ae81ff">552</span>                     Debug(DPROC, (<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>))
+<span style="color:#ae81ff">550</span>                 <span style="color:#66d9ef">if</span> (WIFSIGNALED(waiter) <span style="color:#f92672">&amp;&amp;</span> WCOREDUMP(waiter))
+<span style="color:#ae81ff">551</span>                 Debug(DPROC, (<span style="color:#e6db74">&#34;, dumped core&#34;</span>)) 
+<span style="color:#ae81ff">552</span>                     Debug(DPROC, (<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>))
 <span style="color:#ae81ff">553</span>         }  
 </code></pre></div><p>cron woker 会进一步 <code>fork()</code> 出一个任务进程，这个任务进程通过 <code>exec()</code> 调用来执行任务程序。
 cron worker 在 <code>fork()</code> 任务进程之前，会建立两条管道：</p>
@@ -129,15 +129,15 @@ bash 不会等待这个 subshell 执行结束。
 这就导致一方面 shell 进程先退出执行，但是因为 cron worker 进程没有调用 <code>wait()</code> 而变成僵尸进程，
 另一方面 subshell 中执行的任务进程因为父进程变成僵尸进程，所以 init 进程就收养了它，它的父进程 id 变成 1。</p>
 <p>通过一个简单的 demo 我们来验证一下:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;unistd.h&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;unistd.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span>
 <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>()
 {
     <span style="color:#66d9ef">int</span> pid;
 
-    <span style="color:#66d9ef">if</span> ((pid <span style="color:#f92672">=</span> fork()) <span style="color:#f92672">=</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>) {  <span style="color:#75715e">// child process
-</span><span style="color:#75715e"></span>        execle(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">/bin/bash</span><span style="color:#e6db74">&#34;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">/bin/bash</span><span style="color:#e6db74">&#34;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">-c</span><span style="color:#e6db74">&#34;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">/root/sleep.sh&amp;</span><span style="color:#e6db74">&#34;</span>, (<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>) <span style="color:#ae81ff">0</span>, NULL);
+    <span style="color:#66d9ef">if</span> ((pid <span style="color:#f92672">=</span> fork()) <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {  <span style="color:#75715e">// child process
+</span><span style="color:#75715e"></span>        execle(<span style="color:#e6db74">&#34;/bin/bash&#34;</span>, <span style="color:#e6db74">&#34;/bin/bash&#34;</span>, <span style="color:#e6db74">&#34;-c&#34;</span>, <span style="color:#e6db74">&#34;/root/sleep.sh&amp;&#34;</span>, (<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>) <span style="color:#ae81ff">0</span>, NULL);
     }
 
     <span style="color:#66d9ef">while</span> (<span style="color:#ae81ff">1</span>) {

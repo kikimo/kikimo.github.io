@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>ptrace 如何实现单步跟进 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -34,7 +34,7 @@
 <span style="color:#ae81ff">1118</span>         <span style="color:#66d9ef">long</span> ret;
 ...
 <span style="color:#ae81ff">1149</span>         ret <span style="color:#f92672">=</span> arch_ptrace(child, request, addr, data);
-<span style="color:#ae81ff">1150</span>         <span style="color:#66d9ef">if</span> (ret <span style="color:#f92672">|</span><span style="color:#f92672">|</span> request <span style="color:#f92672">!</span><span style="color:#f92672">=</span> PTRACE_DETACH)
+<span style="color:#ae81ff">1150</span>         <span style="color:#66d9ef">if</span> (ret <span style="color:#f92672">||</span> request <span style="color:#f92672">!=</span> PTRACE_DETACH)
 <span style="color:#ae81ff">1151</span>                 ptrace_unfreeze_traced(child);
 <span style="color:#ae81ff">1152</span> 
 <span style="color:#ae81ff">1153</span>  out_put_task_struct:
@@ -68,7 +68,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">876</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">ptrace_request</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">long</span> request,
  <span style="color:#ae81ff">877</span>                    <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> addr, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> data)
  <span style="color:#ae81ff">878</span> {
- <span style="color:#ae81ff">879</span>         <span style="color:#66d9ef">bool</span> seized <span style="color:#f92672">=</span> child<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>ptrace <span style="color:#f92672">&amp;</span> PT_SEIZED;
+ <span style="color:#ae81ff">879</span>         <span style="color:#66d9ef">bool</span> seized <span style="color:#f92672">=</span> child<span style="color:#f92672">-&gt;</span>ptrace <span style="color:#f92672">&amp;</span> PT_SEIZED;
  <span style="color:#ae81ff">880</span>         <span style="color:#66d9ef">int</span> ret <span style="color:#f92672">=</span> <span style="color:#f92672">-</span>EIO;
  <span style="color:#ae81ff">881</span>         siginfo_t siginfo, <span style="color:#f92672">*</span>si;
  <span style="color:#ae81ff">882</span>         <span style="color:#66d9ef">void</span> __user <span style="color:#f92672">*</span>datavp <span style="color:#f92672">=</span> (<span style="color:#66d9ef">void</span> __user <span style="color:#f92672">*</span>) data;
@@ -105,13 +105,13 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
  <span style="color:#ae81ff">778</span>         <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>valid_signal(data))
  <span style="color:#ae81ff">779</span>                 <span style="color:#66d9ef">return</span> <span style="color:#f92672">-</span>EIO;
  <span style="color:#ae81ff">780</span> 
- <span style="color:#ae81ff">781</span>         <span style="color:#66d9ef">if</span> (request <span style="color:#f92672">=</span><span style="color:#f92672">=</span> PTRACE_SYSCALL)
+ <span style="color:#ae81ff">781</span>         <span style="color:#66d9ef">if</span> (request <span style="color:#f92672">==</span> PTRACE_SYSCALL)
  <span style="color:#ae81ff">782</span>                 set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
  <span style="color:#ae81ff">783</span>         <span style="color:#66d9ef">else</span>
  <span style="color:#ae81ff">784</span>                 clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
  <span style="color:#ae81ff">785</span> 
  <span style="color:#ae81ff">786</span> <span style="color:#960050;background-color:#1e0010">#</span>ifdef TIF_SYSCALL_EMU
- <span style="color:#ae81ff">787</span>         <span style="color:#66d9ef">if</span> (request <span style="color:#f92672">=</span><span style="color:#f92672">=</span> PTRACE_SYSEMU <span style="color:#f92672">|</span><span style="color:#f92672">|</span> request <span style="color:#f92672">=</span><span style="color:#f92672">=</span> PTRACE_SYSEMU_SINGLESTEP)
+ <span style="color:#ae81ff">787</span>         <span style="color:#66d9ef">if</span> (request <span style="color:#f92672">==</span> PTRACE_SYSEMU <span style="color:#f92672">||</span> request <span style="color:#f92672">==</span> PTRACE_SYSEMU_SINGLESTEP)
  <span style="color:#ae81ff">788</span>                 set_tsk_thread_flag(child, TIF_SYSCALL_EMU);
  <span style="color:#ae81ff">789</span>         <span style="color:#66d9ef">else</span>
  <span style="color:#ae81ff">790</span>                 clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
@@ -121,7 +121,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
  <span style="color:#ae81ff">794</span>                 <span style="color:#66d9ef">if</span> (unlikely(<span style="color:#f92672">!</span>arch_has_block_step()))
  <span style="color:#ae81ff">795</span>                         <span style="color:#66d9ef">return</span> <span style="color:#f92672">-</span>EIO;
  <span style="color:#ae81ff">796</span>                 user_enable_block_step(child);
- <span style="color:#ae81ff">797</span>         } <span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span> (is_singlestep(request) <span style="color:#f92672">|</span><span style="color:#f92672">|</span> is_sysemu_singlestep(request)) {
+ <span style="color:#ae81ff">797</span>         } <span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span> (is_singlestep(request) <span style="color:#f92672">||</span> is_sysemu_singlestep(request)) {
  <span style="color:#ae81ff">798</span>                 <span style="color:#66d9ef">if</span> (unlikely(<span style="color:#f92672">!</span>arch_has_single_step()))
  <span style="color:#ae81ff">799</span>                         <span style="color:#66d9ef">return</span> <span style="color:#f92672">-</span>EIO;
  <span style="color:#ae81ff">800</span>                 user_enable_single_step(child);
@@ -134,7 +134,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 </code></pre></div><p><code>is_singlestep()</code> 看起来像是用来判断是否为单步执行的测试，
 来看 kernel/ptrace.c 中的宏定义 <code>is_singlestep()</code>：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"> <span style="color:#ae81ff">755</span> <span style="color:#960050;background-color:#1e0010">#</span>ifdef PTRACE_SINGLESTEP
- <span style="color:#ae81ff">756</span> <span style="color:#960050;background-color:#1e0010">#</span>define is_singlestep(request)          ((request) <span style="color:#f92672">=</span><span style="color:#f92672">=</span> PTRACE_SINGLESTEP)
+ <span style="color:#ae81ff">756</span> <span style="color:#960050;background-color:#1e0010">#</span>define is_singlestep(request)          ((request) <span style="color:#f92672">==</span> PTRACE_SINGLESTEP)
  <span style="color:#ae81ff">757</span> <span style="color:#960050;background-color:#1e0010">#</span><span style="color:#66d9ef">else</span>
  <span style="color:#ae81ff">758</span> <span style="color:#960050;background-color:#1e0010">#</span>define is_singlestep(request)          <span style="color:#ae81ff">0</span>
  <span style="color:#ae81ff">759</span> <span style="color:#960050;background-color:#1e0010">#</span>endif
@@ -157,7 +157,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 </span><span style="color:#75715e">202          * So no one should try to use debugger block stepping in a program
 </span><span style="color:#75715e">203          * that uses user-mode single stepping itself.
 </span><span style="color:#75715e">204          */</span>
-<span style="color:#ae81ff">205</span>         <span style="color:#66d9ef">if</span> (enable_single_step(child) <span style="color:#f92672">&amp;</span><span style="color:#f92672">&amp;</span> block)
+<span style="color:#ae81ff">205</span>         <span style="color:#66d9ef">if</span> (enable_single_step(child) <span style="color:#f92672">&amp;&amp;</span> block)
 <span style="color:#ae81ff">206</span>                 set_task_blockstep(child, true);
 <span style="color:#ae81ff">207</span>         <span style="color:#66d9ef">else</span> <span style="color:#a6e22e">if</span> (test_tsk_thread_flag(child, TIF_BLOCKSTEP))
 <span style="color:#ae81ff">208</span>                 set_task_blockstep(child, false);
@@ -179,7 +179,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 </span><span style="color:#75715e">122          * already set and our bookkeeping is fine.
 </span><span style="color:#75715e">123          */</span>
 <span style="color:#ae81ff">124</span>         <span style="color:#66d9ef">if</span> (unlikely(test_tsk_thread_flag(child, TIF_SINGLESTEP)))
-<span style="color:#ae81ff">125</span>                 regs<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>flags <span style="color:#f92672">|</span><span style="color:#f92672">=</span> X86_EFLAGS_TF;
+<span style="color:#ae81ff">125</span>                 regs<span style="color:#f92672">-&gt;</span>flags <span style="color:#f92672">|=</span> X86_EFLAGS_TF;
 <span style="color:#ae81ff">126</span> 
 <span style="color:#ae81ff">127</span>         <span style="color:#75715e">/*
 </span><span style="color:#75715e">128          * Always set TIF_SINGLESTEP - this guarantees that
@@ -188,10 +188,10 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 </span><span style="color:#75715e">131          */</span>
 <span style="color:#ae81ff">132</span>         set_tsk_thread_flag(child, TIF_SINGLESTEP);
 <span style="color:#ae81ff">133</span> 
-<span style="color:#ae81ff">134</span>         oflags <span style="color:#f92672">=</span> regs<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>flags;
+<span style="color:#ae81ff">134</span>         oflags <span style="color:#f92672">=</span> regs<span style="color:#f92672">-&gt;</span>flags;
 <span style="color:#ae81ff">135</span> 
 <span style="color:#ae81ff">136</span>         <span style="color:#75715e">/* Set TF on the kernel stack.. */</span>
-<span style="color:#ae81ff">137</span>         regs<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>flags <span style="color:#f92672">|</span><span style="color:#f92672">=</span> X86_EFLAGS_TF;
+<span style="color:#ae81ff">137</span>         regs<span style="color:#f92672">-&gt;</span>flags <span style="color:#f92672">|=</span> X86_EFLAGS_TF;
 <span style="color:#ae81ff">138</span> 
 <span style="color:#ae81ff">139</span>         <span style="color:#75715e">/*
 </span><span style="color:#75715e">140          * ..but if TF is changed by the instruction we will trace,
@@ -227,7 +227,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 <span style="color:#ae81ff">702</span> <span style="color:#a6e22e">handle_signal</span>(<span style="color:#66d9ef">struct</span> ksignal <span style="color:#f92672">*</span>ksig, <span style="color:#66d9ef">struct</span> pt_regs <span style="color:#f92672">*</span>regs)
 <span style="color:#ae81ff">703</span> {
 <span style="color:#ae81ff">704</span>         <span style="color:#66d9ef">bool</span> stepping, failed;
-<span style="color:#ae81ff">705</span>         <span style="color:#66d9ef">struct</span> fpu <span style="color:#f92672">*</span>fpu <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>current<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span><span style="color:#66d9ef">thread</span>.fpu;
+<span style="color:#ae81ff">705</span>         <span style="color:#66d9ef">struct</span> fpu <span style="color:#f92672">*</span>fpu <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>current<span style="color:#f92672">-&gt;</span><span style="color:#66d9ef">thread</span>.fpu;
 ...
 <span style="color:#ae81ff">732</span>         <span style="color:#75715e">/*
 </span><span style="color:#75715e">733          * If TF is set due to a debugger (TIF_FORCED_TF), clear TF now
@@ -250,11 +250,11 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 </span><span style="color:#75715e">750                  * Clear TF for the case when it wasn&#39;t set by debugger to
 </span><span style="color:#75715e">751                  * avoid the recursive send_sigtrap() in SIGTRAP handler.
 </span><span style="color:#75715e">752                  */</span>
-<span style="color:#ae81ff">753</span>                 regs<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>flags <span style="color:#f92672">&amp;</span><span style="color:#f92672">=</span> <span style="color:#f92672">~</span>(X86_EFLAGS_DF<span style="color:#f92672">|</span>X86_EFLAGS_RF<span style="color:#f92672">|</span>X86_EFLAGS_TF);
+<span style="color:#ae81ff">753</span>                 regs<span style="color:#f92672">-&gt;</span>flags <span style="color:#f92672">&amp;=</span> <span style="color:#f92672">~</span>(X86_EFLAGS_DF<span style="color:#f92672">|</span>X86_EFLAGS_RF<span style="color:#f92672">|</span>X86_EFLAGS_TF);
 <span style="color:#ae81ff">754</span>                 <span style="color:#75715e">/*
 </span><span style="color:#75715e">755                  * Ensure the signal handler starts with the new fpu state.
 </span><span style="color:#75715e">756                  */</span>
-<span style="color:#ae81ff">757</span>                 <span style="color:#66d9ef">if</span> (fpu<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>fpstate_active)
+<span style="color:#ae81ff">757</span>                 <span style="color:#66d9ef">if</span> (fpu<span style="color:#f92672">-&gt;</span>fpstate_active)
 <span style="color:#ae81ff">758</span>                         fpu__clear(fpu);
 <span style="color:#ae81ff">759</span>         }
 <span style="color:#ae81ff">760</span>         signal_setup_done(failed, ksig, stepping);
@@ -285,12 +285,12 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 <span style="color:#ae81ff">0</span> debugreg.h      &lt;global&gt;               <span style="color:#ae81ff">26</span> <span style="color:#75715e">#define DR_STEP (0x4000)</span>
 <span style="color:#ae81ff">1</span> traps.h         get_si_code            <span style="color:#ae81ff">99</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span>condition &amp; DR_STEP<span style="color:#f92672">)</span>
 <span style="color:#ae81ff">2</span> hw_breakpoint.c hw_breakpoint_handler <span style="color:#ae81ff">457</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span>dr6 &amp; DR_STEP<span style="color:#f92672">)</span>
-<span style="color:#ae81ff">3</span> kgdb.c          single_step_cont      <span style="color:#ae81ff">510</span> <span style="color:#f92672">(</span>*<span style="color:#f92672">(</span>unsigned long *<span style="color:#f92672">)</span>ERR_PTR<span style="color:#f92672">(</span>args-&gt;err<span style="color:#f92672">)</span><span style="color:#f92672">)</span> &amp;<span style="color:#f92672">=</span> ~DR_STEP;
-<span style="color:#ae81ff">4</span> traps.c         do_debug              <span style="color:#ae81ff">623</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span><span style="color:#f92672">(</span>dr6 &amp; DR_STEP<span style="color:#f92672">)</span> <span style="color:#f92672">&amp;&amp;</span> kmemcheck_trap<span style="color:#f92672">(</span>regs<span style="color:#f92672">)</span><span style="color:#f92672">)</span>
-<span style="color:#ae81ff">5</span> traps.c         do_debug              <span style="color:#ae81ff">670</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span><span style="color:#f92672">(</span>dr6 &amp; DR_STEP<span style="color:#f92672">)</span> <span style="color:#f92672">&amp;&amp;</span> !user_mode<span style="color:#f92672">(</span>regs<span style="color:#f92672">)</span><span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+<span style="color:#ae81ff">3</span> kgdb.c          single_step_cont      <span style="color:#ae81ff">510</span> <span style="color:#f92672">(</span>*<span style="color:#f92672">(</span>unsigned long *<span style="color:#f92672">)</span>ERR_PTR<span style="color:#f92672">(</span>args-&gt;err<span style="color:#f92672">))</span> &amp;<span style="color:#f92672">=</span> ~DR_STEP;
+<span style="color:#ae81ff">4</span> traps.c         do_debug              <span style="color:#ae81ff">623</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">((</span>dr6 &amp; DR_STEP<span style="color:#f92672">)</span> <span style="color:#f92672">&amp;&amp;</span> kmemcheck_trap<span style="color:#f92672">(</span>regs<span style="color:#f92672">))</span>
+<span style="color:#ae81ff">5</span> traps.c         do_debug              <span style="color:#ae81ff">670</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">((</span>dr6 &amp; DR_STEP<span style="color:#f92672">)</span> <span style="color:#f92672">&amp;&amp;</span> !user_mode<span style="color:#f92672">(</span>regs<span style="color:#f92672">))</span> <span style="color:#f92672">{</span>
 <span style="color:#ae81ff">6</span> traps.c         do_debug              <span style="color:#ae81ff">671</span> tsk-&gt;thread.debugreg6 &amp;<span style="color:#f92672">=</span> ~DR_STEP;
 <span style="color:#ae81ff">7</span> traps.c         do_debug              <span style="color:#ae81ff">676</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span>tsk-&gt;thread.debugreg6 &amp; <span style="color:#f92672">(</span>DR_STEP | DR_TRAP_BITS<span style="color:#f92672">)</span> <span style="color:#f92672">||</span> user_icebp<span style="color:#f92672">)</span>
-<span style="color:#ae81ff">8</span> kmmio.c         kmmio_die_notifier    <span style="color:#ae81ff">583</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span>val <span style="color:#f92672">=</span><span style="color:#f92672">=</span> DIE_DEBUG <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">(</span>*dr6_p &amp; DR_STEP<span style="color:#f92672">)</span><span style="color:#f92672">)</span>
+<span style="color:#ae81ff">8</span> kmmio.c         kmmio_die_notifier    <span style="color:#ae81ff">583</span> <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span>val <span style="color:#f92672">==</span> DIE_DEBUG <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">(</span>*dr6_p &amp; DR_STEP<span style="color:#f92672">))</span>
 <span style="color:#ae81ff">9</span> kmmio.c         kmmio_die_notifier    <span style="color:#ae81ff">589</span> *dr6_p &amp;<span style="color:#f92672">=</span> ~DR_STEP;
 </code></pre></div><p>从输出结果上看，
 &ldquo;4 traps.c         do_debug              623 if ((dr6 &amp; DR_STEP) &amp;&amp; kmemcheck_trap(regs))&rdquo; 显示

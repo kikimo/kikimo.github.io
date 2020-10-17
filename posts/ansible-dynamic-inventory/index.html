@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>Ansible Dynamic Inventory | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/ansible-dynamic-inventory/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -83,7 +83,7 @@ optional arguments:
 </code></pre></div><p><strong>注意事项</strong></p>
 <p><code>inventory.py</code>必须是一个可执行文件，否则 ansible 会把它当做一个静态 inventory 文件并尝试使用 <code>ini</code> 插件去解析它，这事后我们会得类似一下的报错：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ ansible all  -i inventory.py -m ping
-<span style="color:#f92672">[</span>WARNING<span style="color:#f92672">]</span>:  * Failed to parse inventory.py with script plugin: problem running ansible/inventory.py --list <span style="color:#f92672">(</span><span style="color:#f92672">[</span>Errno 13<span style="color:#f92672">]</span>
+<span style="color:#f92672">[</span>WARNING<span style="color:#f92672">]</span>:  * Failed to parse inventory.py with script plugin: problem running ansible/inventory.py --list <span style="color:#f92672">([</span>Errno 13<span style="color:#f92672">]</span>
 Permission denied<span style="color:#f92672">)</span>
 
 <span style="color:#f92672">[</span>WARNING<span style="color:#f92672">]</span>:  * Failed to parse inventory.py with ini plugin: inventory.py:3: Expected key<span style="color:#f92672">=</span>value host variable

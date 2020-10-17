@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>ICMP 和 ping | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/icmp-and-ping/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -49,37 +49,37 @@ ping 指令用的便是 ICMP 协议，
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">// C program to Implement Ping
 </span><span style="color:#75715e"></span>
 <span style="color:#75715e">// compile as -o ping
-</span><span style="color:#75715e"></span><span style="color:#75715e">// run as sudo ./ping &lt;hostname&gt;
+</span><span style="color:#75715e">// run as sudo ./ping &lt;hostname&gt;
 </span><span style="color:#75715e"></span>
-<span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;sys/types.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;sys/socket.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;netinet/in.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;arpa/inet.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;netdb.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;unistd.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;string.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;netinet/ip_icmp.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;time.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;fcntl.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;signal.h&gt;</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;time.h&gt;</span><span style="color:#75715e">
+<span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;sys/types.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;sys/socket.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;netinet/in.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;arpa/inet.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;netdb.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;unistd.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;string.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;netinet/ip_icmp.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;time.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;fcntl.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;signal.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;time.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span>
 <span style="color:#75715e">// Define the Packet Constants
-</span><span style="color:#75715e"></span><span style="color:#75715e">// ping packet size
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">define PING_PKT_S 64</span><span style="color:#75715e">
+</span><span style="color:#75715e">// ping packet size
+</span><span style="color:#75715e"></span><span style="color:#75715e">#define PING_PKT_S 64
 </span><span style="color:#75715e"></span>
 <span style="color:#75715e">// Automatic port number
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">define PORT_NO 0</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span><span style="color:#75715e">#define PORT_NO 0
 </span><span style="color:#75715e"></span>
 <span style="color:#75715e">// Automatic port number
-</span><span style="color:#75715e"></span><span style="color:#75715e">// #define PING_SLEEP_RATE 100000
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">define PING_SLEEP_RATE 10</span><span style="color:#75715e">
+</span><span style="color:#75715e">// #define PING_SLEEP_RATE 100000
+</span><span style="color:#75715e"></span><span style="color:#75715e">#define PING_SLEEP_RATE 10
 </span><span style="color:#75715e"></span>
 <span style="color:#75715e">// Gives the timeout delay for receiving packets
-</span><span style="color:#75715e"></span><span style="color:#75715e">// in seconds
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">define RECV_TIMEOUT 1</span><span style="color:#75715e">
+</span><span style="color:#75715e">// in seconds
+</span><span style="color:#75715e"></span><span style="color:#75715e">#define RECV_TIMEOUT 1
 </span><span style="color:#75715e"></span>
 <span style="color:#75715e">// Define the Ping Loop
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">int</span> pingloop<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>;
@@ -98,12 +98,12 @@ ping 指令用的便是 ICMP 协议，
     <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> sum<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>;
     <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">short</span> result;
 
-    <span style="color:#66d9ef">for</span> ( sum <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>; len <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">1</span>; len <span style="color:#f92672">-</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span> )
-        sum <span style="color:#f92672">+</span><span style="color:#f92672">=</span> <span style="color:#f92672">*</span>buf<span style="color:#f92672">+</span><span style="color:#f92672">+</span>;
-    <span style="color:#66d9ef">if</span> ( len <span style="color:#f92672">=</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span> )
-        sum <span style="color:#f92672">+</span><span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">char</span><span style="color:#f92672">*</span>)buf;
-    sum <span style="color:#f92672">=</span> (sum <span style="color:#f92672">&gt;</span><span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">16</span>) <span style="color:#f92672">+</span> (sum <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFFFF</span>);
-    sum <span style="color:#f92672">+</span><span style="color:#f92672">=</span> (sum <span style="color:#f92672">&gt;</span><span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">16</span>);
+    <span style="color:#66d9ef">for</span> ( sum <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>; len <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">1</span>; len <span style="color:#f92672">-=</span> <span style="color:#ae81ff">2</span> )
+        sum <span style="color:#f92672">+=</span> <span style="color:#f92672">*</span>buf<span style="color:#f92672">++</span>;
+    <span style="color:#66d9ef">if</span> ( len <span style="color:#f92672">==</span> <span style="color:#ae81ff">1</span> )
+        sum <span style="color:#f92672">+=</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">char</span><span style="color:#f92672">*</span>)buf;
+    sum <span style="color:#f92672">=</span> (sum <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">16</span>) <span style="color:#f92672">+</span> (sum <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFFFF</span>);
+    sum <span style="color:#f92672">+=</span> (sum <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">16</span>);
     result <span style="color:#f92672">=</span> <span style="color:#f92672">~</span>sum;
     <span style="color:#66d9ef">return</span> result;
 }
@@ -118,12 +118,12 @@ ping 指令用的便是 ICMP 协议，
 <span style="color:#75715e">// Performs a DNS lookup
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">dns_lookup</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>addr_host, <span style="color:#66d9ef">struct</span> sockaddr_in <span style="color:#f92672">*</span>addr_con)
 {
-    printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Resolving DNS..</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+    printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Resolving DNS..</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
     <span style="color:#66d9ef">struct</span> hostent <span style="color:#f92672">*</span>host_entity;
     <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>ip<span style="color:#f92672">=</span>(<span style="color:#66d9ef">char</span><span style="color:#f92672">*</span>)malloc(NI_MAXHOST<span style="color:#f92672">*</span><span style="color:#66d9ef">sizeof</span>(<span style="color:#66d9ef">char</span>));
     <span style="color:#66d9ef">int</span> i;
 
-    <span style="color:#66d9ef">if</span> ((host_entity <span style="color:#f92672">=</span> gethostbyname(addr_host)) <span style="color:#f92672">=</span><span style="color:#f92672">=</span> NULL)
+    <span style="color:#66d9ef">if</span> ((host_entity <span style="color:#f92672">=</span> gethostbyname(addr_host)) <span style="color:#f92672">==</span> NULL)
     {
         <span style="color:#75715e">// No ip found for hostname
 </span><span style="color:#75715e"></span>        <span style="color:#66d9ef">return</span> NULL;
@@ -131,11 +131,11 @@ ping 指令用的便是 ICMP 协议，
 
     <span style="color:#75715e">//filling up address structure
 </span><span style="color:#75715e"></span>    strcpy(ip, inet_ntoa(<span style="color:#f92672">*</span>(<span style="color:#66d9ef">struct</span> in_addr <span style="color:#f92672">*</span>)
-                        host_entity<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>h_addr));
+                        host_entity<span style="color:#f92672">-&gt;</span>h_addr));
 
-    (<span style="color:#f92672">*</span>addr_con).sin_family <span style="color:#f92672">=</span> host_entity<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>h_addrtype;
+    (<span style="color:#f92672">*</span>addr_con).sin_family <span style="color:#f92672">=</span> host_entity<span style="color:#f92672">-&gt;</span>h_addrtype;
     (<span style="color:#f92672">*</span>addr_con).sin_port <span style="color:#f92672">=</span> htons (PORT_NO);
-    (<span style="color:#f92672">*</span>addr_con).sin_addr.s_addr <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">long</span><span style="color:#f92672">*</span>)host_entity<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>h_addr;
+    (<span style="color:#f92672">*</span>addr_con).sin_addr.s_addr <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">long</span><span style="color:#f92672">*</span>)host_entity<span style="color:#f92672">-&gt;</span>h_addr;
 
     <span style="color:#66d9ef">return</span> ip;
 
@@ -155,7 +155,7 @@ ping 指令用的便是 ICMP 协议，
     <span style="color:#66d9ef">if</span> (getnameinfo((<span style="color:#66d9ef">struct</span> sockaddr <span style="color:#f92672">*</span>) <span style="color:#f92672">&amp;</span>temp_addr, len, buf,
                     <span style="color:#66d9ef">sizeof</span>(buf), NULL, <span style="color:#ae81ff">0</span>, NI_NAMEREQD))
     {
-        printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">Could not resolve reverse lookup of hostname</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+        printf(<span style="color:#e6db74">&#34;Could not resolve reverse lookup of hostname</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
         <span style="color:#66d9ef">return</span> NULL;
     }
     ret_buf <span style="color:#f92672">=</span> (<span style="color:#66d9ef">char</span><span style="color:#f92672">*</span>)malloc((strlen(buf) <span style="color:#f92672">+</span><span style="color:#ae81ff">1</span>)<span style="color:#f92672">*</span><span style="color:#66d9ef">sizeof</span>(<span style="color:#66d9ef">char</span>) );
@@ -184,15 +184,15 @@ ping 指令用的便是 ICMP 协议，
     <span style="color:#75715e">// set socket options at ip to TTL and value to 64,
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// change to what you want by setting ttl_val
 </span><span style="color:#75715e"></span>    <span style="color:#66d9ef">if</span> (setsockopt(ping_sockfd, SOL_IP, IP_TTL,
-            <span style="color:#f92672">&amp;</span>ttl_val, <span style="color:#66d9ef">sizeof</span>(ttl_val)) <span style="color:#f92672">!</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>)
+            <span style="color:#f92672">&amp;</span>ttl_val, <span style="color:#66d9ef">sizeof</span>(ttl_val)) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span>)
     {
-        printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Setting socket options to TTL failed!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+        printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Setting socket options to TTL failed!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
         <span style="color:#66d9ef">return</span>;
     }
 
     <span style="color:#66d9ef">else</span>
     {
-        printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Socket set to TTL..</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+        printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Socket set to TTL..</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
     }
 
     <span style="color:#75715e">// setting timeout of recv setting
@@ -211,11 +211,11 @@ ping 指令用的便是 ICMP 协议，
         pckt.hdr.type <span style="color:#f92672">=</span> ICMP_ECHO;
         pckt.hdr.un.echo.id <span style="color:#f92672">=</span> getpid();
 
-        <span style="color:#66d9ef">for</span> ( i <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>; i <span style="color:#f92672">&lt;</span> <span style="color:#66d9ef">sizeof</span>(pckt.msg)<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>; i<span style="color:#f92672">+</span><span style="color:#f92672">+</span> )
-            pckt.msg[i] <span style="color:#f92672">=</span> i<span style="color:#f92672">+</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">0</span><span style="color:#e6db74">&#39;</span>;
+        <span style="color:#66d9ef">for</span> ( i <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>; i <span style="color:#f92672">&lt;</span> <span style="color:#66d9ef">sizeof</span>(pckt.msg)<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>; i<span style="color:#f92672">++</span> )
+            pckt.msg[i] <span style="color:#f92672">=</span> i<span style="color:#f92672">+</span><span style="color:#e6db74">&#39;0&#39;</span>;
 
         pckt.msg[i] <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
-        pckt.hdr.un.echo.sequence <span style="color:#f92672">=</span> msg_count<span style="color:#f92672">+</span><span style="color:#f92672">+</span>;
+        pckt.hdr.un.echo.sequence <span style="color:#f92672">=</span> msg_count<span style="color:#f92672">++</span>;
         pckt.hdr.checksum <span style="color:#f92672">=</span> checksum(<span style="color:#f92672">&amp;</span>pckt, <span style="color:#66d9ef">sizeof</span>(pckt));
 
 
@@ -225,9 +225,9 @@ ping 指令用的便是 ICMP 协议，
 </span><span style="color:#75715e"></span>        clock_gettime(CLOCK_MONOTONIC, <span style="color:#f92672">&amp;</span>time_start);
         <span style="color:#66d9ef">if</span> ( sendto(ping_sockfd, <span style="color:#f92672">&amp;</span>pckt, <span style="color:#66d9ef">sizeof</span>(pckt), <span style="color:#ae81ff">0</span>,
         (<span style="color:#66d9ef">struct</span> sockaddr<span style="color:#f92672">*</span>) ping_addr,
-            <span style="color:#66d9ef">sizeof</span>(<span style="color:#f92672">*</span>ping_addr)) <span style="color:#f92672">&lt;</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>)
+            <span style="color:#66d9ef">sizeof</span>(<span style="color:#f92672">*</span>ping_addr)) <span style="color:#f92672">&lt;=</span> <span style="color:#ae81ff">0</span>)
         {
-            printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Packet Sending Failed!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+            printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Packet Sending Failed!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
             flag<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>;
         }
 
@@ -235,10 +235,10 @@ ping 指令用的便是 ICMP 协议，
 </span><span style="color:#75715e"></span>        addr_len<span style="color:#f92672">=</span><span style="color:#66d9ef">sizeof</span>(r_addr);
 
         <span style="color:#66d9ef">if</span> ( recvfrom(ping_sockfd, <span style="color:#f92672">&amp;</span>pckt, <span style="color:#66d9ef">sizeof</span>(pckt), <span style="color:#ae81ff">0</span>,
-            (<span style="color:#66d9ef">struct</span> sockaddr<span style="color:#f92672">*</span>)<span style="color:#f92672">&amp;</span>r_addr, <span style="color:#f92672">&amp;</span>addr_len) <span style="color:#f92672">&lt;</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
-            <span style="color:#f92672">&amp;</span><span style="color:#f92672">&amp;</span> msg_count<span style="color:#f92672">&gt;</span><span style="color:#ae81ff">1</span>)
+            (<span style="color:#66d9ef">struct</span> sockaddr<span style="color:#f92672">*</span>)<span style="color:#f92672">&amp;</span>r_addr, <span style="color:#f92672">&amp;</span>addr_len) <span style="color:#f92672">&lt;=</span> <span style="color:#ae81ff">0</span>
+            <span style="color:#f92672">&amp;&amp;</span> msg_count<span style="color:#f92672">&gt;</span><span style="color:#ae81ff">1</span>)
         {
-            printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Packet receive failed!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+            printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Packet receive failed!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
         }
 
         <span style="color:#66d9ef">else</span>
@@ -254,19 +254,19 @@ ping 指令用的便是 ICMP 协议，
             <span style="color:#75715e">// if packet was not sent, don&#39;t receive
 </span><span style="color:#75715e"></span>            <span style="color:#66d9ef">if</span>(flag)
             {
-                <span style="color:#66d9ef">if</span>(<span style="color:#f92672">!</span>(pckt.hdr.type <span style="color:#f92672">=</span><span style="color:#f92672">=</span><span style="color:#ae81ff">69</span> <span style="color:#f92672">&amp;</span><span style="color:#f92672">&amp;</span> pckt.hdr.code<span style="color:#f92672">=</span><span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>))
+                <span style="color:#66d9ef">if</span>(<span style="color:#f92672">!</span>(pckt.hdr.type <span style="color:#f92672">==</span><span style="color:#ae81ff">69</span> <span style="color:#f92672">&amp;&amp;</span> pckt.hdr.code<span style="color:#f92672">==</span><span style="color:#ae81ff">0</span>))
                 {
-                    printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">Error..Packet received with ICMP type %d code %d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                    printf(<span style="color:#e6db74">&#34;Error..Packet received with ICMP type %d code %d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
                         pckt.hdr.type, pckt.hdr.code);
                 }
                 <span style="color:#66d9ef">else</span>
                 {
-                    printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%d bytes from %s (h: %s) (%s) msg_seq=%d ttl=%d rtt=%Lf ms.</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                    printf(<span style="color:#e6db74">&#34;%d bytes from %s (h: %s) (%s) msg_seq=%d ttl=%d rtt=%Lf ms.</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
                         PING_PKT_S, ping_dom, rev_host,
                         ping_ip, msg_count,
                         ttl_val, rtt_msec);
 
-                    msg_received_count<span style="color:#f92672">+</span><span style="color:#f92672">+</span>;
+                    msg_received_count<span style="color:#f92672">++</span>;
                 }
             }
         }
@@ -278,8 +278,8 @@ ping 指令用的便是 ICMP 协议，
     total_msec <span style="color:#f92672">=</span> (tfe.tv_sec<span style="color:#f92672">-</span>tfs.tv_sec)<span style="color:#f92672">*</span><span style="color:#ae81ff">1000.0</span><span style="color:#f92672">+</span>
                         timeElapsed;
 
-    printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">===%s ping statistics===</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, ping_ip);
-    printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">%d packets sent, %d packets received, %f percent packet loss. Total time: %Lf ms.</span><span style="color:#ae81ff">\n</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+    printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">===%s ping statistics===</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, ping_ip);
+    printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">%d packets sent, %d packets received, %f percent packet loss. Total time: %Lf ms.</span><span style="color:#ae81ff">\n\n</span><span style="color:#e6db74">&#34;</span>,
         msg_count, msg_received_count,
         ((msg_count <span style="color:#f92672">-</span> msg_received_count)<span style="color:#f92672">/</span>msg_count) <span style="color:#f92672">*</span> <span style="color:#ae81ff">100.0</span>,
         total_msec);
@@ -294,34 +294,34 @@ ping 指令用的便是 ICMP 协议，
     <span style="color:#66d9ef">int</span> addrlen <span style="color:#f92672">=</span> <span style="color:#66d9ef">sizeof</span>(addr_con);
     <span style="color:#66d9ef">char</span> net_buf[NI_MAXHOST];
 
-    <span style="color:#66d9ef">if</span>(argc<span style="color:#f92672">!</span><span style="color:#f92672">=</span><span style="color:#ae81ff">2</span>)
+    <span style="color:#66d9ef">if</span>(argc<span style="color:#f92672">!=</span><span style="color:#ae81ff">2</span>)
     {
-        printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Format %s &lt;address&gt;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, argv[<span style="color:#ae81ff">0</span>]);
+        printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Format %s &lt;address&gt;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, argv[<span style="color:#ae81ff">0</span>]);
         <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
     }
 
     ip_addr <span style="color:#f92672">=</span> dns_lookup(argv[<span style="color:#ae81ff">1</span>], <span style="color:#f92672">&amp;</span>addr_con);
-    <span style="color:#66d9ef">if</span>(ip_addr<span style="color:#f92672">=</span><span style="color:#f92672">=</span>NULL)
+    <span style="color:#66d9ef">if</span>(ip_addr<span style="color:#f92672">==</span>NULL)
     {
-        printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">DNS lookup failed! Could not resolve hostname!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+        printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">DNS lookup failed! Could not resolve hostname!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
         <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
     }
 
     reverse_hostname <span style="color:#f92672">=</span> reverse_dns_lookup(ip_addr);
-    printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Trying to connect to &#39;%s&#39; IP: %s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+    printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Trying to connect to &#39;%s&#39; IP: %s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
                                     argv[<span style="color:#ae81ff">1</span>], ip_addr);
-    printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Reverse Lookup domain: %s</span><span style="color:#e6db74">&#34;</span>,
+    printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Reverse Lookup domain: %s&#34;</span>,
                         reverse_hostname);
 
     <span style="color:#75715e">//socket()
 </span><span style="color:#75715e"></span>    sockfd <span style="color:#f92672">=</span> socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     <span style="color:#66d9ef">if</span>(sockfd<span style="color:#f92672">&lt;</span><span style="color:#ae81ff">0</span>)
     {
-        printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Socket file descriptor not received!!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+        printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Socket file descriptor not received!!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
         <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
     }
     <span style="color:#66d9ef">else</span>
-        printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Socket file descriptor %d received</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, sockfd);
+        printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">Socket file descriptor %d received</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, sockfd);
 
     signal(SIGINT, intHandler);<span style="color:#75715e">//catching interrupt
 </span><span style="color:#75715e"></span>

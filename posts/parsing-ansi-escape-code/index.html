@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>ANSI 转义码(ANSI escape code)解析 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/parsing-ansi-escape-code/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -38,18 +38,18 @@
 
 <span style="color:#f92672">import</span> sys
 
-<span style="color:#66d9ef">with</span> open(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">typescript</span><span style="color:#e6db74">&#39;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">rb</span><span style="color:#e6db74">&#39;</span>) <span style="color:#66d9ef">as</span> fp:
+<span style="color:#66d9ef">with</span> open(<span style="color:#e6db74">&#39;typescript&#39;</span>, <span style="color:#e6db74">&#39;rb&#39;</span>) <span style="color:#66d9ef">as</span> fp:
     data <span style="color:#f92672">=</span> fp<span style="color:#f92672">.</span>read()
 
-ESC <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\x1b</span><span style="color:#e6db74">&#39;</span>
-BEL <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\x07</span><span style="color:#e6db74">&#39;</span>
-STATUS_NORMAL <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">NORMAL</span><span style="color:#e6db74">&#39;</span>
-STATUS_ESC <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">ESC</span><span style="color:#e6db74">&#39;</span>
-STATUS_CSI <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">CSI</span><span style="color:#e6db74">&#39;</span>
-STATUS_QMARK <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">?</span><span style="color:#e6db74">&#39;</span>
+ESC <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\x1b</span><span style="color:#e6db74">&#39;</span>
+BEL <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\x07</span><span style="color:#e6db74">&#39;</span>
+STATUS_NORMAL <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;NORMAL&#39;</span>
+STATUS_ESC <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;ESC&#39;</span>
+STATUS_CSI <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;CSI&#39;</span>
+STATUS_QMARK <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;?&#39;</span>
 
-status <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">NORMAL</span><span style="color:#e6db74">&#39;</span>
-val <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">&#39;</span>
+status <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;NORMAL&#39;</span>
+val <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;</span>
 <span style="color:#75715e"># print(len(data))</span>
 
 <span style="color:#66d9ef">class</span> <span style="color:#a6e22e">VTParser</span>(object):
@@ -62,29 +62,29 @@ val <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><spa
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">eat_digit</span>(self):
         <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">is</span> None:
-            <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">ch is None</span><span style="color:#e6db74">&#39;</span>)
+            <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74">&#39;ch is None&#39;</span>)
 
-        v <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">&#39;</span>
-        <span style="color:#66d9ef">while</span> (self<span style="color:#f92672">.</span>ch <span style="color:#f92672">&gt;</span><span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">0</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">&lt;</span><span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">9</span><span style="color:#e6db74">&#39;</span>):
-            <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>pos <span style="color:#f92672">&gt;</span><span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>sz:
-                <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">malformed data</span><span style="color:#e6db74">&#39;</span>)
-            v <span style="color:#f92672">+</span><span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>ch
+        v <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;</span>
+        <span style="color:#66d9ef">while</span> (self<span style="color:#f92672">.</span>ch <span style="color:#f92672">&gt;=</span> <span style="color:#e6db74">&#39;0&#39;</span> <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">&lt;=</span> <span style="color:#e6db74">&#39;9&#39;</span>):
+            <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>pos <span style="color:#f92672">&gt;=</span> self<span style="color:#f92672">.</span>sz:
+                <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74">&#39;malformed data&#39;</span>)
+            v <span style="color:#f92672">+=</span> self<span style="color:#f92672">.</span>ch
             self<span style="color:#f92672">.</span>ch <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>data[self<span style="color:#f92672">.</span>pos]
-            self<span style="color:#f92672">.</span>pos <span style="color:#f92672">+</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>
+            self<span style="color:#f92672">.</span>pos <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
 
         <span style="color:#66d9ef">return</span> v
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">eat_ctrl_string</span>(self):
         <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">is</span> None:
-            <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">ch is None</span><span style="color:#e6db74">&#39;</span>)
+            <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74">&#39;ch is None&#39;</span>)
 
-        ctrls <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">&#39;</span>
-        <span style="color:#66d9ef">while</span> (self<span style="color:#f92672">.</span>ch <span style="color:#f92672">!=</span> BEL <span style="color:#f92672">and</span> <span style="color:#f92672">not</span> (self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> ESC <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>peek_next_ch() <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\\</span><span style="color:#e6db74">&#39;</span>)):
-            <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>pos <span style="color:#f92672">&gt;</span><span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>sz:
-                <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">malformed data</span><span style="color:#e6db74">&#39;</span>)
-            ctrls <span style="color:#f92672">+</span><span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>ch
+        ctrls <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;</span>
+        <span style="color:#66d9ef">while</span> (self<span style="color:#f92672">.</span>ch <span style="color:#f92672">!=</span> BEL <span style="color:#f92672">and</span> <span style="color:#f92672">not</span> (self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> ESC <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>peek_next_ch() <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\\</span><span style="color:#e6db74">&#39;</span>)):
+            <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>pos <span style="color:#f92672">&gt;=</span> self<span style="color:#f92672">.</span>sz:
+                <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74">&#39;malformed data&#39;</span>)
+            ctrls <span style="color:#f92672">+=</span> self<span style="color:#f92672">.</span>ch
             self<span style="color:#f92672">.</span>ch <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>data[self<span style="color:#f92672">.</span>pos]
-            self<span style="color:#f92672">.</span>pos <span style="color:#f92672">+</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>
+            self<span style="color:#f92672">.</span>pos <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
 
         <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> ESC:
             self<span style="color:#f92672">.</span>next_ch()
@@ -92,15 +92,15 @@ val <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><spa
         <span style="color:#66d9ef">return</span> ctrls
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">next_ch</span>(self):
-        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>pos <span style="color:#f92672">&gt;</span><span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>sz:
+        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>pos <span style="color:#f92672">&gt;=</span> self<span style="color:#f92672">.</span>sz:
             <span style="color:#66d9ef">return</span> False
 
         self<span style="color:#f92672">.</span>ch <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>data[self<span style="color:#f92672">.</span>pos]
-        self<span style="color:#f92672">.</span>pos <span style="color:#f92672">+</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>
+        self<span style="color:#f92672">.</span>pos <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
         <span style="color:#66d9ef">return</span> True
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">peek_next_ch</span>(self):
-        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>pos <span style="color:#f92672">&gt;</span><span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>sz:
+        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>pos <span style="color:#f92672">&gt;=</span> self<span style="color:#f92672">.</span>sz:
             <span style="color:#66d9ef">return</span> None
 
         ch <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>data[self<span style="color:#f92672">.</span>pos]
@@ -109,69 +109,69 @@ val <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><spa
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">parse</span>(self):
         <span style="color:#66d9ef">while</span> self<span style="color:#f92672">.</span>next_ch():
-            <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>status <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">NORMAL</span><span style="color:#e6db74">&#39;</span>:
+            <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>status <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;NORMAL&#39;</span>:
                 <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> ESC:
                     self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_ESC
                 <span style="color:#66d9ef">else</span>:
                     sys<span style="color:#f92672">.</span>stdout<span style="color:#f92672">.</span>write(self<span style="color:#f92672">.</span>ch)
             <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>status <span style="color:#f92672">==</span> STATUS_ESC:
-                <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">[</span><span style="color:#e6db74">&#39;</span>:
+                <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;[&#39;</span>:
                     self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_CSI
-                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">&gt;</span><span style="color:#e6db74">&#39;</span>:
+                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;&gt;&#39;</span>:
                     self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
-                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">=</span><span style="color:#e6db74">&#39;</span>:
+                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;=&#39;</span>:
                     self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
-                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">]</span><span style="color:#e6db74">&#39;</span>:
+                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;]&#39;</span>:
                     <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> self<span style="color:#f92672">.</span>next_ch():
-                        <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">malform data</span><span style="color:#e6db74">&#39;</span>)
+                        <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74">&#39;malform data&#39;</span>)
 
                     ctrls <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>eat_ctrl_string()
                     <span style="color:#75715e"># print(&#39;\nOperating System Command: %s&#39; % (ctrls))</span>
                     self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
                 <span style="color:#66d9ef">else</span>:
-                    <span style="color:#66d9ef">print</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">ESC, ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
+                    <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;ESC, ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
                     <span style="color:#66d9ef">break</span>
             <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>status <span style="color:#f92672">==</span> STATUS_CSI:
-                <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">?</span><span style="color:#e6db74">&#39;</span>:
+                <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;?&#39;</span>:
                     <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> self<span style="color:#f92672">.</span>next_ch():
-                        <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">malform data</span><span style="color:#e6db74">&#39;</span>)
+                        <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74">&#39;malform data&#39;</span>)
 
                     v <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>eat_digit()
                     o <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>ch
                     self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
-                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">&gt;</span><span style="color:#e6db74">&#39;</span>:
+                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;&gt;&#39;</span>:
                     <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> self<span style="color:#f92672">.</span>next_ch():
-                        <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">malform data</span><span style="color:#e6db74">&#39;</span>)
+                        <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74">&#39;malform data&#39;</span>)
 
                     v <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>eat_digit()
-                    <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">!=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">c</span><span style="color:#e6db74">&#39;</span>:
-                        <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">malform data, CSI &gt; </span><span style="color:#e6db74">%s</span><span style="color:#e6db74"> </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (v, self<span style="color:#f92672">.</span>ch))
+                    <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">!=</span> <span style="color:#e6db74">&#39;c&#39;</span>:
+                        <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74">&#39;malform data, CSI &gt; </span><span style="color:#e6db74">%s</span><span style="color:#e6db74"> </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (v, self<span style="color:#f92672">.</span>ch))
 
                     self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
-                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">s</span><span style="color:#e6db74">&#39;</span>:
+                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;s&#39;</span>:
                     sef<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
-                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">u</span><span style="color:#e6db74">&#39;</span>:
+                <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;u&#39;</span>:
                     self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
                 <span style="color:#66d9ef">else</span>:
                     v <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>eat_digit()
 
-                    <span style="color:#66d9ef">if</span> v <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">6</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">n</span><span style="color:#e6db74">&#39;</span>:
+                    <span style="color:#66d9ef">if</span> v <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;6&#39;</span> <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;n&#39;</span>:
                         self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
-                    <span style="color:#66d9ef">elif</span> (v <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">4</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">or</span> v <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">5</span><span style="color:#e6db74">&#39;</span>) <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">i</span><span style="color:#e6db74">&#39;</span>:
+                    <span style="color:#66d9ef">elif</span> (v <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;4&#39;</span> <span style="color:#f92672">or</span> v <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;5&#39;</span>) <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;i&#39;</span>:
                         self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
-                    <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">K</span><span style="color:#e6db74">&#39;</span>:
+                    <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;K&#39;</span>:
                         <span style="color:#75715e"># erase line</span>
                         self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
-                    <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">H</span><span style="color:#e6db74">&#39;</span>:
+                    <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;H&#39;</span>:
                         <span style="color:#75715e"># erase line</span>
                         self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
-                    <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">J</span><span style="color:#e6db74">&#39;</span>:
+                    <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;J&#39;</span>:
                         self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
-                    <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">m</span><span style="color:#e6db74">&#39;</span>:
+                    <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;m&#39;</span>:
                         self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
-                    <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">;</span><span style="color:#e6db74">&#39;</span>:
+                    <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;;&#39;</span>:
                         <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> self<span style="color:#f92672">.</span>next_ch():
-                            <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">malform data</span><span style="color:#e6db74">&#39;</span>)
+                            <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74">&#39;malform data&#39;</span>)
 
                         u <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>eat_digit()
                         o <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>ch
@@ -179,13 +179,13 @@ val <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><spa
                         <span style="color:#75715e"># print(&#39;CSI %s; %s %c&#39; % (v, u, o))</span>
                     <span style="color:#66d9ef">else</span>:
                         <span style="color:#75715e"># TODO</span>
-                        <span style="color:#66d9ef">print</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">CSI n: </span><span style="color:#e6db74">%s</span><span style="color:#e6db74">, ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (v, self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
+                        <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;CSI n: </span><span style="color:#e6db74">%s</span><span style="color:#e6db74">, ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (v, self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
                         <span style="color:#66d9ef">break</span>
 
                     <span style="color:#75715e"># print(&#39;csi ch: %c, v: %s&#39; % (ch, v))</span>
                     <span style="color:#75715e"># break</span>
             <span style="color:#66d9ef">else</span>:
-                <span style="color:#66d9ef">print</span>(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
+                <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
                 <span style="color:#66d9ef">break</span>
 
 parser <span style="color:#f92672">=</span> VTParser(data)

@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>一起内核 hard LOCKUP 问题分析 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/2018-12-14-analysis-of-a-kernel-hard-lockup-problem/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -114,7 +114,7 @@ watchdog_thresh 默认配置是 10s。
 FILE: kernel<span style="color:#f92672">/</span>time<span style="color:#f92672">/</span>tick<span style="color:#f92672">-</span>sched.c
 LINE: <span style="color:#ae81ff">578</span>
 
-  <span style="color:#ae81ff">573</span>           ts<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>next_tick.tv64 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+  <span style="color:#ae81ff">573</span>           ts<span style="color:#f92672">-&gt;</span>next_tick.tv64 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
   <span style="color:#ae81ff">574</span>   }
   <span style="color:#ae81ff">575</span>   
   <span style="color:#ae81ff">576</span>   <span style="color:#66d9ef">static</span> ktime_t tick_nohz_stop_sched_tick(<span style="color:#66d9ef">struct</span> tick_sched <span style="color:#f92672">*</span>ts,
@@ -131,10 +131,10 @@ LINE: <span style="color:#ae81ff">578</span>
   <span style="color:#ae81ff">587</span>                   basemono <span style="color:#f92672">=</span> last_jiffies_update.tv64;
   <span style="color:#ae81ff">588</span>                   basejiff <span style="color:#f92672">=</span> jiffies;
   <span style="color:#ae81ff">589</span>           } <span style="color:#66d9ef">while</span> (read_seqretry(<span style="color:#f92672">&amp;</span>jiffies_lock, seq));
-  <span style="color:#ae81ff">590</span>           ts<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>last_jiffies <span style="color:#f92672">=</span> basejiff;
+  <span style="color:#ae81ff">590</span>           ts<span style="color:#f92672">-&gt;</span>last_jiffies <span style="color:#f92672">=</span> basejiff;
   <span style="color:#ae81ff">591</span>   
-  <span style="color:#ae81ff">592</span>           <span style="color:#a6e22e">if</span> (rcu_needs_cpu(cpu, <span style="color:#f92672">&amp;</span>next_rcu) <span style="color:#f92672">|</span><span style="color:#f92672">|</span>
-  <span style="color:#ae81ff">593</span>               arch_needs_cpu(cpu) <span style="color:#f92672">|</span><span style="color:#f92672">|</span> irq_work_needs_cpu()) {
+  <span style="color:#ae81ff">592</span>           <span style="color:#a6e22e">if</span> (rcu_needs_cpu(cpu, <span style="color:#f92672">&amp;</span>next_rcu) <span style="color:#f92672">||</span>
+  <span style="color:#ae81ff">593</span>               arch_needs_cpu(cpu) <span style="color:#f92672">||</span> irq_work_needs_cpu()) {
   <span style="color:#ae81ff">594</span>                   next_tick <span style="color:#f92672">=</span> basemono <span style="color:#f92672">+</span> TICK_NSEC;
   <span style="color:#ae81ff">595</span>           } <span style="color:#66d9ef">else</span> {
       ...
@@ -217,7 +217,7 @@ jiffies_lock = $5 = {
  <span style="color:#ae81ff">74</span>     <span style="color:#66d9ef">unsigned</span> ret;
  <span style="color:#ae81ff">75</span> 
  <span style="color:#ae81ff">76</span> repeat:
- <span style="color:#ae81ff">77</span>     ret <span style="color:#f92672">=</span> READ_ONCE(s<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>sequence);
+ <span style="color:#ae81ff">77</span>     ret <span style="color:#f92672">=</span> READ_ONCE(s<span style="color:#f92672">-&gt;</span>sequence);
  <span style="color:#ae81ff">78</span>     <span style="color:#66d9ef">if</span> (unlikely(ret <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">1</span>)) {
  <span style="color:#ae81ff">79</span>         cpu_relax();
  <span style="color:#ae81ff">80</span>         <span style="color:#66d9ef">goto</span> repeat;
@@ -230,7 +230,7 @@ jiffies_lock = $5 = {
 </span><span style="color:#75715e">240  */</span>
 <span style="color:#ae81ff">241</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">unsigned</span> read_seqbegin(<span style="color:#66d9ef">const</span> seqlock_t <span style="color:#f92672">*</span>sl)
 <span style="color:#ae81ff">242</span> {
-<span style="color:#ae81ff">243</span>     <span style="color:#66d9ef">return</span> read_seqcount_begin(<span style="color:#f92672">&amp;</span>sl<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>seqcount);
+<span style="color:#ae81ff">243</span>     <span style="color:#66d9ef">return</span> read_seqcount_begin(<span style="color:#f92672">&amp;</span>sl<span style="color:#f92672">-&gt;</span>seqcount);
 <span style="color:#ae81ff">244</span> }
 ...
 </code></pre></div><p>不难看出，上面分析的那个循环对应的应该就是 <code>__read_seqcount_begin()</code> 函数中的这个 repeat 循环。

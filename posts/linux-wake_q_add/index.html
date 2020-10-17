@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>Linux 中的 wake_q_add() 函数 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/linux-wake_q_add/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -25,7 +25,7 @@
 它尝试将一个系统进程放置到等待唤醒的队列中：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">bool</span> <span style="color:#a6e22e">__wake_q_add</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head, <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>task)
 {
-	<span style="color:#66d9ef">struct</span> wake_q_node <span style="color:#f92672">*</span>node <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>task<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>wake_q;
+	<span style="color:#66d9ef">struct</span> wake_q_node <span style="color:#f92672">*</span>node <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>task<span style="color:#f92672">-&gt;</span>wake_q;
 
 	<span style="color:#75715e">/*
 </span><span style="color:#75715e">	 * Atomically grab the task, if -&gt;wake_q is !nil already it means
@@ -36,14 +36,14 @@
 </span><span style="color:#75715e">	 * state, even in the failed case, an explicit smp_mb() must be used.
 </span><span style="color:#75715e">	 */</span>
 	smp_mb__before_atomic();
-	<span style="color:#66d9ef">if</span> (unlikely(cmpxchg_relaxed(<span style="color:#f92672">&amp;</span>node<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>next, NULL, WAKE_Q_TAIL)))
+	<span style="color:#66d9ef">if</span> (unlikely(cmpxchg_relaxed(<span style="color:#f92672">&amp;</span>node<span style="color:#f92672">-&gt;</span>next, NULL, WAKE_Q_TAIL)))
 		<span style="color:#66d9ef">return</span> false;
 
 	<span style="color:#75715e">/*
 </span><span style="color:#75715e">	 * The head is context local, there can be no concurrency.
 </span><span style="color:#75715e">	 */</span>
-	<span style="color:#f92672">*</span>head<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>lastp <span style="color:#f92672">=</span> node;
-	head<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>lastp <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>node<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>next;
+	<span style="color:#f92672">*</span>head<span style="color:#f92672">-&gt;</span>lastp <span style="color:#f92672">=</span> node;
+	head<span style="color:#f92672">-&gt;</span>lastp <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>node<span style="color:#f92672">-&gt;</span>next;
 	<span style="color:#66d9ef">return</span> true;
 }
 
@@ -90,16 +90,16 @@
 
 <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">wake_up_q</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head)
 {
-	<span style="color:#66d9ef">struct</span> wake_q_node <span style="color:#f92672">*</span>node <span style="color:#f92672">=</span> head<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>first;
+	<span style="color:#66d9ef">struct</span> wake_q_node <span style="color:#f92672">*</span>node <span style="color:#f92672">=</span> head<span style="color:#f92672">-&gt;</span>first;
 
-	<span style="color:#66d9ef">while</span> (node <span style="color:#f92672">!</span><span style="color:#f92672">=</span> WAKE_Q_TAIL) {
+	<span style="color:#66d9ef">while</span> (node <span style="color:#f92672">!=</span> WAKE_Q_TAIL) {
 		<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>task;
 
 		task <span style="color:#f92672">=</span> container_of(node, <span style="color:#66d9ef">struct</span> task_struct, wake_q);
 		BUG_ON(<span style="color:#f92672">!</span>task);
 		<span style="color:#75715e">/* Task can safely be re-inserted now: */</span>
-		node <span style="color:#f92672">=</span> node<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>next;
-		task<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>wake_q.next <span style="color:#f92672">=</span> NULL;
+		node <span style="color:#f92672">=</span> node<span style="color:#f92672">-&gt;</span>next;
+		task<span style="color:#f92672">-&gt;</span>wake_q.next <span style="color:#f92672">=</span> NULL;
 
 		<span style="color:#75715e">/*
 </span><span style="color:#75715e">		 * wake_up_process() executes a full barrier, which pairs with
@@ -111,8 +111,8 @@
 }
 </code></pre></div><p>它的原形定义在 <a href="https://elixir.bootlin.com/linux/latest/source/include/linux/sched/wake_q.h">wake_q.h</a> 中：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* SPDX-License-Identifier: GPL-2.0 */</span>
-<span style="color:#75715e">#</span><span style="color:#75715e">ifndef _LINUX_SCHED_WAKE_Q_H</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">define _LINUX_SCHED_WAKE_Q_H</span><span style="color:#75715e">
+<span style="color:#75715e">#ifndef _LINUX_SCHED_WAKE_Q_H
+</span><span style="color:#75715e">#define _LINUX_SCHED_WAKE_Q_H
 </span><span style="color:#75715e"></span>
 <span style="color:#75715e">/*
 </span><span style="color:#75715e"> * Wake-queues are lists of tasks with a pending wakeup, whose
@@ -145,34 +145,34 @@
 </span><span style="color:#75715e"> * location of the wake_q_add().
 </span><span style="color:#75715e"> */</span>
 
-<span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;linux/sched.h&gt;</span><span style="color:#75715e">
+<span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;linux/sched.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span>
 <span style="color:#66d9ef">struct</span> wake_q_head {
 	<span style="color:#66d9ef">struct</span> wake_q_node <span style="color:#f92672">*</span>first;
-	<span style="color:#66d9ef">struct</span> wake_q_node <span style="color:#f92672">*</span><span style="color:#f92672">*</span>lastp;
+	<span style="color:#66d9ef">struct</span> wake_q_node <span style="color:#f92672">**</span>lastp;
 };
 
-<span style="color:#75715e">#</span><span style="color:#75715e">define WAKE_Q_TAIL ((struct wake_q_node *) 0x01)</span><span style="color:#75715e">
+<span style="color:#75715e">#define WAKE_Q_TAIL ((struct wake_q_node *) 0x01)
 </span><span style="color:#75715e"></span>
-<span style="color:#75715e">#</span><span style="color:#75715e">define DEFINE_WAKE_Q(name)				\</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">	struct wake_q_head name = { WAKE_Q_TAIL, &amp;name.first }</span><span style="color:#75715e">
+<span style="color:#75715e">#define DEFINE_WAKE_Q(name)				\
+</span><span style="color:#75715e">	struct wake_q_head name = { WAKE_Q_TAIL, &amp;name.first }
 </span><span style="color:#75715e"></span>
 <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">wake_q_init</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head)
 {
-	head<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>first <span style="color:#f92672">=</span> WAKE_Q_TAIL;
-	head<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>lastp <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>head<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>first;
+	head<span style="color:#f92672">-&gt;</span>first <span style="color:#f92672">=</span> WAKE_Q_TAIL;
+	head<span style="color:#f92672">-&gt;</span>lastp <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>head<span style="color:#f92672">-&gt;</span>first;
 }
 
 <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">bool</span> <span style="color:#a6e22e">wake_q_empty</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head)
 {
-	<span style="color:#66d9ef">return</span> head<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>first <span style="color:#f92672">=</span><span style="color:#f92672">=</span> WAKE_Q_TAIL;
+	<span style="color:#66d9ef">return</span> head<span style="color:#f92672">-&gt;</span>first <span style="color:#f92672">==</span> WAKE_Q_TAIL;
 }
 
 <span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">wake_q_add</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head, <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>task);
 <span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">wake_q_add_safe</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head, <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>task);
 <span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">wake_up_q</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head);
 
-<span style="color:#75715e">#</span><span style="color:#75715e">endif </span><span style="color:#75715e">/* _LINUX_SCHED_WAKE_Q_H */</span><span style="color:#75715e">
+<span style="color:#75715e">#endif </span><span style="color:#75715e">/* _LINUX_SCHED_WAKE_Q_H */</span><span style="color:#75715e">
 </span></code></pre></div><p>从代码上看,<code>wake_q_add()</code> 函数的主要是：</p>
 <ol>
 <li>

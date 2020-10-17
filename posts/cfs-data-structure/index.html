@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>CFS 调度算法中的数据结构 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/cfs-data-structure/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -49,21 +49,21 @@ CFS 的出现解决了这些问题，同时也为后来 CGroup 的 CPU 资源隔
     <span style="color:#66d9ef">struct</span> cfs_rq cfs;
     <span style="color:#66d9ef">struct</span> rt_rq rt;
 
-<span style="color:#75715e">#</span><span style="color:#75715e">ifdef CONFIG_FAIR_GROUP_SCHED</span><span style="color:#75715e">
+<span style="color:#75715e">#ifdef CONFIG_FAIR_GROUP_SCHED
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">/* list of leaf cfs_rq on this cpu: */</span>
     <span style="color:#66d9ef">struct</span> list_head leaf_cfs_rq_list;
-<span style="color:#75715e">#</span><span style="color:#75715e">ifdef CONFIG_SMP</span><span style="color:#75715e">
+<span style="color:#75715e">#ifdef CONFIG_SMP
 </span><span style="color:#75715e"></span>    <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> h_load_throttle;
-<span style="color:#75715e">#</span><span style="color:#75715e">endif </span><span style="color:#75715e">/* CONFIG_SMP */</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">endif </span><span style="color:#75715e">/* CONFIG_FAIR_GROUP_SCHED */</span><span style="color:#75715e">
+<span style="color:#75715e">#endif </span><span style="color:#75715e">/* CONFIG_SMP */</span><span style="color:#75715e">
+</span><span style="color:#75715e">#endif </span><span style="color:#75715e">/* CONFIG_FAIR_GROUP_SCHED */</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span>
-<span style="color:#75715e">#</span><span style="color:#75715e">ifdef CONFIG_RT_GROUP_SCHED</span><span style="color:#75715e">
+<span style="color:#75715e">#ifdef CONFIG_RT_GROUP_SCHED
 </span><span style="color:#75715e"></span>    <span style="color:#66d9ef">struct</span> list_head leaf_rt_rq_list;
-<span style="color:#75715e">#</span><span style="color:#75715e">endif</span><span style="color:#75715e">
+<span style="color:#75715e">#endif
 </span><span style="color:#75715e"></span>
     <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>curr, <span style="color:#f92672">*</span>idle, <span style="color:#f92672">*</span>stop;
 
-<span style="color:#75715e">#</span><span style="color:#75715e">ifdef CONFIG_SMP</span><span style="color:#75715e">
+<span style="color:#75715e">#ifdef CONFIG_SMP
 </span><span style="color:#75715e"></span>    <span style="color:#66d9ef">struct</span> root_domain <span style="color:#f92672">*</span>rd;
     <span style="color:#66d9ef">struct</span> sched_domain <span style="color:#f92672">*</span>sd;
 
@@ -72,11 +72,11 @@ CFS 的出现解决了这些问题，同时也为后来 CGroup 的 CPU 资源隔
     <span style="color:#66d9ef">int</span> online;
 
     <span style="color:#66d9ef">struct</span> list_head cfs_tasks;
-<span style="color:#75715e">#</span><span style="color:#75715e">endif</span><span style="color:#75715e">
+<span style="color:#75715e">#endif
 </span><span style="color:#75715e"></span>
-<span style="color:#75715e">#</span><span style="color:#75715e">ifdef CONFIG_SMP</span><span style="color:#75715e">
+<span style="color:#75715e">#ifdef CONFIG_SMP
 </span><span style="color:#75715e"></span>    <span style="color:#66d9ef">struct</span> llist_head wake_list;
-<span style="color:#75715e">#</span><span style="color:#75715e">endif</span><span style="color:#75715e">
+<span style="color:#75715e">#endif
 </span><span style="color:#75715e"></span>};
 </code></pre></div><p>调度队列实际上并不保存在<code>struct rq</code>中。
 Linux 支持 CFS、RT 等不同的调度算法。
@@ -91,9 +91,9 @@ Linux 支持 CFS、RT 等不同的调度算法。
     <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> nr_running, h_nr_running;
 
     u64 min_vruntime;
-<span style="color:#75715e">#</span><span style="color:#75715e">ifndef CONFIG_64BIT</span><span style="color:#75715e">
+<span style="color:#75715e">#ifndef CONFIG_64BIT
 </span><span style="color:#75715e"></span>    u64 min_vruntime_copy;
-<span style="color:#75715e">#</span><span style="color:#75715e">endif</span><span style="color:#75715e">
+<span style="color:#75715e">#endif
 </span><span style="color:#75715e"></span>
     <span style="color:#66d9ef">struct</span> rb_root tasks_timeline;
     <span style="color:#66d9ef">struct</span> rb_node <span style="color:#f92672">*</span>rb_leftmost;
@@ -104,7 +104,7 @@ Linux 支持 CFS、RT 等不同的调度算法。
 </span><span style="color:#75715e">     */</span>
     <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>curr, <span style="color:#f92672">*</span>next, <span style="color:#f92672">*</span>last, <span style="color:#f92672">*</span>skip;
 
-<span style="color:#75715e">#</span><span style="color:#75715e">ifdef CONFIG_FAIR_GROUP_SCHED</span><span style="color:#75715e">
+<span style="color:#75715e">#ifdef CONFIG_FAIR_GROUP_SCHED
 </span><span style="color:#75715e"></span>    <span style="color:#66d9ef">struct</span> rq <span style="color:#f92672">*</span>rq;  <span style="color:#75715e">/* cpu runqueue to which this cfs_rq is attached */</span>
 
     <span style="color:#75715e">/*
@@ -119,7 +119,7 @@ Linux 支持 CFS、RT 等不同的调度算法。
     <span style="color:#66d9ef">struct</span> list_head leaf_cfs_rq_list;
     <span style="color:#66d9ef">struct</span> task_group <span style="color:#f92672">*</span>tg;  <span style="color:#75715e">/* group that &#34;owns&#34; this runqueue */</span>
 
-<span style="color:#75715e">#</span><span style="color:#75715e">ifdef CONFIG_CFS_BANDWIDTH</span><span style="color:#75715e">
+<span style="color:#75715e">#ifdef CONFIG_CFS_BANDWIDTH
 </span><span style="color:#75715e"></span>    <span style="color:#66d9ef">int</span> runtime_enabled;
     u64 runtime_expires;
     s64 runtime_remaining;
@@ -128,8 +128,8 @@ Linux 支持 CFS、RT 等不同的调度算法。
     u64 throttled_clock_task_time;
     <span style="color:#66d9ef">int</span> throttled, throttle_count;
     <span style="color:#66d9ef">struct</span> list_head throttled_list;
-<span style="color:#75715e">#</span><span style="color:#75715e">endif </span><span style="color:#75715e">/* CONFIG_CFS_BANDWIDTH */</span><span style="color:#75715e">
-</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">endif </span><span style="color:#75715e">/* CONFIG_FAIR_GROUP_SCHED */</span><span style="color:#75715e">
+<span style="color:#75715e">#endif </span><span style="color:#75715e">/* CONFIG_CFS_BANDWIDTH */</span><span style="color:#75715e">
+</span><span style="color:#75715e">#endif </span><span style="color:#75715e">/* CONFIG_FAIR_GROUP_SCHED */</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span>};
 </code></pre></div><p>CFS 的调度队列使用红黑树实现。
 上面我们提到过，CFS 选择调度队列中 CPU 运行时间最小的进程来执行，
@@ -154,23 +154,23 @@ Linux 支持 CFS、RT 等不同的调度算法。
 
     u64         nr_migrations;
 
-<span style="color:#75715e">#</span><span style="color:#75715e">ifdef CONFIG_FAIR_GROUP_SCHED</span><span style="color:#75715e">
+<span style="color:#75715e">#ifdef CONFIG_FAIR_GROUP_SCHED
 </span><span style="color:#75715e"></span>    <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>parent;
     <span style="color:#75715e">/* rq on which this entity is (to be) queued: */</span>
     <span style="color:#66d9ef">struct</span> cfs_rq       <span style="color:#f92672">*</span>cfs_rq;
     <span style="color:#75715e">/* rq &#34;owned&#34; by this entity/group: */</span>
     <span style="color:#66d9ef">struct</span> cfs_rq       <span style="color:#f92672">*</span>my_q;
-<span style="color:#75715e">#</span><span style="color:#75715e">endif</span><span style="color:#75715e">
+<span style="color:#75715e">#endif
 </span><span style="color:#75715e"></span>
 <span style="color:#75715e">/*
 </span><span style="color:#75715e"> * Load-tracking only depends on SMP, FAIR_GROUP_SCHED dependency below may be
 </span><span style="color:#75715e"> * removed when useful for applications beyond shares distribution (e.g.
 </span><span style="color:#75715e"> * load-balance).
 </span><span style="color:#75715e"> */</span>
-<span style="color:#75715e">#</span><span style="color:#75715e">if defined(CONFIG_SMP) &amp;&amp; defined(CONFIG_FAIR_GROUP_SCHED)</span><span style="color:#75715e">
+<span style="color:#75715e">#if defined(CONFIG_SMP) &amp;&amp; defined(CONFIG_FAIR_GROUP_SCHED)
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">/* Per-entity load-tracking */</span>
     <span style="color:#66d9ef">struct</span> sched_avg    avg;
-<span style="color:#75715e">#</span><span style="color:#75715e">endif</span><span style="color:#75715e">
+<span style="color:#75715e">#endif
 </span><span style="color:#75715e"></span>
     RH_KABI_USE(<span style="color:#ae81ff">1</span>, <span style="color:#66d9ef">struct</span> sched_statistics <span style="color:#f92672">*</span>statistics)
 
@@ -193,13 +193,13 @@ Linux 支持 CFS、RT 等不同的调度算法。
 最后我们看<code>struct task_group</code>结构体，我们已经知道这个结构体表示一个进程组，它也有自己的调度队列。</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* task group related information */</span>
 <span style="color:#66d9ef">struct</span> task_group {
-<span style="color:#75715e">#</span><span style="color:#75715e">ifdef CONFIG_FAIR_GROUP_SCHED</span><span style="color:#75715e">
+<span style="color:#75715e">#ifdef CONFIG_FAIR_GROUP_SCHED
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">/* schedulable entities of this group on each cpu */</span>
-    <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span><span style="color:#f92672">*</span>se;
+    <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">**</span>se;
     <span style="color:#75715e">/* runqueue &#34;owned&#34; by this group on each cpu */</span>
-    <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span><span style="color:#f92672">*</span>cfs_rq;
+    <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">**</span>cfs_rq;
     <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> shares;
-<span style="color:#75715e">#</span><span style="color:#75715e">endif</span><span style="color:#75715e">
+<span style="color:#75715e">#endif
 </span><span style="color:#75715e"></span>    <span style="color:#66d9ef">struct</span> task_group <span style="color:#f92672">*</span>parent;
     <span style="color:#66d9ef">struct</span> list_head siblings;
     <span style="color:#66d9ef">struct</span> list_head children;
@@ -210,10 +210,10 @@ Linux 支持 CFS、RT 等不同的调度算法。
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span><span style="color:#a6e22e">pick_next_task_fair</span>(<span style="color:#66d9ef">struct</span> rq <span style="color:#f92672">*</span>rq)
 {
     <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>p;
-    <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>cfs;
+    <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-&gt;</span>cfs;
     <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>se;
 
-    <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>nr_running)
+    <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cfs_rq<span style="color:#f92672">-&gt;</span>nr_running)
         <span style="color:#66d9ef">return</span> NULL;
 
     <span style="color:#66d9ef">do</span> {
@@ -243,14 +243,14 @@ Linux 支持 CFS、RT 等不同的调度算法。
     <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>se;
     <span style="color:#66d9ef">int</span> i;
 
-    tg<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>cfs_rq <span style="color:#f92672">=</span> kzalloc(<span style="color:#66d9ef">sizeof</span>(cfs_rq) <span style="color:#f92672">*</span> nr_cpu_ids, GFP_KERNEL);
-    <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>tg<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>cfs_rq)
+    tg<span style="color:#f92672">-&gt;</span>cfs_rq <span style="color:#f92672">=</span> kzalloc(<span style="color:#66d9ef">sizeof</span>(cfs_rq) <span style="color:#f92672">*</span> nr_cpu_ids, GFP_KERNEL);
+    <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>tg<span style="color:#f92672">-&gt;</span>cfs_rq)
         <span style="color:#66d9ef">goto</span> err;
-    tg<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>se <span style="color:#f92672">=</span> kzalloc(<span style="color:#66d9ef">sizeof</span>(se) <span style="color:#f92672">*</span> nr_cpu_ids, GFP_KERNEL);
-    <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>tg<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>se)
+    tg<span style="color:#f92672">-&gt;</span>se <span style="color:#f92672">=</span> kzalloc(<span style="color:#66d9ef">sizeof</span>(se) <span style="color:#f92672">*</span> nr_cpu_ids, GFP_KERNEL);
+    <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>tg<span style="color:#f92672">-&gt;</span>se)
         <span style="color:#66d9ef">goto</span> err;
 
-    tg<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>shares <span style="color:#f92672">=</span> NICE_0_LOAD;
+    tg<span style="color:#f92672">-&gt;</span>shares <span style="color:#f92672">=</span> NICE_0_LOAD;
 
     init_cfs_bandwidth(tg_cfs_bandwidth(tg));
 
@@ -265,13 +265,13 @@ Linux 支持 CFS、RT 等不同的调度算法。
         <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>se)
             <span style="color:#66d9ef">goto</span> err_free_rq;
 
-        se<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>statistics <span style="color:#f92672">=</span> kzalloc_node(<span style="color:#66d9ef">sizeof</span>(<span style="color:#66d9ef">struct</span> sched_statistics),
+        se<span style="color:#f92672">-&gt;</span>statistics <span style="color:#f92672">=</span> kzalloc_node(<span style="color:#66d9ef">sizeof</span>(<span style="color:#66d9ef">struct</span> sched_statistics),
                           GFP_KERNEL, cpu_to_node(i));
-        <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>se<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>statistics)
+        <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>se<span style="color:#f92672">-&gt;</span>statistics)
             <span style="color:#66d9ef">goto</span> err_free_se;
 
         init_cfs_rq(cfs_rq);
-        init_tg_cfs_entry(tg, cfs_rq, se, i, parent<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>se[i]);
+        init_tg_cfs_entry(tg, cfs_rq, se, i, parent<span style="color:#f92672">-&gt;</span>se[i]);
     }
     ...
 }
@@ -282,26 +282,26 @@ Linux 支持 CFS、RT 等不同的调度算法。
 {
     <span style="color:#66d9ef">struct</span> rq <span style="color:#f92672">*</span>rq <span style="color:#f92672">=</span> cpu_rq(cpu);
 
-    cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>tg <span style="color:#f92672">=</span> tg;
-    cfs_rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>rq <span style="color:#f92672">=</span> rq;
+    cfs_rq<span style="color:#f92672">-&gt;</span>tg <span style="color:#f92672">=</span> tg;
+    cfs_rq<span style="color:#f92672">-&gt;</span>rq <span style="color:#f92672">=</span> rq;
     init_cfs_rq_runtime(cfs_rq);
 
-    tg<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>cfs_rq[cpu] <span style="color:#f92672">=</span> cfs_rq;
-    tg<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>se[cpu] <span style="color:#f92672">=</span> se;
+    tg<span style="color:#f92672">-&gt;</span>cfs_rq[cpu] <span style="color:#f92672">=</span> cfs_rq;
+    tg<span style="color:#f92672">-&gt;</span>se[cpu] <span style="color:#f92672">=</span> se;
 
     <span style="color:#75715e">/* se could be NULL for root_task_group */</span>
     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>se)
         <span style="color:#66d9ef">return</span>;
 
     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>parent)
-        se<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>cfs;
+        se<span style="color:#f92672">-&gt;</span>cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-&gt;</span>cfs;
     <span style="color:#66d9ef">else</span>
-        se<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>cfs_rq <span style="color:#f92672">=</span> parent<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>my_q;
+        se<span style="color:#f92672">-&gt;</span>cfs_rq <span style="color:#f92672">=</span> parent<span style="color:#f92672">-&gt;</span>my_q;
 
-    se<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>my_q <span style="color:#f92672">=</span> cfs_rq;
+    se<span style="color:#f92672">-&gt;</span>my_q <span style="color:#f92672">=</span> cfs_rq;
     <span style="color:#75715e">/* guarantee group entities always have weight */</span>
-    update_load_set(<span style="color:#f92672">&amp;</span>se<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>load, NICE_0_LOAD);
-    se<span style="color:#f92672">-</span><span style="color:#f92672">&gt;</span>parent <span style="color:#f92672">=</span> parent;
+    update_load_set(<span style="color:#f92672">&amp;</span>se<span style="color:#f92672">-&gt;</span>load, NICE_0_LOAD);
+    se<span style="color:#f92672">-&gt;</span>parent <span style="color:#f92672">=</span> parent;
 }
 </code></pre></div>
 </article>
