@@ -10,20 +10,20 @@ draft: false
 
 1. 进入 settings
 
-![进入 settings](/images/uim/goto-settings.png)
+![进入 settings](/images/uim/goto-settings.jpg)
 
 2. 进入`Region & Language`配置
 
-![进入 Region & Language](/images/uim/goto-rl.png)
+![进入 Region & Language](/images/uim/goto-rl.jpg)
 
 3. 添加输入源
 
-![添加输入源](/images/uim/add-is.png)
+![添加输入源](/images/uim/add-is.jpg)
 
 4. 添加中文拼音输入法
 
-![添加中文拼音输入法](/images/uim/add-pinyin.png)
+![添加中文拼音输入法](/images/uim/add-pinyin.jpg)
 
 5. 修改输入法切换快捷键
 
-![修改输入法切换快捷键](/images/uim/update-shortcut.png)
+![修改输入法切换快捷键](/images/uim/update-shortcut.jpg)
