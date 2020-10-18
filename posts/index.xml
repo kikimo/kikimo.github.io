@@ -22,6 +22,16 @@
     </item>
     
     <item>
+      <title>Docker 性能优化</title>
+      <link>https://coderatwork.cn/posts/docker-perf-optimization/</link>
+      <pubDate>Tue, 13 Oct 2020 13:31:07 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/docker-perf-optimization/</guid>
+      <description>Docker 在生产环境跑了一段时间后我们发现 dockerd 进程占用了不少 CPU 资源：
+# pidstat -u -p 4265 1 Linux *.x86_64 (*) */*/2020 _x86_64_	(* CPU) 07:05:44 PM UID PID %usr %system %guest %CPU CPU Command 07:05:45 PM 0 4265 100.00 16.00 0.00 100.00 38 dockerd 07:05:46 PM 0 4265 87.00 14.00 0.00 100.00 38 dockerd 07:05:47 PM 0 4265 17.00 4.00 0.00 21.00 38 dockerd 07:05:48 PM 0 4265 36.00 7.00 0.00 43.00 38 dockerd 07:05:49 PM 0 4265 100.</description>
+    </item>
+    
+    <item>
       <title>etcd 安全通信</title>
       <link>https://coderatwork.cn/posts/etcd-secure-transport/</link>
       <pubDate>Tue, 13 Oct 2020 12:59:53 +0800</pubDate>

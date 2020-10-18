@@ -18,6 +18,11 @@
   </url>
   
   <url>
+    <loc>https://coderatwork.cn/posts/docker-perf-optimization/</loc>
+    <lastmod>2020-10-13T13:31:07+08:00</lastmod>
+  </url>
+  
+  <url>
     <loc>https://coderatwork.cn/posts/etcd-secure-transport/</loc>
     <lastmod>2020-10-13T12:59:53+08:00</lastmod>
   </url>
