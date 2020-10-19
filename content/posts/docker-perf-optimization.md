@@ -50,6 +50,31 @@ $ perf top -p 4265
 镜像今本信息还有一部分是以`json`形式存储在磁盘上的，dockerd 在读取这些 json 信息的同时还对它作了`sha256`哈希校验，
 所以这部分操作在作`json`解码操作的同时也耗费了一部分 CPU 在`sha256`哈希值的计算上。
 
+![docker flame](/images/docker-flame.png)
+
+`getImagesJSON()`是谁调用的呢？通过`ss`查看读写`docker.sock`的进程，我们看到主要的嫌疑在`kubelet`上。
+查看`kubelet`我们发现至少有两处地方在定时轮询 docker 的`getImagesJSON()`接口。
+一处在`kubelet`定时更新节点状态的代码中，频率默认为 10s，由`--node-status-update-frequency`参数控制
+
+```go
+kubelet/kubelet.go:Run(): `go wait.Until(kl.syncNodeStatus, kl.nodeStatusUpdateFrequency, wait.NeverStop)`
+```
+
+另一处在`kubelet`的镜像 GC 代码中，频率是写死的每 30s 一次：
+
+```go
+pkg/kubelet/images/image_gc_manager.go:realImageGCManager.Start()
+
+go wait.Until(func() {
+	images, err := im.runtime.ListImages()
+	if err != nil {
+		klog.Warningf("[imageGCManager] Failed to update image list: %v", err)
+	} else {
+		im.imageCache.set(images)
+	}
+}, 30*time.Second, wait.NeverStop)
+```
+
 如何优化？首先 docker 镜像的基础信息在 dockerd 首次加载镜像时已经包含了`getImagesJSON()`接口需要返回的大部分信息，
 我们只需要把这部分信息缓存下来就行，后续 dockerd 对镜像进行增删改的时候我们相应的更新缓存中的信息就行了。
 除此之外还有一个 CPU 消耗非常的的就是 docker 镜像层`chain id`的计算，真对这一问题我们同样可以用缓存来解决，

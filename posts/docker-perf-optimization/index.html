@@ -58,7 +58,23 @@ Linux *.x86_64 (*) 	*/*/2020 	_x86_64_	(* CPU)
 而计算<code>chain id</code>主要是为了给<code>getImagesJSON()</code>接口返回镜像基本信息，
 镜像今本信息还有一部分是以<code>json</code>形式存储在磁盘上的，dockerd 在读取这些 json 信息的同时还对它作了<code>sha256</code>哈希校验，
 所以这部分操作在作<code>json</code>解码操作的同时也耗费了一部分 CPU 在<code>sha256</code>哈希值的计算上。</p>
-<p>如何优化？首先 docker 镜像的基础信息在 dockerd 首次加载镜像时已经包含了<code>getImagesJSON()</code>接口需要返回的大部分信息，
+<p><img src="/images/docker-flame.png" alt="docker flame"></p>
+<p><code>getImagesJSON()</code>是谁调用的呢？通过<code>ss</code>查看读写<code>docker.sock</code>的进程，我们看到主要的嫌疑在<code>kubelet</code>上。
+查看<code>kubelet</code>我们发现至少有两处地方在定时轮询 docker 的<code>getImagesJSON()</code>接口。
+一处在<code>kubelet</code>定时更新节点状态的代码中，频率默认为 10s，由<code>--node-status-update-frequency</code>参数控制</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">kubelet</span><span style="color:#f92672">/</span><span style="color:#a6e22e">kubelet</span>.<span style="color:#66d9ef">go</span>:<span style="color:#a6e22e">Run</span>(): <span style="color:#e6db74">`go wait.Until(kl.syncNodeStatus, kl.nodeStatusUpdateFrequency, wait.NeverStop)`</span>
+</code></pre></div><p>另一处在<code>kubelet</code>的镜像 GC 代码中，频率是写死的每 30s 一次：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">pkg</span><span style="color:#f92672">/</span><span style="color:#a6e22e">kubelet</span><span style="color:#f92672">/</span><span style="color:#a6e22e">images</span><span style="color:#f92672">/</span><span style="color:#a6e22e">image_gc_manager</span>.<span style="color:#66d9ef">go</span>:<span style="color:#a6e22e">realImageGCManager</span>.<span style="color:#a6e22e">Start</span>()
+
+<span style="color:#66d9ef">go</span> <span style="color:#a6e22e">wait</span>.<span style="color:#a6e22e">Until</span>(<span style="color:#66d9ef">func</span>() {
+	<span style="color:#a6e22e">images</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">im</span>.<span style="color:#a6e22e">runtime</span>.<span style="color:#a6e22e">ListImages</span>()
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#a6e22e">klog</span>.<span style="color:#a6e22e">Warningf</span>(<span style="color:#e6db74">&#34;[imageGCManager] Failed to update image list: %v&#34;</span>, <span style="color:#a6e22e">err</span>)
+	} <span style="color:#66d9ef">else</span> {
+		<span style="color:#a6e22e">im</span>.<span style="color:#a6e22e">imageCache</span>.<span style="color:#a6e22e">set</span>(<span style="color:#a6e22e">images</span>)
+	}
+}, <span style="color:#ae81ff">30</span><span style="color:#f92672">*</span><span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Second</span>, <span style="color:#a6e22e">wait</span>.<span style="color:#a6e22e">NeverStop</span>)
+</code></pre></div><p>如何优化？首先 docker 镜像的基础信息在 dockerd 首次加载镜像时已经包含了<code>getImagesJSON()</code>接口需要返回的大部分信息，
 我们只需要把这部分信息缓存下来就行，后续 dockerd 对镜像进行增删改的时候我们相应的更新缓存中的信息就行了。
 除此之外还有一个 CPU 消耗非常的的就是 docker 镜像层<code>chain id</code>的计算，真对这一问题我们同样可以用缓存来解决，
 dockerd 镜像在加载的时候会从镜像层存储组件中查询镜像层的数据数据结构，这个数据结构中就包含这镜像层的<code>chain id</code>信息，
