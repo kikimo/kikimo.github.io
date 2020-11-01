@@ -4,9 +4,6 @@ date: 2020-11-01T09:31:55+08:00
 draft: false
 ---
 
-http://arthurchiao.art/blog/conntrack-design-and-implementation-zh/
-https://www.frozentux.net/iptables-tutorial/chunkyhtml/x1309.html
-
 conntrack 是 Linux 下的一个内核模块，这个名字是 connection track 的缩写，
 顾名思义，这个模块就是用来做连接跟踪的。
 然而这里的链接需要同 TCP 协议中的连接区分开来，
@@ -23,15 +20,16 @@ conntrack table 表项中记录的格式如下：
 tcp      6 48 SYN_SENT src=192.168.199.132 dst=172.217.24.14 sport=58074 dport=443 [UNREPLIED] src=172.217.24.14 dst=192.168.199.132 sport=443 dport=58074 mark=0 use=1
 ```
 表项字段说明：
-|序号| 说明|
-|-------|-------|
-|1       | 协议名称|  
-|2       | 协议号|
-|3       |连接 ttl（单位秒）|
-|4       | 连接状态（ESTABLISHED、TIME_WAIT、SYN_SENT...）|
-|5       | 发送端的源 IP 地址、目的 IP 地址、源端口、目的端口|
-|6       | [UNREPLIED] 告诉我们还未受到回应报文，当连接建立后该字段会被删除|
-|7       | 期望收到的回应报文中的源 IP 地址、目的 IP 地址、源端口、目的端口|
+
+| 序号   | 说明                                                                |
+|--------|:-------------------------------------------------------------------:|
+| 1      | 协议名称                                                          |
+| 2      | 协议号                                                            |
+| 3      | 连接 ttl（单位秒）                                                |
+| 4      | 连接状态（ESTABLISHED、TIME_WAIT、SYN_SENT...）                   |
+| 5      | 发送端的源 IP 地址、目的 IP 地址、源端口、目的端口                |
+| 6      | [UNREPLIED] 告诉我们还未受到回应报文，当连接建立后该字段会被删除  |
+| 7      | 期望收到的回应报文中的源 IP 地址、目的 IP 地址、源端口、目的端口  |
 
 
 conntrack 是一个非常重要的模块，它是 ipvs 负载均衡、NAT 的核心依赖模块。
@@ -61,3 +59,10 @@ tcp      6 8 CLOSE src=192.168.122.148 dst=180.101.49.12 sport=40212 dport=443 s
 
 可以看到被 NAT 修改后的 conntrack 表项，
 其中返回报文的目的地址被修改为 192.168.199.132 也就是运行了NAT 协议的 Host IP 地址。
+
+---
+参考：
+
+1. [连接跟踪（conntrack）：原理、应用及 Linux 内核实现](http://arthurchiao.art/blog/conntrack-design-and-implementation-zh/)
+2. [Iptables Tutorial 1.2.1 - 7.2. The conntrack entries](https://www.frozentux.net/iptables-tutorial/chunkyhtml/x1309.html)
+
