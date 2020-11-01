@@ -18,7 +18,7 @@ Average:    65534     39269   15.78    3.95    0.00   19.73     -  node_exporter
 1. http 接口数据处理
 2. node_exporter 基础数据采集（火焰图里主要是 net class 数据和 ipvs 相关 collector 数据的采集）
 3. golang gc
-![flamegraph 1](/images/ne/fg01.png)
+![flamegraph 1](/images/ne/fg01.jpg)
 
 调用基础监控数据采集接口的，发现接口 RT 达到 8s 以上，监控数据有 3.2M。
 
@@ -68,7 +68,7 @@ Average:    65534     15173    1.82    2.27    0.00    4.10     -  node_exporter
 
 我们发现 cpu 使用率从 15.37% 降到了 4.10%。
 此时我们再看 pprof 的火焰图：
-![flamegraph 2](/images/ne/fg02.png)
+![flamegraph 2](/images/ne/fg02.jpg)
 
 我们发现 gc 部分的 cpu 基本上消失了，此时 cpu 消耗的大头是 net class 监控项采集,
 虽然我们已经关闭了大部分的 veth 数据的采集，
