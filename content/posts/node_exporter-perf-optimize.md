@@ -59,7 +59,7 @@ $ ls -lh ne.txt
 -rw-r--r--. 1 root root 227K Nov  1 19:01 ne.txt
 ```
 
-我们看到，接口调用时间从 6.345s 降到了 0.416s，数据大小也从 3.2m 下降到 227k。
+我们看到，接口调用时间从 6.345s 降到了 0.699，数据大小也从 3.2m 下降到 227k。
 仍旧用 pidstat 观察 node_exporter 的 cpu 使用率：
 
 ```txt
