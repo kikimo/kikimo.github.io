@@ -6,10 +6,21 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sun, 01 Nov 2020 09:48:38 +0800</lastBuildDate>
+    <lastBuildDate>Mon, 02 Nov 2020 13:38:54 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>ipvs 速率统计模块分析</title>
+      <link>https://coderatwork.cn/posts/ipvs-est-module/</link>
+      <pubDate>Mon, 02 Nov 2020 13:38:54 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/ipvs-est-module/</guid>
+      <description>ip_vs_est.c 是 ipvs 中负责速率统计的模块，我们以内核 4.19.12 版本的为例，分析这个模块的源码。 这个模块的代码量不多总共就 203 行。 结构上也简单清晰，可以分成两部分来看：
+ 一部分是定时器相关代码，这部分代码启动一个内核定时器，每两秒钟统计一遍 ipvs 相关数据 具体的 ipvs 数据统计代码  定时器相关代码 定时器相关代码主要有以下几个函数组成
+ 定时器清理函数  void __net_exit ip_vs_estimator_net_cleanup(struct netns_ipvs *ipvs) { del_timer_sync(&amp;amp;ipvs-&amp;gt;est_timer); } 定时器初始化函数  int __net_init ip_vs_estimator_net_init(struct netns_ipvs *ipvs) { INIT_LIST_HEAD(&amp;amp;ipvs-&amp;gt;est_list); spin_lock_init(&amp;amp;ipvs-&amp;gt;est_lock); timer_setup(&amp;amp;ipvs-&amp;gt;est_timer, estimation_timer, 0); mod_timer(&amp;amp;ipvs-&amp;gt;est_timer, jiffies + 2 * HZ); return 0; } ipvs 统计数据读取函数  /* Get decoded rates */ void ip_vs_read_estimator(struct ip_vs_kstats *dst, struct ip_vs_stats *stats) { struct ip_vs_estimator *e = &amp;amp;stats-&amp;gt;est; dst-&amp;gt;cps = (e-&amp;gt;cps + 0x1FF) &amp;gt;&amp;gt; 10; dst-&amp;gt;inpps = (e-&amp;gt;inpps + 0x1FF) &amp;gt;&amp;gt; 10; dst-&amp;gt;outpps = (e-&amp;gt;outpps + 0x1FF) &amp;gt;&amp;gt; 10; dst-&amp;gt;inbps = (e-&amp;gt;inbps + 0xF) &amp;gt;&amp;gt; 5; dst-&amp;gt;outbps = (e-&amp;gt;outbps + 0xF) &amp;gt;&amp;gt; 5; } 统计数据清零函数  void ip_vs_zero_estimator(struct ip_vs_stats *stats) { struct ip_vs_estimator *est = &amp;amp;stats-&amp;gt;est; struct ip_vs_kstats *k = &amp;amp;stats-&amp;gt;kstats; /* reset counters, caller must hold the stats-&amp;gt;lock lock */ est-&amp;gt;last_inbytes = k-&amp;gt;inbytes; est-&amp;gt;last_outbytes = k-&amp;gt;outbytes; est-&amp;gt;last_conns = k-&amp;gt;conns; est-&amp;gt;last_inpkts = k-&amp;gt;inpkts; est-&amp;gt;last_outpkts = k-&amp;gt;outpkts; est-&amp;gt;cps = 0; est-&amp;gt;inpps = 0; est-&amp;gt;outpps = 0; est-&amp;gt;inbps = 0; est-&amp;gt;outbps = 0; } 把 ipvs 对象加入统计链表  void ip_vs_start_estimator(struct netns_ipvs *ipvs, struct ip_vs_stats *stats) { struct ip_vs_estimator *est = &amp;amp;stats-&amp;gt;est; INIT_LIST_HEAD(&amp;amp;est-&amp;gt;list); spin_lock_bh(&amp;amp;ipvs-&amp;gt;est_lock); list_add(&amp;amp;est-&amp;gt;list, &amp;amp;ipvs-&amp;gt;est_list); spin_unlock_bh(&amp;amp;ipvs-&amp;gt;est_lock); } 把 ipvs 对象从统计链表中删除  void ip_vs_stop_estimator(struct netns_ipvs *ipvs, struct ip_vs_stats *stats) { struct ip_vs_estimator *est = &amp;amp;stats-&amp;gt;est; spin_lock_bh(&amp;amp;ipvs-&amp;gt;est_lock); list_del(&amp;amp;est-&amp;gt;list); spin_unlock_bh(&amp;amp;ipvs-&amp;gt;est_lock); } ipvs 数据统计代码 执行 ipvs 数据统计的主要有两个函数，estimation_timer()和ip_vs_read_cpu_stats()。 ip_vs_read_cpu_stats()分别统计每个 CPU 上的信息，</description>
+    </item>
     
     <item>
       <title>node_exporter 性能优化</title>
