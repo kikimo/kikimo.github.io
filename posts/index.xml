@@ -6,10 +6,21 @@
     <description>Recent content in Posts on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 05 Nov 2020 09:32:35 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 21 Nov 2020 20:43:16 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>一次机器学习在线推理服务的性能优化</title>
+      <link>https://coderatwork.cn/posts/optimize-ai-reference-svc/</link>
+      <pubDate>Sat, 21 Nov 2020 20:43:16 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/optimize-ai-reference-svc/</guid>
+      <description>前段时间在处理一批机器学习在线推理服务的容器化时，发现这些服务可能存在性能问题。 当时通过压测观察到的情况是：
+ 服务进程的 CPU 高，特别是内核态的 CPU 居然跑的比用户态还高 GPU 使用不充分 TODO  我们首先尝试和添加更多的 CPU 资源，但是并没有明显改善，CPU 添加到一定数量后性能反而是下降的。 这些服务几乎都是和图片处理有关的，用户通过 restful api 调用请求， 服务进程首先利用 CPU 对图片做解码操作，然后将解码后的图片数据发送给 GPU 做模型推理。 之前在研究 CPU Manager 的时候，发现k8s 的文档提到通过绑核可以让图片处理的性能得到明显的提升。 所以当时没多想就给给服务做了绑核操作，然后我们观察服务的性能提升了两倍左右。 为什么绑核会带来这样的性能提升？ 当时我猜测和缓存命中率有关。 但是在perf stat观察中发现，绑核后的缓存命中率明显比绑核前要差。 另外我们还观察到绑核后内核态的 CPU 使用率明显降低了。 为什么绑核后会令内核态的 CPU 使用率降低呢？ 当时猜测是不是线程数开太多了，我们这个服务是利用Python Gunicorn提供的 Web 服务。 但是检查服务配置，发现 gunicorn worker 线程数是使用默认的配置也就是数量只有一， 所以线程数这条线索感觉不是问题的真正方向，但实在又找不出其他可能的原因， 后来就放弃了，反正两倍的性能提升应用方已经很满意了。
+过了一段时间，忍不住又想起这个问题。 启动压测然后通过perf top观察到，进程中调用频率最高的是内核中的update_curr()函数， 这是 CFS 调度算法中更新调度实体 vruntime 的函数。 感觉问题可能还是在于线程数的问题上。 因为 Python 中臭名昭著的 GIL， 同时为了最大化的提升 GPU 的利用率，所以我们的 Gunicorn 采用了多进程的模型。 为了简化分析的难度，我首先把 Gunicorn 调整为单进程。 依次给服务进程绑定了不同数量的 CPU，观察到一个很有意思的现象：服务进程的线程数随着绑定核数的升高而增加。 这坚定我对线程数这条线索的信心。 我们之前已经排除了 Gunicorn worker 线程数的问题，那么问题应该在别处。在什么地方呢？ 我猜测是不是和我们服务使用的推理框架有关。 我们目前的推理框架采用的是 MXNet，网上翻了下 MXNet 的文档， 在MXNet 环境变量配置中看到诸多和线程数有关的配置。 其中大部分配置的默认值都是常数，感觉和这些配置估计关系不大。 然后又看到另一份文档Some Tips for Improving MXNet Performance。 其中有个变量OMP_NUM_THREADS ，MXNet 用了 OpenMP， 这个变量是用来设置 OpenMP 线程数的，似乎默认被设置为OMP_NUM_THREADS=vCPUs / 2， 也就是 CPU 核数的一半。 感觉这可能就是罪魁祸首。 我把OMP_NUM_THREADS这个变量的值设置成一，然后重新跑压测程序， 好家伙，qps 一下子提升到原来的八倍多，而 rt 值比原来还低。 再看进程的 CPU 使用情况，内核态的 CPU 一下子降到 6% 一下，perf top中update_curr()也没了， GPU 的使用率也一下子提上来了。</description>
+    </item>
     
     <item>
       <title>k8s 网络抖动问题排查（二）</title>

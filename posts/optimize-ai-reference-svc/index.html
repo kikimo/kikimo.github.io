@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>一次机器学习在线推理服务的性能优化 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/optimize-ai-reference-svc/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>一次机器学习在线推理服务的性能优化</h1>
+    <time datetime="2020-11-21T20:43:16&#43;08:00">November 21, 2020</time>
+  </header>
+  <p>前段时间在处理一批机器学习在线推理服务的容器化时，发现这些服务可能存在性能问题。
+当时通过压测观察到的情况是：</p>
+<ol>
+<li>服务进程的 CPU 高，特别是内核态的 CPU 居然跑的比用户态还高</li>
+<li>GPU 使用不充分 TODO</li>
+</ol>
+<p>我们首先尝试和添加更多的 CPU 资源，但是并没有明显改善，CPU 添加到一定数量后性能反而是下降的。
+这些服务几乎都是和图片处理有关的，用户通过 restful api 调用请求，
+服务进程首先利用 CPU 对图片做解码操作，然后将解码后的图片数据发送给 GPU 做模型推理。
+之前在研究 CPU Manager 的时候，发现<a href="https://kubernetes.io/blog/2018/07/24/feature-highlight-cpu-manager/">k8s 的文档</a>提到通过绑核可以让图片处理的性能得到明显的提升。
+所以当时没多想就给给服务做了绑核操作，然后我们观察服务的性能提升了两倍左右。
+为什么绑核会带来这样的性能提升？
+当时我猜测和缓存命中率有关。
+但是在<code>perf stat</code>观察中发现，绑核后的缓存命中率明显比绑核前要差。
+另外我们还观察到绑核后内核态的 CPU 使用率明显降低了。
+为什么绑核后会令内核态的 CPU 使用率降低呢？
+当时猜测是不是线程数开太多了，我们这个服务是利用<a href="https://gunicorn.org/">Python Gunicorn</a>提供的 Web 服务。
+但是检查服务配置，发现 gunicorn worker 线程数是使用默认的配置也就是数量只有一，
+所以线程数这条线索感觉不是问题的真正方向，但实在又找不出其他可能的原因，
+后来就放弃了，反正两倍的性能提升应用方已经很满意了。</p>
+<p>过了一段时间，忍不住又想起这个问题。
+启动压测然后通过<code>perf top</code>观察到，进程中调用频率最高的是内核中的<code>update_curr()</code>函数，
+这是 CFS 调度算法中更新调度实体 vruntime 的函数。
+感觉问题可能还是在于线程数的问题上。
+因为 Python 中臭名昭著的 GIL，
+同时为了最大化的提升 GPU 的利用率，所以我们的 Gunicorn 采用了多进程的模型。
+为了简化分析的难度，我首先把 Gunicorn 调整为单进程。
+依次给服务进程绑定了不同数量的 CPU，观察到一个很有意思的现象：服务进程的线程数随着绑定核数的升高而增加。
+这坚定我对线程数这条线索的信心。
+我们之前已经排除了 Gunicorn worker 线程数的问题，那么问题应该在别处。在什么地方呢？
+我猜测是不是和我们服务使用的推理框架有关。
+我们目前的推理框架采用的是 MXNet，网上翻了下 MXNet 的文档，
+在<a href="https://mxnet.apache.org/versions/1.7.0/api/faq/env_var">MXNet 环境变量配置</a>中看到诸多和线程数有关的配置。
+其中大部分配置的默认值都是常数，感觉和这些配置估计关系不大。
+然后又看到另一份文档<a href="https://mxnet.apache.org/versions/1.1.0/faq/perf.html">Some Tips for Improving MXNet Performance</a>。
+其中有个变量<code>OMP_NUM_THREADS </code>，MXNet 用了 OpenMP，
+这个变量是用来设置 OpenMP 线程数的，似乎默认被设置为<code>OMP_NUM_THREADS=vCPUs / 2</code>，
+也就是 CPU 核数的一半。
+感觉这可能就是罪魁祸首。
+我把<code>OMP_NUM_THREADS</code>这个变量的值设置成一，然后重新跑压测程序，
+好家伙，qps 一下子提升到原来的八倍多，而 rt 值比原来还低。
+再看进程的 CPU 使用情况，内核态的 CPU 一下子降到 6% 一下，<code>perf top</code>中<code>update_curr()</code>也没了，
+GPU 的使用率也一下子提上来了。</p>
+<p>所以为什么绑核后性能会提升呢？
+很可能的原因是 OpenMP 调用了<code>sched_getaffinity()</code>来获取 CPU 数量，
+绑核前<code>sched_getaffinity()</code>返回系统中所有可用的 CPU 列表，
+绑核后获取的 CPU 数量就下降了，<code>OMP_NUM_THREADS</code>的值也就减小，OpenMP 线程数减少了，
+浪费在线程切换上的 CPU 时间也就少了，CPU 可能把更多资源花在用户态有价值的计算上（图片解码），
+这提升了图片解码的速度（所以之前整个系统的拼镜应该是在 CPU 图片解码操作上），
+也提高了 GPU 的利用率，这个系统的性能也就上来了。
+这其中控制 OpenMP 线程数是最关键的一点。
+因为我们的系统是多进程模型的，分配出去的 CPU 是要均摊给每个进程的，
+又我们也观察到绑核后服务的缓存命中率明显下降，
+所以我采用直接设置<code>OMP_NUM_THREADS</code>变量控制 OpenMP 线程数，
+同时去掉绑核设置，最终我们系统获得了八倍以上的性能提升。</p>
+
+</article>
+
+
+
+</html>
