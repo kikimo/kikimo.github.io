@@ -13,9 +13,13 @@ draft: false
 
 当时我们一度怀疑和进程调度、CPU 亲和性等问题有关。
 但是使用[runqlat](https://github.com/iovisor/bcc/blob/master/tools/runqlat.py) 发现调度队列并没有明显的延迟，
-我们还给 k8s 节点开启了[CPU Manager static policy](https://kubernetes.io/blog/2018/07/24/feature-highlight-cpu-manager/)，
-然而并没有什么作用。
-当时也怀疑过是网络抖动问题，我们从 hping3 测试中似乎发现 k8s 节点的抖动高于虚拟机。
+我们给 k8s 节点开启了[CPU Manager static policy](https://kubernetes.io/blog/2018/07/24/feature-highlight-cpu-manager/)，
+当时发现的情况下部分机器的 RT p999 优化到虚拟机的水平，但是剩下的机器还是有很严重的抖动。
+我们又怀疑过是网络抖动问题，
+从 hping3 测试中似乎发现 k8s 节点的抖动高于虚拟机，
+但是重复的抓包显示链路上的数据包往返明没有明显的 rt 延迟,
+我艹艹艹，真是感觉黔驴技穷了。
+
 当时没有进一步排查的思路，这个问题就这么一直存在着。
 直到最近，在研究 trace 的时候发现一篇文章[Kernel trace tools（一）：中断和软中断关闭时间过长问题追踪](https://blog.csdn.net/ByteDanceTech/article/details/105632131)，
 它介绍了一个用于排查 hardirq/softirq 阻塞的内核模块工具。
@@ -69,4 +73,20 @@ draft: false
 我把这部分代码注释调然后重新加载 ipvs，
 在后续的 hping3 测试中我们发现未修复过的节点和修复过的节点表现出明显的差异，
 在大于 10ms 的 hping3 超时记录中，前者是后者的三倍多，基本上可以实锤了。
+
+然后再来回答几个先前无法解释的问题。
+为什么绑核后有的节点上的实例 RT 不抖动了？
+这可能和 ipvs 这个统计 timer 的 CPU 绑定有关，
+具体出处我倒是忘了，但是有看到描述说这个 timer 会一直运行在最初加载 ipvs 模块的 CPU 上，
+所以我们绑核后看到部分实例 RT 得到优化可能是他绑定的 CPU 和 timer 运行的 CPU 错开了。
+另外一个问题是 wireshark 里面为什么没有看到数据包往返的延迟？
+这一点应该和 bpf 的运行机制有关。
+从[bpf 的论文上](https://www.tcpdump.org/papers/bpf-usenix93.pdf)
+我们可以看出 bpf 直接在数据链路上抓的包：
+
+![BPF Overview](/images/k8s-nt-jitter2/bpf_overview.png)
+
+其实从这个我也无法做出确定的判断，
+但是我猜测 bpf 在数据到达 softirq 前就被 bpf 获取到了，
+或者我之前的抓包分析是错的……
 

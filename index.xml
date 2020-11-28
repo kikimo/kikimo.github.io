@@ -39,7 +39,8 @@ package main import &amp;#34;fmt&amp;#34; type Node struct { val int next *Node 
       
       <guid>https://coderatwork.cn/posts/troubleshooting-k8s-network-jitter-2/</guid>
       <description>我们的 k8s 集群很早就出现过网络抖动的问题，见一次 k8s 网络抖动问题排查， 当时的问题是由于 BGP 路由环路导致的，而差不多同一时期我们发现 k8s 集群还存在另外一个网络抖动问题， 即服务 RT p999 的抖动问题。 我们从监控上发现部分服务从虚拟机迁移到容器后 RT p999，几乎翻倍。
-当时我们一度怀疑和进程调度、CPU 亲和性等问题有关。 但是使用runqlat 发现调度队列并没有明显的延迟， 我们还给 k8s 节点开启了CPU Manager static policy， 然而并没有什么作用。 当时也怀疑过是网络抖动问题，我们从 hping3 测试中似乎发现 k8s 节点的抖动高于虚拟机。 当时没有进一步排查的思路，这个问题就这么一直存在着。 直到最近，在研究 trace 的时候发现一篇文章Kernel trace tools（一）：中断和软中断关闭时间过长问题追踪， 它介绍了一个用于排查 hardirq/softirq 阻塞的内核模块工具。 这个工具原理本身很简单，代码也好理解，实际上bpf 已经有类似的 trace 工具。 但看这篇文章的时候我就在想，网络数据包经过中断到 DMA 后是不是通过 softirq 向上层协议栈继续交付数据的？ 带着这个问题，我在Professional Linux Kernel Architecture翻到这么一张图：
+当时我们一度怀疑和进程调度、CPU 亲和性等问题有关。 但是使用runqlat 发现调度队列并没有明显的延迟， 我们给 k8s 节点开启了CPU Manager static policy， 当时发现的情况下部分机器的 RT p999 优化到虚拟机的水平，但是剩下的机器还是有很严重的抖动。 我们又怀疑过是网络抖动问题， 从 hping3 测试中似乎发现 k8s 节点的抖动高于虚拟机， 但是重复的抓包显示链路上的数据包往返明没有明显的 rt 延迟, 我艹艹艹，真是感觉黔驴技穷了。
+当时没有进一步排查的思路，这个问题就这么一直存在着。 直到最近，在研究 trace 的时候发现一篇文章Kernel trace tools（一）：中断和软中断关闭时间过长问题追踪， 它介绍了一个用于排查 hardirq/softirq 阻塞的内核模块工具。 这个工具原理本身很简单，代码也好理解，实际上bpf 已经有类似的 trace 工具。 但看这篇文章的时候我就在想，网络数据包经过中断到 DMA 后是不是通过 softirq 向上层协议栈继续交付数据的？ 带着这个问题，我在Professional Linux Kernel Architecture翻到这么一张图：
 可以看到 Linux 正是通过 softirq 继续向协议栈交付数据包的。 此时我感觉 softirq 入手去查这个问题是个非常有价值的方向。 在 k8s 测试节点上把这个工具跑起来， 然后欣喜的发现数不清的 softirq 延迟堆栈现场，而其中大部分跟 ipvs 模块的一个 estimation_timer 定时器有关：</description>
     </item>
     
