@@ -6,10 +6,20 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 21 Nov 2020 20:43:16 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 28 Nov 2020 19:53:33 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>链表反转</title>
+      <link>https://coderatwork.cn/posts/reverse-list/</link>
+      <pubDate>Sat, 28 Nov 2020 19:53:33 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/reverse-list/</guid>
+      <description>很久很久很久以前， 在slashdot 上看到 Linus 关于使用二级指针删除单向链表的分享。 同样的二级指针操作技巧， 稍加思考也可以用在链表反转的操作上，可以让代码清晰简洁，具体实现如下：
+package main import &amp;#34;fmt&amp;#34; type Node struct { val int next *Node } func reverseList(head *Node) *Node{ var ptr, next *Node = nil, head for next != nil { nextp := &amp;amp;next.next tmp := next.next *nextp = ptr ptr = next next = tmp } return ptr } func printList(head *Node) { for ptr := head; ptr != nil; ptr = ptr.next { fmt.</description>
+    </item>
     
     <item>
       <title>一次机器学习在线推理服务的性能优化</title>

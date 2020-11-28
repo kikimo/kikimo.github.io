@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>链表反转 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/reverse-list/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>链表反转</h1>
+    <time datetime="2020-11-28T19:53:33&#43;08:00">November 28, 2020</time>
+  </header>
+  <p>很久很久很久以前，
+在<a href="https://meta.slashdot.org/story/12/10/11/0030249/linus-torvalds-answers-your-questions">slashdot 上看到 Linus 关于使用二级指针删除单向链表的分享</a>。
+同样的二级指针操作技巧，
+稍加思考也可以用在链表反转的操作上，可以让代码清晰简洁，具体实现如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-golang" data-lang="golang"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> <span style="color:#e6db74">&#34;fmt&#34;</span>
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">Node</span> <span style="color:#66d9ef">struct</span> {
+    <span style="color:#a6e22e">val</span> <span style="color:#66d9ef">int</span>
+    <span style="color:#a6e22e">next</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Node</span>
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">reverseList</span>(<span style="color:#a6e22e">head</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Node</span>) <span style="color:#f92672">*</span><span style="color:#a6e22e">Node</span>{
+    <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">ptr</span>, <span style="color:#a6e22e">next</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Node</span> = <span style="color:#66d9ef">nil</span>, <span style="color:#a6e22e">head</span>
+
+    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">next</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+        <span style="color:#a6e22e">nextp</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">next</span>.<span style="color:#a6e22e">next</span>
+        <span style="color:#a6e22e">tmp</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">next</span>.<span style="color:#a6e22e">next</span>
+        <span style="color:#f92672">*</span><span style="color:#a6e22e">nextp</span> = <span style="color:#a6e22e">ptr</span>
+        <span style="color:#a6e22e">ptr</span> = <span style="color:#a6e22e">next</span>
+        <span style="color:#a6e22e">next</span> = <span style="color:#a6e22e">tmp</span>
+    }
+
+    <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">ptr</span>
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">printList</span>(<span style="color:#a6e22e">head</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Node</span>) {
+    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">ptr</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">head</span>; <span style="color:#a6e22e">ptr</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span>; <span style="color:#a6e22e">ptr</span> = <span style="color:#a6e22e">ptr</span>.<span style="color:#a6e22e">next</span> {
+        <span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#a6e22e">ptr</span>.<span style="color:#a6e22e">val</span>)
+    }
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+    <span style="color:#75715e">// nextNext := Node{val: 3}
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// next := Node{val: 2, next: &amp;nextNext}
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// head := Node{val: 1, next: &amp;next}
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">head</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">Node</span>{<span style="color:#a6e22e">val</span>: <span style="color:#ae81ff">1</span>}
+    <span style="color:#a6e22e">printList</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">head</span>)
+    <span style="color:#a6e22e">ptr</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">reverseList</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">head</span>)
+    <span style="color:#a6e22e">printList</span>(<span style="color:#a6e22e">ptr</span>)
+}
+</code></pre></div><p>如果了解过 Linus 关于二级指针的骚操作，
+这个思路在正常情况下其实花不到两分钟就能推导出来
+（从动笔写伪代码到理清思路确实不用两分钟）。
+当然在某些紧张的场景下脑子堵了也可能出现翻车的尴尬，
+可以承认心理素质不好，但是要说 coding 水平不行那是一点都不服气的。</p>
+
+</article>
+
+
+
+</html>
