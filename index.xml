@@ -6,10 +6,22 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 28 Nov 2020 19:53:33 +0800</lastBuildDate>
+    <lastBuildDate>Wed, 09 Dec 2020 12:56:19 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>单例模式和内存屏障</title>
+      <link>https://coderatwork.cn/posts/singleton-and-mb/</link>
+      <pubDate>Wed, 09 Dec 2020 12:56:19 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/singleton-and-mb/</guid>
+      <description>单例模式是一个比较简单的设计模式， 但多线程场景下使用延迟加载的单例模式是一个经典的并发问题， 可能会需要使用锁和内存屏障来保障线程安全。 这篇文章主要讲并发场景下使用加载的单例模式的实现。
+1. 非线程安全的单例实现 我们先考虑非线程安全的单例模式的实现
+#include &amp;lt;stdio.h&amp;gt;#include &amp;lt;stdlib.h&amp;gt; struct singleton_t { int val; }; struct singleton_t *INSTANCE = NULL; struct singleton_t *getInstance() { if (INSTANCE == NULL) { INSTANCE = malloc(sizeof(*INSTANCE)); INSTANCE-&amp;gt;val = 8848; } return INSTANCE; } int main() { struct singleton_t *inst = getInstance(); printf(&amp;#34;hello: %p\n&amp;#34;, inst); return 0; } 以上代码的问题在于， 当多个线程同时调用getInstance()函数时， INSTANCE可呢个会被初始化多次，对此我们考虑使用锁来保障线程安全。
+2. 线程安全的单例实现 #include &amp;lt;stdio.h&amp;gt;#include &amp;lt;stdlib.h&amp;gt;#include &amp;lt;pthread.h&amp;gt; struct singleton_t { int val; }; struct singleton_t *INSTANCE = NULL; pthread_mutex_t lock; struct singleton_t *getInstance() { pthread_mutex_lock(&amp;amp;lock); // ignore error handling  if (INSTANCE == NULL) { INSTANCE = malloc(sizeof(*INSTANCE)); INSTANCE-&amp;gt;val = 8848; } pthread_mutex_unlock(&amp;amp;lock); return INSTANCE; } int main() { struct singleton_t *inst = NULL; if (pthread_mutex_init(&amp;amp;lock, NULL) !</description>
+    </item>
     
     <item>
       <title>链表反转</title>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>单例模式和内存屏障 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/singleton-and-mb/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>单例模式和内存屏障</h1>
+    <time datetime="2020-12-09T12:56:19&#43;08:00">December 09, 2020</time>
+  </header>
+  <p>单例模式是一个比较简单的设计模式，
+但多线程场景下使用延迟加载的单例模式是一个经典的并发问题，
+可能会需要使用锁和内存屏障来保障线程安全。
+这篇文章主要讲并发场景下使用加载的单例模式的实现。</p>
+<h2 id="1-非线程安全的单例实现">1. 非线程安全的单例实现</h2>
+<p>我们先考虑非线程安全的单例模式的实现</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">struct</span> singleton_t {
+    <span style="color:#66d9ef">int</span> val;
+};
+
+<span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span>INSTANCE <span style="color:#f92672">=</span> NULL;
+
+<span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span><span style="color:#a6e22e">getInstance</span>() {
+    <span style="color:#66d9ef">if</span> (INSTANCE <span style="color:#f92672">==</span> NULL) {
+        INSTANCE <span style="color:#f92672">=</span> malloc(<span style="color:#66d9ef">sizeof</span>(<span style="color:#f92672">*</span>INSTANCE));
+        INSTANCE<span style="color:#f92672">-&gt;</span>val <span style="color:#f92672">=</span> <span style="color:#ae81ff">8848</span>;
+    }
+    <span style="color:#66d9ef">return</span> INSTANCE;
+}
+
+<span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>() {
+    <span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span>inst <span style="color:#f92672">=</span> getInstance();
+    printf(<span style="color:#e6db74">&#34;hello: %p</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, inst);
+
+    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+}
+</code></pre></div><p>以上代码的问题在于，
+当多个线程同时调用<code>getInstance()</code>函数时，
+<code>INSTANCE</code>可呢个会被初始化多次，对此我们考虑使用锁来保障线程安全。</p>
+<h2 id="2-线程安全的单例实现">2. 线程安全的单例实现</h2>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;pthread.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">struct</span> singleton_t {
+    <span style="color:#66d9ef">int</span> val;
+};
+
+<span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span>INSTANCE <span style="color:#f92672">=</span> NULL;
+pthread_mutex_t lock;
+
+<span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span><span style="color:#a6e22e">getInstance</span>() {
+    pthread_mutex_lock(<span style="color:#f92672">&amp;</span>lock);  <span style="color:#75715e">// ignore error handling
+</span><span style="color:#75715e"></span>    <span style="color:#66d9ef">if</span> (INSTANCE <span style="color:#f92672">==</span> NULL) {
+        INSTANCE <span style="color:#f92672">=</span> malloc(<span style="color:#66d9ef">sizeof</span>(<span style="color:#f92672">*</span>INSTANCE));
+        INSTANCE<span style="color:#f92672">-&gt;</span>val <span style="color:#f92672">=</span> <span style="color:#ae81ff">8848</span>;
+    }
+    pthread_mutex_unlock(<span style="color:#f92672">&amp;</span>lock);
+
+    <span style="color:#66d9ef">return</span> INSTANCE;
+}
+
+<span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>() {
+    <span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span>inst <span style="color:#f92672">=</span> NULL;
+    <span style="color:#66d9ef">if</span> (pthread_mutex_init(<span style="color:#f92672">&amp;</span>lock, NULL) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span>) {
+        perror(<span style="color:#e6db74">&#34;error init mutext:&#34;</span>);
+        <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">1</span>;
+    }
+
+    inst <span style="color:#f92672">=</span> getInstance();
+    printf(<span style="color:#e6db74">&#34;hello: %p</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, inst);
+
+    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+}
+</code></pre></div><p>这个版本我们使用互斥变量来保护<code>INSTANCE</code>变量的并发访问，
+但是它有个问题：每次调用<code>getInstance()</code>都需要加锁操作，
+性能太差，我们考虑进一步的优化。</p>
+<h2 id="3-线程安全的单例实现性能优化版">3. 线程安全的单例实现——性能优化版</h2>
+<p>考虑到<code>INSTANCE</code>变量只要初始化一次就行了，
+可以考虑做两次判断，第一次判断如果<code>INSTANCE != NULL</code>，我们可以直接返回了，
+否则我们就先加锁，再判断一次<code>INSTANCE</code>变量，如果仍然为空我们才执行初始化操作，
+这就是经典的<strong>double check</strong>操作。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;pthread.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">struct</span> singleton_t {
+    <span style="color:#66d9ef">int</span> val;
+};
+
+<span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span>INSTANCE <span style="color:#f92672">=</span> NULL;
+pthread_mutex_t lock;
+
+<span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span><span style="color:#a6e22e">getInstance</span>() {
+    <span style="color:#66d9ef">if</span> (INSTANCE <span style="color:#f92672">==</span> NULL) {
+        pthread_mutex_lock(<span style="color:#f92672">&amp;</span>lock);  <span style="color:#75715e">// ignore error handling
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">if</span> (INSTANCE <span style="color:#f92672">==</span> NULL) {
+            INSTANCE <span style="color:#f92672">=</span> malloc(<span style="color:#66d9ef">sizeof</span>(<span style="color:#f92672">*</span>INSTANCE));
+            INSTANCE<span style="color:#f92672">-&gt;</span>val <span style="color:#f92672">=</span> <span style="color:#ae81ff">8848</span>;
+        }
+        pthread_mutex_unlock(<span style="color:#f92672">&amp;</span>lock);
+    }
+
+    <span style="color:#66d9ef">return</span> INSTANCE;
+}
+
+<span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>() {
+    <span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span>inst <span style="color:#f92672">=</span> NULL;
+    <span style="color:#66d9ef">if</span> (pthread_mutex_init(<span style="color:#f92672">&amp;</span>lock, NULL) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span>) {
+        perror(<span style="color:#e6db74">&#34;error init mutext:&#34;</span>);
+        <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">1</span>;
+    }
+
+    inst <span style="color:#f92672">=</span> getInstance();
+    printf(<span style="color:#e6db74">&#34;hello: %p</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, inst);
+
+    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+}
+</code></pre></div><p>但是这个版本的代码还有个明显的问题，我们看这两行代码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">            INSTANCE <span style="color:#f92672">=</span> malloc(<span style="color:#66d9ef">sizeof</span>(<span style="color:#f92672">*</span>INSTANCE));
+            INSTANCE<span style="color:#f92672">-&gt;</span>val <span style="color:#f92672">=</span> <span style="color:#ae81ff">8848</span>;
+</code></pre></div><p><code>malloc()</code>执行完毕后，
+<code>INSTANCE</code>变量已经非空，
+这时候其他线程已经可以获取<code>INSTANCE</code>变量，
+但是<code>INSTANCE</code>还没有完成下一句的初始化操作：<code>INSTANCE-&gt;val = 8848;</code>！
+修复这个问题的一个思路是，
+我们先完成<code>malloc()</code>分配对象的初始化后再把这个值赋给<code>INSTANCE</code>变量，
+这可以通过一个临时变量来完成，修改后的代码如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;pthread.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">struct</span> singleton_t {
+    <span style="color:#66d9ef">int</span> val;
+};
+
+<span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span>INSTANCE <span style="color:#f92672">=</span> NULL;
+pthread_mutex_t lock;
+
+<span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span><span style="color:#a6e22e">getInstance</span>() {
+    <span style="color:#66d9ef">if</span> (INSTANCE <span style="color:#f92672">==</span> NULL) {
+        pthread_mutex_lock(<span style="color:#f92672">&amp;</span>lock);  <span style="color:#75715e">// ignore error handling
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">if</span> (INSTANCE <span style="color:#f92672">==</span> NULL) {
+            <span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span>tmp <span style="color:#f92672">=</span> malloc(<span style="color:#66d9ef">sizeof</span>(<span style="color:#f92672">*</span>INSTANCE));
+            tmp<span style="color:#f92672">-&gt;</span>val <span style="color:#f92672">=</span> <span style="color:#ae81ff">8848</span>;
+            INSTANCE <span style="color:#f92672">=</span> tmp;
+        }
+        pthread_mutex_unlock(<span style="color:#f92672">&amp;</span>lock);
+    }
+
+    <span style="color:#66d9ef">return</span> INSTANCE;
+}
+
+<span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>() {
+    <span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span>inst <span style="color:#f92672">=</span> NULL;
+    <span style="color:#66d9ef">if</span> (pthread_mutex_init(<span style="color:#f92672">&amp;</span>lock, NULL) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span>) {
+        perror(<span style="color:#e6db74">&#34;error init mutext:&#34;</span>);
+        <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">1</span>;
+    }
+
+    inst <span style="color:#f92672">=</span> getInstance();
+    printf(<span style="color:#e6db74">&#34;hello: %p</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, inst);
+
+    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+}
+</code></pre></div><p>所以万事大吉了吗现在？
+事情显然没那么简单，以上代码还是会受到并发问题的困扰!
+在多核并发的场景下，由于缓存可见性问题，某个线程可能看到的结果是：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">            INSTANCE <span style="color:#f92672">=</span> tmp;
+            tmp<span style="color:#f92672">-&gt;</span>val <span style="color:#f92672">=</span> <span style="color:#ae81ff">8848</span>;
+</code></pre></div><p>也就是先给<code>INSTANCE</code>赋值再执行初始化操作。
+要解决这个问题就得搬出内存屏障这个东西。
+我们需要在这两行代码之前插入一个写屏障:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">rmb</span>() {
+    <span style="color:#66d9ef">asm</span> <span style="color:#66d9ef">volatile</span>(<span style="color:#e6db74">&#34;sfence&#34;</span><span style="color:#f92672">:::</span>);
+}
+...
+            tmp<span style="color:#f92672">-&gt;</span>val <span style="color:#f92672">=</span> <span style="color:#ae81ff">8848</span>;
+            rmb();
+            INSTANCE <span style="color:#f92672">=</span> tmp;
+...
+</code></pre></div><p>写屏障可以保证<code>INSTANCE = tmp;</code>语句执行前所有的写操作相关的缓存得到更新。
+又：<strong>内存屏障都是成对出现的</strong>，我们加了写屏障，还有其他地方也需要加读屏障以保证读取到正确的缓存数据，
+关于读屏障放置的位置，我认为有两个地方都可以：或者放在代码开始处，或者放在<code>INSTANCE</code>变量返回前，最终代码如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">wmb</span>() {
+    <span style="color:#66d9ef">asm</span> <span style="color:#66d9ef">volatile</span>(<span style="color:#e6db74">&#34;sfence&#34;</span><span style="color:#f92672">:::</span>);
+}
+
+<span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">rmb</span>() {
+    <span style="color:#66d9ef">asm</span> <span style="color:#66d9ef">volatile</span>(<span style="color:#e6db74">&#34;lfence&#34;</span><span style="color:#f92672">:::</span>);
+}
+
+<span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span><span style="color:#a6e22e">getInstance</span>() {
+    rmb();
+    <span style="color:#66d9ef">if</span> (INSTANCE <span style="color:#f92672">==</span> NULL) {
+        pthread_mutex_lock(<span style="color:#f92672">&amp;</span>lock);  <span style="color:#75715e">// ignore error handling
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">if</span> (INSTANCE <span style="color:#f92672">==</span> NULL) {
+            <span style="color:#66d9ef">struct</span> singleton_t <span style="color:#f92672">*</span>tmp <span style="color:#f92672">=</span> malloc(<span style="color:#66d9ef">sizeof</span>(<span style="color:#f92672">*</span>INSTANCE));
+            tmp<span style="color:#f92672">-&gt;</span>val <span style="color:#f92672">=</span> <span style="color:#ae81ff">8848</span>;
+            wmb();
+            INSTANCE <span style="color:#f92672">=</span> tmp;
+        }
+        pthread_mutex_unlock(<span style="color:#f92672">&amp;</span>lock);
+    }
+
+    <span style="color:#75715e">// or here
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// rmb();
+</span><span style="color:#75715e"></span>    <span style="color:#66d9ef">return</span> INSTANCE;
+}
+</code></pre></div><h2 id="4-内存屏障原理概述">4. 内存屏障原理概述</h2>
+<p>关于内存屏障的介绍可以参考
+<a href="https://mirrors.edge.kernel.org/pub/linux/kernel/people/paulmck/perfbook/perfbook-1c.2018.12.08a.pdf">Is Parallel Programming Hard, And, If So, What Can You Do About It?</a>
+这本书的<strong>附录 C. Why Memory Barriers?</strong>，
+里面对内存屏障做了详细的讨论。
+这里我尝试概括一下其中的原理。
+首先多核的处理器中每颗 CPU 都有自己独立的缓存，
+这就需要解决多核间缓存一致性的问题，
+目前主要是通过 MESI 这个缓存一致性协议来保障多核间的缓存一致性。
+MESI 协议解决了 CPU 之间的缓存一致性问题，
+但在首次写缓存的时候性能比较差，
+这是因为在写入缓存前它必须先等待缓存<code>Invalidate</code>操作执行完毕
+(its performance for the first write to a given cache line is quite poor. )。</p>
+<p><img src="/images/mb/write_stall.png" alt="write stall"></p>
+<p>为了解决这个问题，硬件设计者引入了<code>store buffer</code>和<code>store forwarding</code>策略。
+这样依赖，CPU 不必再等待<code>invalidate</code>操作才写入缓存，它直接将数据写入到<code>store buffer</code>，
+后续同时从<code>store buffer</code>和缓存中检索数据（<code>store forwarding</code>策略）。</p>
+<p><img src="/images/mb/store_buffer.png" alt="store buffer with store forwarding"></p>
+<p><code>store buffer</code>导致的一个问题是其他进程可能会读取到错误的旧数据。
+例如假设有变量<code>a = 0, b = 0</code>，线程 A 执行一下代码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">a <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+b <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>;
+</code></pre></div><p><code>a</code>变量不在线程的缓存中，线程 A 首先执行<code>invalidate</code>操作，不等它执行完毕它就直接写入<code>store buffer</code>，
+线程 A 继续执行<code>b = 2</code>，变量<code>b</code>在线程 A 的缓存中，其他线程可能在看到<code>b = 2</code>后仍然读取到<code>a = 0</code>。
+为了解决这个问题，硬件设计者就引入了内存写屏障指令，
+它的本质是强迫 CPU 在执行下一条<code>store</code>指令前先等待清空<code>store buffer</code>。</p>
+<p><code>invalidate</code>操作还会带来另外一种延迟，就是<code>invalidate</code>消息的确认。
+当缓存组件换忙的时候，缓存的<code>invalidate</code>操作可能会花很长时间。
+于是硬件设计者又引入了<code>invalidate queue</code>这一组件：</p>
+<p><img src="/images/mb/invalidate_queue.png" alt="invalidate queue"></p>
+<p>CPU 先把<code>invalidate</code>消息放到<code>invalidate queue</code>中，然后直接返回了，
+等缓存<code>invalidate</code>操作执行完毕后在将相应的<code>invalidate</code>消息从<code>invalidate queue</code>中移除。
+<code>invalidate queue</code>和<code>store buffer</code>一样也会导致缓存的可见性问题——即 CPU 读到本来应该已经被<code>invalidate</code>的缓存村数据。
+为了解决这个问题硬件者又引入了内存读屏障指令，
+它的作用是强迫 CPU 在执行下一条缓存 load 操作前先等待<code>invalidate queue</code>为空。</p>
+<p>因为缓存的<code>invalidate</code>操作和<code>invalidate acknowledge</code>是一来一回相对应的，
+所以我们看到的内存屏障总是成对的出现。</p>
+<h2 id="5-后记">5. 后记</h2>
+<p>TODO: 示例中的代码没有测试过，可能是错的。</p>
+<p>第一次了解内存屏障是在接触 Java 学习它的单例设计模式实现的的时候，
+当时看到为了处理延迟加载导致的并发问题而使用了内存屏障，完全一头雾水，后来也没去深究。
+前两年在处理一起应用死锁的故障时又碰到内存屏障，
+特地去研究了下，当时感觉差不多看懂了，
+一直到最近在和人交流单例中并发问题时，发现并没有完全搞懂内存屏障，
+所以重新翻了<code>Why Memory Barrier</code>这篇文章，把单例的实现和内存屏障相关的知识点也整理在这篇笔记中。</p>
+
+</article>
+
+
+
+</html>
