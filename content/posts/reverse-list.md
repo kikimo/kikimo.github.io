@@ -1,7 +1,7 @@
 ---
 title: "链表反转"
 date: 2020-11-28T19:53:33+08:00
-draft: false
+draft: true
 ---
 
 很久很久很久以前，

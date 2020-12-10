@@ -6,11 +6,7 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 09 Dec 2020 12:56:19 +0800</lastBuildDate>
-    
-	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
-    
-    
+    <lastBuildDate>Wed, 09 Dec 2020 12:56:19 +0800</lastBuildDate><atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>单例模式和内存屏障</title>
       <link>https://coderatwork.cn/posts/singleton-and-mb/</link>
@@ -21,16 +17,6 @@
 1. 非线程安全的单例实现 我们先考虑非线程安全的单例模式的实现
 #include &amp;lt;stdio.h&amp;gt;#include &amp;lt;stdlib.h&amp;gt; struct singleton_t { int val; }; struct singleton_t *INSTANCE = NULL; struct singleton_t *getInstance() { if (INSTANCE == NULL) { INSTANCE = malloc(sizeof(*INSTANCE)); INSTANCE-&amp;gt;val = 8848; } return INSTANCE; } int main() { struct singleton_t *inst = getInstance(); printf(&amp;#34;hello: %p\n&amp;#34;, inst); return 0; } 以上代码的问题在于， 当多个线程同时调用getInstance()函数时， INSTANCE可呢个会被初始化多次，对此我们考虑使用锁来保障线程安全。
 2. 线程安全的单例实现 #include &amp;lt;stdio.h&amp;gt;#include &amp;lt;stdlib.h&amp;gt;#include &amp;lt;pthread.h&amp;gt; struct singleton_t { int val; }; struct singleton_t *INSTANCE = NULL; pthread_mutex_t lock; struct singleton_t *getInstance() { pthread_mutex_lock(&amp;amp;lock); // ignore error handling  if (INSTANCE == NULL) { INSTANCE = malloc(sizeof(*INSTANCE)); INSTANCE-&amp;gt;val = 8848; } pthread_mutex_unlock(&amp;amp;lock); return INSTANCE; } int main() { struct singleton_t *inst = NULL; if (pthread_mutex_init(&amp;amp;lock, NULL) !</description>
-    </item>
-    
-    <item>
-      <title>链表反转</title>
-      <link>https://coderatwork.cn/posts/reverse-list/</link>
-      <pubDate>Sat, 28 Nov 2020 19:53:33 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/reverse-list/</guid>
-      <description>很久很久很久以前， 在slashdot 上看到 Linus 关于使用二级指针删除单向链表的分享。 同样的二级指针操作技巧， 稍加思考也可以用在链表反转的操作上，可以让代码清晰简洁，具体实现如下：
-package main import &amp;#34;fmt&amp;#34; type Node struct { val int next *Node } func reverseList(head *Node) *Node{ var ptr, next *Node = nil, head for next != nil { nextp := &amp;amp;next.next tmp := next.next *nextp = ptr ptr = next next = tmp } return ptr } func printList(head *Node) { for ptr := head; ptr != nil; ptr = ptr.next { fmt.</description>
     </item>
     
     <item>
