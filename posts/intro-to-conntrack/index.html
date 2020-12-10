@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>conntrack 模块简介 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.80.0-DEV" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/intro-to-conntrack/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -38,37 +38,37 @@ conntrack table 表项中记录的格式如下：</p>
 <thead>
 <tr>
 <th>序号</th>
-<th align="center">说明</th>
+<th style="text-align:center">说明</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>1</td>
-<td align="center">协议名称</td>
+<td style="text-align:center">协议名称</td>
 </tr>
 <tr>
 <td>2</td>
-<td align="center">协议号</td>
+<td style="text-align:center">协议号</td>
 </tr>
 <tr>
 <td>3</td>
-<td align="center">连接 ttl（单位秒）</td>
+<td style="text-align:center">连接 ttl（单位秒）</td>
 </tr>
 <tr>
 <td>4</td>
-<td align="center">连接状态（ESTABLISHED、TIME_WAIT、SYN_SENT&hellip;）</td>
+<td style="text-align:center">连接状态（ESTABLISHED、TIME_WAIT、SYN_SENT&hellip;）</td>
 </tr>
 <tr>
 <td>5</td>
-<td align="center">发送端的源 IP 地址、目的 IP 地址、源端口、目的端口</td>
+<td style="text-align:center">发送端的源 IP 地址、目的 IP 地址、源端口、目的端口</td>
 </tr>
 <tr>
 <td>6</td>
-<td align="center">[UNREPLIED] 告诉我们还未受到回应报文，当连接建立后该字段会被删除</td>
+<td style="text-align:center">[UNREPLIED] 告诉我们还未受到回应报文，当连接建立后该字段会被删除</td>
 </tr>
 <tr>
 <td>7</td>
-<td align="center">期望收到的回应报文中的源 IP 地址、目的 IP 地址、源端口、目的端口</td>
+<td style="text-align:center">期望收到的回应报文中的源 IP 地址、目的 IP 地址、源端口、目的端口</td>
 </tr>
 </tbody>
 </table>
