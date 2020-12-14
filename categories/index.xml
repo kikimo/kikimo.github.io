@@ -5,6 +5,10 @@
     <link>https://coderatwork.cn/categories/</link>
     <description>Recent content in Categories on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
-    <language>en-us</language><atom:link href="https://coderatwork.cn/categories/index.xml" rel="self" type="application/rss+xml" />
+    <language>en-us</language>
+    
+	<atom:link href="https://coderatwork.cn/categories/index.xml" rel="self" type="application/rss+xml" />
+    
+    
   </channel>
 </rss>

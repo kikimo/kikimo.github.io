@@ -1,7 +1,7 @@
 ---
 title: "NUMA 简介"
 date: 2020-12-11T09:43:50+08:00
-draft: true
+draft: false
 ---
 
 本文对 NUMA 做简要介绍，内容主要根据[HPC-numa.pdf](https://www.cc.gatech.edu/~echow/ipcc/hpc-course/HPC-numa.pdf)这一讲义整理。
@@ -14,7 +14,7 @@ NUMA 的全称是 None-Uniform Memory Access，即非一致性内存访问。
 UMA 的访存模型比较简单，所有的 CPU 通过 FSB（Front Side Bus）连接北桥（Nothbridge）上的内存控制器来访问内存。
 这种场景下所有 CPU 看到的内存是都是一致的，它们的访存延迟都是一样的。
 
-![uma](/images/numa/uma.png)
+![uma](/images/numa/uma.jpg)
 
 UMA 的问题在于，随着服务器上的核心数越来越多，FSB 很快就成了瓶颈，于是就出现了 NUMA。
 NUMA 场景中 CPU 和内存分隔组成不同的 NUMA node。
@@ -23,7 +23,7 @@ UMA 中内存控制器是做在主板上的北桥中，NUMA 中的内存控制�
 一个 NUMA node 由一组 CPU 和它所直接控制的内存组成，CPU 通过 QPI 协议实现跨 node 间的内存访问。
 NUMA 节点内的访存速度通常比跨节点间的内存访问快得多（快多少？两倍？）。
 
-![uma vs numa](/images/numa/numa.png)
+![uma vs numa](/images/numa/numa.jpg)
 
 ## NUMA 的一些疑问
 

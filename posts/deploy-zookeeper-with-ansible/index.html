@@ -2,7 +2,7 @@
 <html lang="en-us">
 <title>利用 ansible 部署 zookeeper 集群 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.80.0-DEV" />
+<meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/deploy-zookeeper-with-ansible/">
 <link rel="alternate" type="application/rss+xml" href="" title="kikimo">
@@ -38,23 +38,23 @@ zookeeper 的部署可以分为以下几个步骤：</p>
 <li><code>/opt/infra</code>, 这个目录作为 zookeeper 的安装目录</li>
 <li><code>/tmp/zookeeper</code>, 这个目录作为 zookeeper 的 data 目录</li>
 </ol>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">  <span style="color:#f92672">tasks</span>:
-    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Create zookeeper installation directory</span>
-      <span style="color:#f92672">file</span>:
-        <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;{{item}}&#34;</span>
-        <span style="color:#f92672">state</span>: <span style="color:#ae81ff">directory</span>
-      <span style="color:#f92672">notify</span>: <span style="color:#ae81ff">Restart zookeeper service</span>
-      <span style="color:#f92672">with_items</span>:
-          - <span style="color:#ae81ff">/opt/infra</span>
-          - <span style="color:#ae81ff">/tmp/zookeeper</span>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">  <span style="color:#66d9ef">tasks</span>:
+    - <span style="color:#66d9ef">name</span>: Create zookeeper installation directory
+      <span style="color:#66d9ef">file</span>:
+        <span style="color:#66d9ef">path</span>: <span style="color:#e6db74">&#34;{{item}}&#34;</span>
+        <span style="color:#66d9ef">state</span>: directory
+      <span style="color:#66d9ef">notify</span>: Restart zookeeper service
+      <span style="color:#66d9ef">with_items</span>:
+          - /opt/infra
+          - /tmp/zookeeper
 </code></pre></div><p>这里使用了<code>with_items</code>迭代创建目录,
 如果文件是第一次创建<code>notify</code>指令会调用<code>Restart zookeeper service handler</code>来重启 zookeeper 服务。</p>
 <p>上传 zookeeper 包：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Upload zookeeper package</span>
-      <span style="color:#f92672">unarchive</span>:
-        <span style="color:#f92672">src</span>: <span style="color:#ae81ff">./infra_pkgs/apache-zookeeper-3.5.7-bin.tar.gz</span>
-        <span style="color:#f92672">dest</span>: <span style="color:#ae81ff">/opt/infra</span>
-      <span style="color:#f92672">notify</span>: <span style="color:#ae81ff">Restart zookeeper service</span>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">    - <span style="color:#66d9ef">name</span>: Upload zookeeper package
+      <span style="color:#66d9ef">unarchive</span>:
+        <span style="color:#66d9ef">src</span>: ./infra_pkgs/apache-zookeeper<span style="color:#ae81ff">-3.5.7</span>-bin.tar.gz
+        <span style="color:#66d9ef">dest</span>: /opt/infra
+      <span style="color:#66d9ef">notify</span>: Restart zookeeper service
 </code></pre></div><p>这里使用<code>unarchive</code>模块来传输和解压 zookeeper 包，
 很神奇的一点是<code>unarchive</code>模块能感知到文件解压后跟之前对比是否有变化，
 根据这一点我们我们仍旧可以是用<code>notify</code>指令来触发 zookeeper 重启的<code>handler</code>。
@@ -65,25 +65,25 @@ zookeeper 的部署可以分为以下几个步骤：</p>
 那么这个<code>handler</code>最终也只会被执行一次。</li>
 </ol>
 <p>初始化 zookeeper 配置：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Init zookeeper config</span>
-      <span style="color:#f92672">template</span>:
-        <span style="color:#f92672">src</span>: <span style="color:#e6db74">&#34;{{item.src}}&#34;</span>
-        <span style="color:#f92672">dest</span>: <span style="color:#e6db74">&#34;{{item.dest}}&#34;</span>
-      <span style="color:#f92672">with_items</span>: <span style="color:#e6db74">&#34;{{cfg_files}}&#34;</span>
-      <span style="color:#f92672">notify</span>: <span style="color:#ae81ff">Restart zookeeper service</span>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">    - <span style="color:#66d9ef">name</span>: Init zookeeper config
+      <span style="color:#66d9ef">template</span>:
+        <span style="color:#66d9ef">src</span>: <span style="color:#e6db74">&#34;{{item.src}}&#34;</span>
+        <span style="color:#66d9ef">dest</span>: <span style="color:#e6db74">&#34;{{item.dest}}&#34;</span>
+      <span style="color:#66d9ef">with_items</span>: <span style="color:#e6db74">&#34;{{cfg_files}}&#34;</span>
+      <span style="color:#66d9ef">notify</span>: Restart zookeeper service
 </code></pre></div><p>需要初始化的配置文件我们放在变量<code>cfg_files</code>中，
 配置文件使用模板来渲染，所以我们用到了<code>template</code>模块；
 <code>cfg_files</code>是一个字典列表，
 每个字典中的<code>src</code>字段对应本地模板文件，
 <code>dest</code>对应模板渲染后的上传路径。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">  <span style="color:#f92672">vars</span>:
-      <span style="color:#f92672">cfg_files</span>:
-        - <span style="color:#f92672">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/zoo.cfg.j2&#34;</span>
-          <span style="color:#f92672">dest</span>: <span style="color:#e6db74">&#34;/opt/infra/apache-zookeeper-3.5.7-bin/conf/zoo.cfg&#34;</span>
-        - <span style="color:#f92672">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/myid.j2&#34;</span>
-          <span style="color:#f92672">dest</span>: <span style="color:#e6db74">&#34;/tmp/zookeeper/myid&#34;</span>
-        - <span style="color:#f92672">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/zk.sh&#34;</span>
-          <span style="color:#f92672">dest</span>: <span style="color:#e6db74">&#34;/etc/profile.d/zk.sh&#34;</span>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">  <span style="color:#66d9ef">vars</span>:
+      <span style="color:#66d9ef">cfg_files</span>:
+        - <span style="color:#66d9ef">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/zoo.cfg.j2&#34;</span>
+          <span style="color:#66d9ef">dest</span>: <span style="color:#e6db74">&#34;/opt/infra/apache-zookeeper-3.5.7-bin/conf/zoo.cfg&#34;</span>
+        - <span style="color:#66d9ef">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/myid.j2&#34;</span>
+          <span style="color:#66d9ef">dest</span>: <span style="color:#e6db74">&#34;/tmp/zookeeper/myid&#34;</span>
+        - <span style="color:#66d9ef">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/zk.sh&#34;</span>
+          <span style="color:#66d9ef">dest</span>: <span style="color:#e6db74">&#34;/etc/profile.d/zk.sh&#34;</span>
 </code></pre></div><p>一共有三个模板，
 <code>zoo.cfg.j2</code>是 zookeeper 的配置文件模板：</p>
 <pre><code class="language-j2" data-lang="j2">tickTime=2000
@@ -129,51 +129,51 @@ export PATH<span style="color:#f92672">=</span>$PATH:$ZK_HOME/bin
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ ansible-playbook zookeeper.yaml <span style="color:#ae81ff">\
 </span><span style="color:#ae81ff"></span>    -e <span style="color:#e6db74">&#39;{ &#34;zk_servers&#34;: [ {&#34;ip&#34;: &#34;127.0.0.1&#34;, &#34;myid&#34;: 1 } ], &#34;zk_election_port&#34;: 3888, &#34;zk_communication_port&#34;: 2888, &#34;zk_data_dir&#34;: &#34;/tmp/zookeeper&#34;, &#34;zk_datalog_dir&#34;: &#34;/opt/infra/apache-zookeeper-3.5.7-bin/logs&#34; }&#39;</span>
 </code></pre></div><p>服务重启<code>handler</code>：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">  <span style="color:#f92672">handlers</span>:
-    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Restart zookeeper service</span>
-      <span style="color:#f92672">shell</span>:
-        <span style="color:#f92672">cmd</span>: <span style="color:#ae81ff">/opt/infra/apache-zookeeper-3.5.7-bin/bin/zkServer.sh restart</span>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">  <span style="color:#66d9ef">handlers</span>:
+    - <span style="color:#66d9ef">name</span>: Restart zookeeper service
+      <span style="color:#66d9ef">shell</span>:
+        <span style="color:#66d9ef">cmd</span>: /opt/infra/apache-zookeeper<span style="color:#ae81ff">-3.5.7</span>-bin/bin/zkServer.sh restart
 </code></pre></div><p>这里通过<code>shell</code>模块直接执行指令<code>/opt/infra/apache-zookeeper-3.5.7-bin/bin/zkServer.sh restart</code>来重启 zookeeper 服务，
 这个做法目前有个问题，
 如果服务启动失败了整个部署脚本仍然会显示部署成功，
 这是需要优化的一个点。</p>
 <p>来看完整的 ansible<code>playbook</code>：</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">---
-- <span style="color:#f92672">hosts</span>: <span style="color:#e6db74">&#34;{{ zk_servers | map(attribute=&#39;ip&#39;) | list }}&#34;</span>
-  <span style="color:#f92672">vars</span>:
-      <span style="color:#f92672">cfg_files</span>:
-        - <span style="color:#f92672">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/zoo.cfg.j2&#34;</span>
-          <span style="color:#f92672">dest</span>: <span style="color:#e6db74">&#34;/opt/infra/apache-zookeeper-3.5.7-bin/conf/zoo.cfg&#34;</span>
-        - <span style="color:#f92672">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/myid.j2&#34;</span>
-          <span style="color:#f92672">dest</span>: <span style="color:#e6db74">&#34;/tmp/zookeeper/myid&#34;</span>
-        - <span style="color:#f92672">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/zk.sh&#34;</span>
-          <span style="color:#f92672">dest</span>: <span style="color:#e6db74">&#34;/etc/profile.d/zk.sh&#34;</span>
-  <span style="color:#f92672">gather_facts</span>: <span style="color:#66d9ef">no</span>
-  <span style="color:#f92672">user</span>: <span style="color:#ae81ff">root</span>
-  <span style="color:#f92672">tasks</span>:
-    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Create zookeeper installation directory</span>
-      <span style="color:#f92672">file</span>:
-        <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;{{item}}&#34;</span>
-        <span style="color:#f92672">state</span>: <span style="color:#ae81ff">directory</span>
-      <span style="color:#f92672">notify</span>: <span style="color:#ae81ff">Restart zookeeper service</span>
-      <span style="color:#f92672">with_items</span>:
-          - <span style="color:#ae81ff">/opt/infra</span>
-          - <span style="color:#ae81ff">/tmp/zookeeper</span>
-    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Upload zookeeper package</span>
-      <span style="color:#f92672">unarchive</span>:
-        <span style="color:#f92672">src</span>: <span style="color:#ae81ff">./infra_pkgs/apache-zookeeper-3.5.7-bin.tar.gz</span>
-        <span style="color:#f92672">dest</span>: <span style="color:#ae81ff">/opt/infra</span>
-      <span style="color:#f92672">notify</span>: <span style="color:#ae81ff">Restart zookeeper service</span>
-    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Init zookeeper config</span>
-      <span style="color:#f92672">template</span>:
-        <span style="color:#f92672">src</span>: <span style="color:#e6db74">&#34;{{item.src}}&#34;</span>
-        <span style="color:#f92672">dest</span>: <span style="color:#e6db74">&#34;{{item.dest}}&#34;</span>
-      <span style="color:#f92672">with_items</span>: <span style="color:#e6db74">&#34;{{cfg_files}}&#34;</span>
-      <span style="color:#f92672">notify</span>: <span style="color:#ae81ff">Restart zookeeper service</span>
-  <span style="color:#f92672">handlers</span>:
-    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Restart zookeeper service</span>
-      <span style="color:#f92672">shell</span>:
-        <span style="color:#f92672">cmd</span>: <span style="color:#ae81ff">/opt/infra/apache-zookeeper-3.5.7-bin/bin/zkServer.sh restart</span>
+- <span style="color:#66d9ef">hosts</span>: <span style="color:#e6db74">&#34;{{ zk_servers | map(attribute=&#39;ip&#39;) | list }}&#34;</span>
+  <span style="color:#66d9ef">vars</span>:
+      <span style="color:#66d9ef">cfg_files</span>:
+        - <span style="color:#66d9ef">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/zoo.cfg.j2&#34;</span>
+          <span style="color:#66d9ef">dest</span>: <span style="color:#e6db74">&#34;/opt/infra/apache-zookeeper-3.5.7-bin/conf/zoo.cfg&#34;</span>
+        - <span style="color:#66d9ef">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/myid.j2&#34;</span>
+          <span style="color:#66d9ef">dest</span>: <span style="color:#e6db74">&#34;/tmp/zookeeper/myid&#34;</span>
+        - <span style="color:#66d9ef">src</span>: <span style="color:#e6db74">&#34;./infra_pkgs/zk.sh&#34;</span>
+          <span style="color:#66d9ef">dest</span>: <span style="color:#e6db74">&#34;/etc/profile.d/zk.sh&#34;</span>
+  <span style="color:#66d9ef">gather_facts</span>: no
+  <span style="color:#66d9ef">user</span>: root
+  <span style="color:#66d9ef">tasks</span>:
+    - <span style="color:#66d9ef">name</span>: Create zookeeper installation directory
+      <span style="color:#66d9ef">file</span>:
+        <span style="color:#66d9ef">path</span>: <span style="color:#e6db74">&#34;{{item}}&#34;</span>
+        <span style="color:#66d9ef">state</span>: directory
+      <span style="color:#66d9ef">notify</span>: Restart zookeeper service
+      <span style="color:#66d9ef">with_items</span>:
+          - /opt/infra
+          - /tmp/zookeeper
+    - <span style="color:#66d9ef">name</span>: Upload zookeeper package
+      <span style="color:#66d9ef">unarchive</span>:
+        <span style="color:#66d9ef">src</span>: ./infra_pkgs/apache-zookeeper<span style="color:#ae81ff">-3.5.7</span>-bin.tar.gz
+        <span style="color:#66d9ef">dest</span>: /opt/infra
+      <span style="color:#66d9ef">notify</span>: Restart zookeeper service
+    - <span style="color:#66d9ef">name</span>: Init zookeeper config
+      <span style="color:#66d9ef">template</span>:
+        <span style="color:#66d9ef">src</span>: <span style="color:#e6db74">&#34;{{item.src}}&#34;</span>
+        <span style="color:#66d9ef">dest</span>: <span style="color:#e6db74">&#34;{{item.dest}}&#34;</span>
+      <span style="color:#66d9ef">with_items</span>: <span style="color:#e6db74">&#34;{{cfg_files}}&#34;</span>
+      <span style="color:#66d9ef">notify</span>: Restart zookeeper service
+  <span style="color:#66d9ef">handlers</span>:
+    - <span style="color:#66d9ef">name</span>: Restart zookeeper service
+      <span style="color:#66d9ef">shell</span>:
+        <span style="color:#66d9ef">cmd</span>: /opt/infra/apache-zookeeper<span style="color:#ae81ff">-3.5.7</span>-bin/bin/zkServer.sh restart
 </code></pre></div><p>通过管道映射处理，
 我们把<code>zk_servers</code>变量中的节点 IP 地址提取出来，
 这些 IP 是我们要部署的目标机器：<code>{{ zk_servers | map(attribute='ip') | list }}</code>。</p>
