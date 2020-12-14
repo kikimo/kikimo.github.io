@@ -1,7 +1,7 @@
 ---
 title: "NUMA 简介"
 date: 2020-12-11T09:43:50+08:00
-draft: false
+draft: true
 ---
 
 本文对 NUMA 做简要介绍，内容主要根据[HPC-numa.pdf](https://www.cc.gatech.edu/~echow/ipcc/hpc-course/HPC-numa.pdf)这一讲义整理。
