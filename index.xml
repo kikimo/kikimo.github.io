@@ -6,10 +6,23 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Fri, 11 Dec 2020 09:43:50 +0800</lastBuildDate>
+    <lastBuildDate>Thu, 07 Jan 2021 23:55:03 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Raft 笔记（一）—— 选主</title>
+      <link>https://coderatwork.cn/posts/notes-on-raft-1/</link>
+      <pubDate>Thu, 07 Jan 2021 23:55:03 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/notes-on-raft-1/</guid>
+      <description>1. Raft 概要和选主 Raft 是一个分布式共识算法， 分布式意味着多节点参与，共识指多个节点对某个值达成共识， 这个定义留到后面我们会再详细解释。
+Raft 算法由几个模块组成，分别是：
+ 选主 日志复制 安全性保障  这边文章主要围绕的点是 Raft 中的选主流程。 Raft 算法中的节点有三种角色，分别是：
+ Follower —— 从节点 Candidate —— 候选节点 Leader —— 主节点  Raft 算法中所有来自客户端的请求都是通过主节点来完成的， 如果请求发送到非主节点，它会被进一步转发到主节点进行处理。 Raft 中的选主暨在一个任期（term）内从一个或多个候选节点选出主节点。 这里有一个任期的概念，初始任期为零，一次新的选举意味着一个新的任期， 它在上个任期的基础上加一。 Raft 中的节点之间通过 RPC 通信，有两个核心的 RPC 分别是：
+ AppendEntries RequestVote  当前我们可以把 AppendEntries 理解为 Raft 中主节点向其他节点发送心跳包的 RPC， 它通过这个心条包来维持主节点的角色。 当从节点超过一定时限未收到心跳包时便会转变为候选节点， 并开始一次心的选举。 在一次选举中候选节点向所有其他节点发送 RequsstVote RPC 请求投票， 当它获得超过半数节点的投票后便可成为新的主节点。 候选节点总是投票给自己，从节点在一个任期内总是把票投给它第一个收到 RequsstVote RPC 的候选节点。 如果一次投票中出现了平局的结果，那么候选节点会继续开始一场新的选举。 这两个 RPC 的返回值都包含节点当前的任期， 一旦请某个节点发现 RPC 返回的任期比自己当前的任期高它会理解跟新自己当前的任期， 并转为从节点。</description>
+    </item>
     
     <item>
       <title>NUMA 简介</title>
