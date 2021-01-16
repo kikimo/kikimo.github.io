@@ -30,7 +30,7 @@ Raft 论文中提到这条性质可以保证选举出来的主节点总是包含
 除了这条限制，Raft 还有另外一条非常重要的限制——主节点不提交（commit）更早起的 term 的日志。
 Raft 论文通过一个反例来说明为什么主节点为什么要遵循这条规则：
 
-![Raft 日志覆盖](/images/raft/stats.png)
+![Raft 日志覆盖](/images/raft/log_commit_term.png)
 
 在 Raft 论文举的这个例子中，
 a 时刻 S1 是 term 2 的 leader，
