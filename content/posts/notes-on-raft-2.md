@@ -6,7 +6,7 @@ draft: false
 
 ## 1. 日志复制算法
 
-[Raft 笔记（二）—— 日志复制] 一中我们提到了 AppendEntries RPC，
+[Raft 笔记（二）—— 日志复制](https://coderatwork.cn/posts/notes-on-raft-1/) 中我们提到了 AppendEntries RPC，
 当时我们把它当成发送心跳的 RPC，
 这个 RPC 的另外一个核心用途是日志复制，
 这篇文章主要讲 Raft 三个重要模块中的日志复制模块。
