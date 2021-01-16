@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>Raft 笔记（二）—— 日志复制 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/notes-on-raft-2/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>Raft 笔记（二）—— 日志复制</h1>
+    <time datetime="2021-01-16T21:38:04&#43;08:00">January 16, 2021</time>
+  </header>
+  <h2 id="1-日志复制算法">1. 日志复制算法</h2>
+<p>[Raft 笔记（二）—— 日志复制] 一中我们提到了 AppendEntries RPC，
+当时我们把它当成发送心跳的 RPC，
+这个 RPC 的另外一个核心用途是日志复制，
+这篇文章主要讲 Raft 三个重要模块中的日志复制模块。</p>
+<p>Raft 中的每个节点都维护一个日志列表，
+客户端向主节点追加日志，
+日志复制暨主节点把日志复制到其他节点上，Raft 会记录每条日志对应的任期信息。
+当主节点把一条日志复制到超过半数的节点上后，我们变可以认为这条日志被成功提交了。</p>
+<p>Raft 保证日志在复制过程中始终遵循几个性质：</p>
+<ol>
+<li>主节点只追加日志：主节点不会覆盖或者删除已有的日志</li>
+<li>日志匹配：两个节点上同一个索引位置中的日志，如果他们的 term 一样，那么这两条日志便是一样的，且自这个位置之前的所有日志也都是一样的</li>
+<li>主节点完备性：一条被提交的日志也会出现在后续所有的主节点的日志列表中（且位置不变）</li>
+</ol>
+<p>主节点的完备性保障了 Raft 分布式共识算法的正确性。
+Raft 的主节点除了必须获取超过半数的投票外还有一条非常重要的约束——只有当 candidate 上的 log 至少不比自己旧的时候，
+follower 才会把票投给它，
+Raft 论文中提到这条性质可以保证选举出来的主节点总是包含所有被提交的日志，
+但是论文中没有论证这个结论。
+除了这条限制，Raft 还有另外一条非常重要的限制——主节点不提交（commit）更早起的 term 的日志。
+Raft 论文通过一个反例来说明为什么主节点为什么要遵循这条规则：</p>
+<p><img src="/images/raft/stats.png" alt="Raft 日志覆盖"></p>
+<p>在 Raft 论文举的这个例子中，
+a 时刻 S1 是 term 2 的 leader，
+他把 log[2] 复制到两个节点；
+b 时刻 S1 挂了，
+S5当选新主节点，
+它在日志追加了 log[2]；
+c 时刻 S5 挂了，
+S1 重新当选，、
+S1 把它的 log[2] 进一步复制到 S3 上，
+此时 S1 上的 log[2] 已出现在超过半数的节点上，
+假如此时 S1 把 log[2] 提交了，
+然后它崩溃了，
+然后 S5 又当选新的主节点
+（注意到 S5 上 log[2] 日志项的 term 是 3，
+比 S1、S2、S3 都要来的高，所以它可以当选主节点），
+一旦 S5 当选主节点它上面的 log[2] 可以复制并覆盖 S1、S2、S3 上已经提交的 log[2]。
+另一种情况假设 S1 在崩溃前追加并提交了 log[3](term 4)，‘
+那么 S5 则连当选主节点的机会都没有，
+也就不会发生上面描述的已提交的日志项被覆盖的情况。
+Raft 论文中举的这个反例说明了提交早起 term 的日志项会导致已提交的日志项可能被覆盖的问题。
+和前一条性质一样，
+Raft 的论文也没有论证算法如何保障已提交的日志不会被覆盖。</p>
+<p>最后，Raft 论文使用反证法来论证主节点的完备性：
+首先假设 T term 内 Leader(T) 提交的某条日志未出现在 U term 的 Leader 日志中，其中 U &gt; T，那么：</p>
+<ol>
+<li>Leader(T) 必然已经把这条日志复制到超过半数的机器上</li>
+<li>必然存在某个选举 Leader(U) 的 Voter(X) 上存在这条日志</li>
+<li>Voter(X)  投票给 Leader(U) 说明 Leader(U) 上的日志至少不比 Voter(X) 上的日志旧</li>
+<li>假设第一种情况 Leader(U) 和 Voter(X) 上最后一条 log 的 term 一样，
+那么 Leader(U) 至不比 Voter(X) 的 log 序列长度小，
+Leader(U) 上必然包含 Leader(T) 已提交的这条日志（根据日志匹配原则），
+这是第一种矛盾</li>
+<li>第二种情况 Leader(U) 上最后一条日志比 Voter(X) term 值大，
+那么根据我们前面介绍的 Raft 主节点选举限制，
+Leader(U) 也必然包含 Leader(T) 提交的日志，这是第二种矛盾情况</li>
+</ol>
+<p>综上可知 Raft 算法种的 Leader 完备性成立。</p>
+<h2 id="2-日志复制算法实现上的几点问题">2. 日志复制算法实现上的几点问题</h2>
+<ol>
+<li>为什么 currentTerm、voteFor、logs 这几个字段需要持久化</li>
+<li>Raft 持久化需要保存节点的角色吗（Leader、Follower、Candidate）？为什么？</li>
+<li>为什么 matchIndex、nextIndex 不需要持久化？</li>
+<li>UT 真的很重要！这不算一个问题，这是一个教训！Unit test 真的非常非常非常重要，因为单元测试阶段 debug 的成本远远小于集成测试阶段。</li>
+</ol>
+
+</article>
+
+
+
+</html>
