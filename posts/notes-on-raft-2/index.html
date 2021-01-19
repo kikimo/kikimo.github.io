@@ -117,6 +117,7 @@ Leader(U) 也必然包含 Leader(T) 提交的日志，这是第二种矛盾情�
 Follower 和 Leader 两边都可以根据输入参数用二分法来加速寻找匹配的日志项，
 mit 的讲义中提到另外一种方法，但是没看懂 TODO</li>
 <li>UT 真的很重要！这不算一个问题，这是一个教训！Unit test 真的非常非常非常重要，因为单元测试阶段 debug 的成本远远小于集成测试阶段。</li>
+<li>最近又发现一个选主算法中的问题：测试中发现概率很低的 log append 失败，这种情况理论上确实有可能发生，但今天在 review 代码的时候发现这更可能是由于 votedFor 字段没有重置引起的——Candidate 变成 Follower 同时还要重置 votedFor 字段，缺少这步操作会导致后续该节点没法给其他节点正常投票，进而导致刚选举出来的 Leader 可能很快被这个超时变成 Candidate 的 Follower 踢掉</li>
 </ol>
 
 </article>
