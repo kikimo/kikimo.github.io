@@ -1,7 +1,7 @@
 ---
 title: "Raft 笔记（三）——快照"
 date: 2021-01-19T21:51:01+08:00
-draft: false
+draft: true
 ---
 
 Raft 的 log 保存在内存中，
