@@ -6,10 +6,23 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Tue, 19 Jan 2021 21:51:01 +0800</lastBuildDate>
+    <lastBuildDate>Thu, 04 Feb 2021 20:29:25 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>k8s GPU 加载失败问题排查</title>
+      <link>https://coderatwork.cn/posts/survey-on-gpu-failure/</link>
+      <pubDate>Thu, 04 Feb 2021 20:29:25 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/survey-on-gpu-failure/</guid>
+      <description>最近接连收到了几起线上 GPU 容器实例性能低下的问题反馈。经排查发现出问题的实例并没有成功挂载 GPU 设备。进一步的调查发现这是一个和时间赛跑的随机概率问题，且几乎当前所有线上的 GPU 机器都受该问题影响。下面我们具体描述这个问题。
+首先应用都是可以成功发布的，但是发布上去的应用会有一定的概率无法挂载 GPU 设备， 一旦出现这种情况就会导致实例的性能低下（因为实例用 CPU 而不是 GPU 做计算）。 应用只有在服务启动的前几秒钟才能成功挂载 GPU 设备， 如果服务启动较慢， 就会出现无法挂载的情况。 错过这几秒的时间窗口过去， 实例将无法再挂载 GPU。 这个现象（超过特定时间窗口，GPU 设备无法加载）在我们线上的 k8s 实例上几乎 100% 重现。
+根据我们的测试， 一种可能的问题解决方法是重启 nvidia 的 k8s device plugin 插件， 我们在新添加的机器上测试发现启动可以解决问题， 针对现有的集群我们还需要做进一步验证。 下面我们具体介绍问题的分析定位。
+首先我们通过以下代码来获取实例上的 GPU 信息：
+#include &amp;lt;cuda_runtime.h&amp;gt;#include &amp;lt;stdio.h&amp;gt; int main(int argc, char **argv) { printf(&amp;#34;%s Starting...\n&amp;#34;, argv[0]); int deviceCount = 0; cudaError_t error_id = cudaGetDeviceCount(&amp;amp;deviceCount); if (error_id != cudaSuccess) { printf(&amp;#34;cudaGetDeviceCount returned %d\n-&amp;gt; %s\n&amp;#34;, (int)error_id, cudaGetErrorString(error_id)); printf(&amp;#34;Result = FAIL\n&amp;#34;); exit(EXIT_FAILURE); } if (deviceCount == 0) { printf(&amp;#34;There are no available device(s) that support CUDA\n&amp;#34;); } else { printf(&amp;#34;Detected %d CUDA Capable device(s)\n&amp;#34;, deviceCount); } int dev, driverVersion = 0, runtimeVersion = 0; dev =0; cudaSetDevice(dev); cudaDeviceProp deviceProp; cudaGetDeviceProperties(&amp;amp;deviceProp, dev); printf(&amp;#34;Device %d: \&amp;#34;%s\&amp;#34;\n&amp;#34;, dev, deviceProp.</description>
+    </item>
     
     <item>
       <title>Raft 笔记（三）——快照</title>

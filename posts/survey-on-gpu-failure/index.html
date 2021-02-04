@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>k8s GPU 加载失败问题排查 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/survey-on-gpu-failure/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>k8s GPU 加载失败问题排查</h1>
+    <time datetime="2021-02-04T20:29:25&#43;08:00">February 04, 2021</time>
+  </header>
+  <p>最近接连收到了几起线上 GPU 容器实例性能低下的问题反馈。经排查发现出问题的实例并没有成功挂载 GPU 设备。进一步的调查发现<strong>这是一个和时间赛跑的随机概率问题，且几乎当前所有线上的 GPU 机器都受该问题影响</strong>。下面我们具体描述这个问题。</p>
+<p>首先应用都是可以成功发布的，但是发布上去的应用会有一定的概率无法挂载 GPU 设备，
+一旦出现这种情况就会导致实例的性能低下（因为实例用 CPU 而不是 GPU 做计算）。
+应用只有在服务启动的前几秒钟才能成功挂载 GPU 设备，
+如果服务启动较慢，
+就会出现无法挂载的情况。
+错过这几秒的时间窗口过去，
+实例将无法再挂载 GPU。
+这个现象（超过特定时间窗口，GPU 设备无法加载）在我们线上的 k8s 实例上几乎 100% 重现。</p>
+<p>根据我们的测试，
+<strong>一种可能的问题解决方法是重启 nvidia 的 k8s device plugin 插件</strong>，
+我们在新添加的机器上测试发现启动可以解决问题，
+针对现有的集群我们还需要做进一步验证。
+下面我们具体介绍问题的分析定位。</p>
+<p>首先我们通过以下代码来获取实例上的 GPU 信息：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;cuda_runtime.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>(<span style="color:#66d9ef">int</span> argc, <span style="color:#66d9ef">char</span> <span style="color:#f92672">**</span>argv) {
+        printf(<span style="color:#e6db74">&#34;%s Starting...</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, argv[<span style="color:#ae81ff">0</span>]);
+        <span style="color:#66d9ef">int</span> deviceCount <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+        cudaError_t error_id <span style="color:#f92672">=</span> cudaGetDeviceCount(<span style="color:#f92672">&amp;</span>deviceCount);
+        <span style="color:#66d9ef">if</span> (error_id <span style="color:#f92672">!=</span> cudaSuccess) {
+                printf(<span style="color:#e6db74">&#34;cudaGetDeviceCount returned %d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">-&gt; %s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                                (<span style="color:#66d9ef">int</span>)error_id, cudaGetErrorString(error_id));
+                printf(<span style="color:#e6db74">&#34;Result = FAIL</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+                exit(EXIT_FAILURE);
+        }
+        <span style="color:#66d9ef">if</span> (deviceCount <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+                printf(<span style="color:#e6db74">&#34;There are no available device(s) that support CUDA</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+        } <span style="color:#66d9ef">else</span> {
+                printf(<span style="color:#e6db74">&#34;Detected %d CUDA Capable device(s)</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, deviceCount);
+        }
+        <span style="color:#66d9ef">int</span> dev, driverVersion <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>, runtimeVersion <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+        dev <span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>;
+        cudaSetDevice(dev);
+        cudaDeviceProp deviceProp;
+        cudaGetDeviceProperties(<span style="color:#f92672">&amp;</span>deviceProp, dev);
+        printf(<span style="color:#e6db74">&#34;Device %d: </span><span style="color:#ae81ff">\&#34;</span><span style="color:#e6db74">%s</span><span style="color:#ae81ff">\&#34;\n</span><span style="color:#e6db74">&#34;</span>, dev, deviceProp.name);
+        cudaDriverGetVersion(<span style="color:#f92672">&amp;</span>driverVersion);
+        cudaRuntimeGetVersion(<span style="color:#f92672">&amp;</span>runtimeVersion);
+        printf(<span style="color:#e6db74">&#34; CUDA Driver Version / Runtime Version %d.%d / %d.%d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        driverVersion<span style="color:#f92672">/</span><span style="color:#ae81ff">1000</span>, (driverVersion<span style="color:#f92672">%</span><span style="color:#ae81ff">100</span>)<span style="color:#f92672">/</span><span style="color:#ae81ff">10</span>,
+                        runtimeVersion<span style="color:#f92672">/</span><span style="color:#ae81ff">1000</span>, (runtimeVersion<span style="color:#f92672">%</span><span style="color:#ae81ff">100</span>)<span style="color:#f92672">/</span><span style="color:#ae81ff">10</span>);
+        printf(<span style="color:#e6db74">&#34; CUDA Capability Major/Minor version number: %d.%d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.major, deviceProp.minor);
+        printf(<span style="color:#e6db74">&#34; Total amount of global memory: %.2f MBytes (%llu bytes)</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        (<span style="color:#66d9ef">float</span>)deviceProp.totalGlobalMem<span style="color:#f92672">/</span>(pow(<span style="color:#ae81ff">1024.0</span>,<span style="color:#ae81ff">3</span>)),
+                        (<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> <span style="color:#66d9ef">long</span>) deviceProp.totalGlobalMem);
+        printf(<span style="color:#e6db74">&#34; GPU Clock rate: %.0f MHz (%0.2f GHz)</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.clockRate <span style="color:#f92672">*</span> <span style="color:#ae81ff">1e-3</span>f, deviceProp.clockRate <span style="color:#f92672">*</span> <span style="color:#ae81ff">1e-6</span>f);
+        printf(<span style="color:#e6db74">&#34; Memory Clock rate: %.0f Mhz</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.memoryClockRate <span style="color:#f92672">*</span> <span style="color:#ae81ff">1e-3</span>f);
+        printf(<span style="color:#e6db74">&#34; Memory Bus Width: %d-bit</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.memoryBusWidth);
+        <span style="color:#66d9ef">if</span> (deviceProp.l2CacheSize) {
+                printf(<span style="color:#e6db74">&#34; L2 Cache Size: %d bytes</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                                deviceProp.l2CacheSize);
+        }
+        printf(<span style="color:#e6db74">&#34; Max Texture Dimension Size (x,y,z) &#34;</span>
+                        <span style="color:#e6db74">&#34; 1D=(%d), 2D=(%d,%d), 3D=(%d,%d,%d)</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.maxTexture1D , deviceProp.maxTexture2D[<span style="color:#ae81ff">0</span>],
+                        deviceProp.maxTexture2D[<span style="color:#ae81ff">1</span>],
+                        deviceProp.maxTexture3D[<span style="color:#ae81ff">0</span>], deviceProp.maxTexture3D[<span style="color:#ae81ff">1</span>],
+                        deviceProp.maxTexture3D[<span style="color:#ae81ff">2</span>]);
+        printf(<span style="color:#e6db74">&#34; Max Layered Texture Size (dim) x layers 1D=(%d) x %d, 2D=(%d,%d) x %d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.maxTexture1DLayered[<span style="color:#ae81ff">0</span>], deviceProp.maxTexture1DLayered[<span style="color:#ae81ff">1</span>],
+                        deviceProp.maxTexture2DLayered[<span style="color:#ae81ff">0</span>], deviceProp.maxTexture2DLayered[<span style="color:#ae81ff">1</span>],
+                        deviceProp.maxTexture2DLayered[<span style="color:#ae81ff">2</span>]);
+        printf(<span style="color:#e6db74">&#34; Total amount of constant memory: %lu bytes</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.totalConstMem);
+        printf(<span style="color:#e6db74">&#34; Total amount of shared memory per block: %lu bytes</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.sharedMemPerBlock);
+        printf(<span style="color:#e6db74">&#34; Total number of registers available per block: %d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.regsPerBlock);
+        printf(<span style="color:#e6db74">&#34; Warp size: %d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, deviceProp.warpSize);
+        printf(<span style="color:#e6db74">&#34; Maximum number of threads per multiprocessor: %d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.maxThreadsPerMultiProcessor);
+        printf(<span style="color:#e6db74">&#34; Maximum number of threads per block: %d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.maxThreadsPerBlock);
+        printf(<span style="color:#e6db74">&#34; Maximum sizes of each dimension of a block: %d x %d x %d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.maxThreadsDim[<span style="color:#ae81ff">0</span>],
+                        deviceProp.maxThreadsDim[<span style="color:#ae81ff">1</span>],
+                        deviceProp.maxThreadsDim[<span style="color:#ae81ff">2</span>]);
+        printf(<span style="color:#e6db74">&#34; Maximum sizes of each dimension of a grid: %d x %d x %d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,
+                        deviceProp.maxGridSize[<span style="color:#ae81ff">0</span>],
+                        deviceProp.maxGridSize[<span style="color:#ae81ff">1</span>],
+                        deviceProp.maxGridSize[<span style="color:#ae81ff">2</span>]);
+        printf(<span style="color:#e6db74">&#34; Maximum memory pitch: %lu bytes</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, deviceProp.
+                        memPitch);
+        exit(EXIT_SUCCESS);
+}
+</code></pre></div><p>我们在 GPU 挂载失败的实例上运行以上代码，报 unkonw error（顺便提一嘴，nvidia 的报错信息实在太特么坑爹了）：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#75715e"># nvcc dev.cu -o dev</span>
+<span style="color:#75715e"># ./dev</span>
+./dev Starting...
+cudaGetDeviceCount returned <span style="color:#ae81ff">30</span>
+-&gt; unknown error
+Result <span style="color:#f92672">=</span> FAIL
+</code></pre></div><p>开 strace 观测系统调用情况：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#75715e"># strace ./dev</span>
+...
+openat<span style="color:#f92672">(</span>AT_FDCWD, <span style="color:#e6db74">&#34;/proc/devices&#34;</span>, O_RDONLY<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">4</span>
+fstat<span style="color:#f92672">(</span>4, <span style="color:#f92672">{</span>st_mode<span style="color:#f92672">=</span>S_IFREG|0444, st_size<span style="color:#f92672">=</span>0, ...<span style="color:#f92672">})</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+read<span style="color:#f92672">(</span>4, <span style="color:#e6db74">&#34;Character devices:\n  1 mem\n  4 /&#34;</span>..., 1024<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">609</span>
+close<span style="color:#f92672">(</span>4<span style="color:#f92672">)</span>                                <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+stat<span style="color:#f92672">(</span><span style="color:#e6db74">&#34;/dev/nvidia-uvm&#34;</span>, <span style="color:#f92672">{</span>st_mode<span style="color:#f92672">=</span>S_IFCHR|0666, st_rdev<span style="color:#f92672">=</span>makedev<span style="color:#f92672">(</span>237, 0<span style="color:#f92672">)</span>, ...<span style="color:#f92672">})</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+stat<span style="color:#f92672">(</span><span style="color:#e6db74">&#34;/dev/nvidia-uvm-tools&#34;</span>, <span style="color:#f92672">{</span>st_mode<span style="color:#f92672">=</span>S_IFCHR|0666, st_rdev<span style="color:#f92672">=</span>makedev<span style="color:#f92672">(</span>237, 1<span style="color:#f92672">)</span>, ...<span style="color:#f92672">})</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+openat<span style="color:#f92672">(</span>AT_FDCWD, <span style="color:#e6db74">&#34;/dev/nvidia-uvm&#34;</span>, O_RDWR|O_CLOEXEC<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> -1 EPERM <span style="color:#f92672">(</span>Operation not permitted<span style="color:#f92672">)</span>
+openat<span style="color:#f92672">(</span>AT_FDCWD, <span style="color:#e6db74">&#34;/dev/nvidia-uvm&#34;</span>, O_RDWR<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> -1 EPERM <span style="color:#f92672">(</span>Operation not permitted<span style="color:#f92672">)</span>
+ioctl<span style="color:#f92672">(</span>-1, _IOC<span style="color:#f92672">(</span>0, 0, 0x2, 0x3000<span style="color:#f92672">)</span>, 0<span style="color:#f92672">)</span>   <span style="color:#f92672">=</span> -1 EBADF <span style="color:#f92672">(</span>Bad file descriptor<span style="color:#f92672">)</span>
+ioctl<span style="color:#f92672">(</span>3, _IOC<span style="color:#f92672">(</span>_IOC_READ|_IOC_WRITE, 0x46, 0x29, 0x10<span style="color:#f92672">)</span>, 0x7ffdf9339bd0<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+close<span style="color:#f92672">(</span>3<span style="color:#f92672">)</span>                                <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+munmap<span style="color:#f92672">(</span>0x7f039e10b000, 18310792<span style="color:#f92672">)</span>        <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+munmap<span style="color:#f92672">(</span>0x7f039debd000, 2415200<span style="color:#f92672">)</span>         <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+futex<span style="color:#f92672">(</span>0x55615a8702b0, FUTEX_WAKE_PRIVATE, 2147483647<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+write<span style="color:#f92672">(</span>1, <span style="color:#e6db74">&#34;cudaGetDeviceCount returned 30\n&#34;</span>, 31cudaGetDeviceCount returned <span style="color:#ae81ff">30</span>
+<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">31</span>
+write<span style="color:#f92672">(</span>1, <span style="color:#e6db74">&#34;-&gt; unknown error\n&#34;</span>, 17-&gt; unknown error
+<span style="color:#f92672">)</span>      <span style="color:#f92672">=</span> <span style="color:#ae81ff">17</span>
+write<span style="color:#f92672">(</span>1, <span style="color:#e6db74">&#34;Result = FAIL\n&#34;</span>, 14Result <span style="color:#f92672">=</span> FAIL
+<span style="color:#f92672">)</span>         <span style="color:#f92672">=</span> <span style="color:#ae81ff">14</span>
+exit_group<span style="color:#f92672">(</span>1<span style="color:#f92672">)</span>                           <span style="color:#f92672">=</span> ?
++++ exited with <span style="color:#ae81ff">1</span> +++
+</code></pre></div><p>注意到几个失败系统调用：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">openat(AT_FDCWD, &#34;/dev/nvidia-uvm&#34;, O_RDWR|O_CLOEXEC) = -1 EPERM (Operation not permitted)
+openat(AT_FDCWD, &#34;/dev/nvidia-uvm&#34;, O_RDWR) = -1 EPERM (Operation not permitted)
+ioctl(-1, _IOC(0, 0, 0x2, 0x3000), 0) = -1 EBADF (Bad file descriptor)
+</code></pre></div><p><code>/dev/nvidia-uvm</code>设备打开失败，这应该是问题的根本原因，nvidia 坑爹的地方就在于它甚至都没判断返回值就继续撸 ioctl 调用，上层的错误信息也让人不明所以。我们接下来观察 docker 实例的 spec：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ docker inspect 90d6d4dbe64f
+...
+            <span style="color:#e6db74">&#34;Devices&#34;</span>: <span style="color:#f92672">[</span>
+                <span style="color:#f92672">{</span>
+                    <span style="color:#e6db74">&#34;PathOnHost&#34;</span>: <span style="color:#e6db74">&#34;/dev/nvidiactl&#34;</span>,
+                    <span style="color:#e6db74">&#34;PathInContainer&#34;</span>: <span style="color:#e6db74">&#34;/dev/nvidiactl&#34;</span>,
+                    <span style="color:#e6db74">&#34;CgroupPermissions&#34;</span>: <span style="color:#e6db74">&#34;rw&#34;</span>
+                <span style="color:#f92672">}</span>,
+                <span style="color:#f92672">{</span>
+                    <span style="color:#e6db74">&#34;PathOnHost&#34;</span>: <span style="color:#e6db74">&#34;/dev/nvidia1&#34;</span>,
+                    <span style="color:#e6db74">&#34;PathInContainer&#34;</span>: <span style="color:#e6db74">&#34;/dev/nvidia1&#34;</span>,
+                    <span style="color:#e6db74">&#34;CgroupPermissions&#34;</span>: <span style="color:#e6db74">&#34;rw&#34;</span>
+                <span style="color:#f92672">}</span>
+            <span style="color:#f92672">]</span>,
+...
+</code></pre></div><p>注意到 GPU 实例的 docker spec 里面指定了设备列表，
+但是并没有 nvidia-uvm 设备， 为啥啊？
+检查线上的其他机器，
+发现抽查的几个实例都是这个情况，
+包括服务已经成功挂载到 GPU 上的实例。
+问题一下子就变得有意思起来了。
+查看实例对应 cgroup 的 device 子系统：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ ls -l /dev/nvidia-uvm
+crw-rw-rw-. <span style="color:#ae81ff">1</span> root root 237, <span style="color:#ae81ff">0</span> Jan <span style="color:#ae81ff">14</span> 18:53 /dev/nvidia-uvm
+
+$ cat devices.list
+c 1:5 rwm
+c 1:3 rwm
+c 1:9 rwm
+c 1:8 rwm
+c 5:0 rwm
+c 5:1 rwm
+c 195:255 rw
+c 195:1 rw
+c *:* m
+b *:* m
+c 1:7 rwm
+c 136:* rwm
+c 5:2 rwm
+c 10:200 rwm
+</code></pre></div><p>我们发现 nvidia-uvm 不在 GPU 实例可访问的设备设备列表上。
+手工加上去呢？
+我们发现一个很有意思的情况：确实可以通过 device.allow 手工把设备权限加上去，
+但是没过一会儿，设备又从列表上消失了：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#75715e"># echo &#39;c 237:0 rw&#39; &gt; devices.allow  &amp;&amp; cat devices.list  &amp;&amp; echo &amp;&amp; sleep 5  &amp;&amp;  cat devices.list</span>
+c 1:5 rwm
+c 1:3 rwm
+c 1:9 rwm
+c 1:8 rwm
+c 5:0 rwm
+c 5:1 rwm
+c 195:255 rw
+c 195:1 rw
+c *:* m
+b *:* m
+c 1:7 rwm
+c 136:* rwm
+c 5:2 rwm
+c 10:200 rwm
+c 237:0 rw
+
+c 1:5 rwm
+c 1:3 rwm
+c 1:9 rwm
+c 1:8 rwm
+c 5:0 rwm
+c 5:1 rwm
+c 195:255 rw
+c 195:1 rw
+c *:* m
+b *:* m
+c 1:7 rwm
+c 136:* rwm
+c 5:2 rwm
+c 10:200 rwm
+</code></pre></div><p>在 /dev/nvidia-uvm 设备的短暂可用期间，
+dev.cu 代码是可以正常执行的。
+nvida-uvm 设备添加后被不明实体清除了，谁干的？
+嫌疑最大的可能就是 containerd-shim，
+通过 strace 跟踪 containerd-shim，我们发现：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#75715e"># strace -ff -p 154308 2&gt;&amp;1 | tee s.txt</span>
+...
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> openat<span style="color:#f92672">(</span>AT_FDCWD, <span style="color:#e6db74">&#34;/sys/fs/cgroup/devices/kubepods/burstable/pod0dbd65af-6693-11eb-994b-246e9634b5c8/90d6d4dbe64f821d43e4ef954808089d3f2f63af3fc9824d2c1e719768cd7d18/devices.deny&#34;</span>, O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0700<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">5</span>
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> epoll_ctl<span style="color:#f92672">(</span>4, EPOLL_CTL_ADD, 5, <span style="color:#f92672">{</span>EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, <span style="color:#f92672">{</span>u32<span style="color:#f92672">=</span>669191840, u64<span style="color:#f92672">=</span>139870574153376<span style="color:#f92672">}})</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> fcntl<span style="color:#f92672">(</span>5, F_GETFL<span style="color:#f92672">)</span>           <span style="color:#f92672">=</span> 0x8001 <span style="color:#f92672">(</span>flags O_WRONLY|O_LARGEFILE<span style="color:#f92672">)</span>
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> fcntl<span style="color:#f92672">(</span>5, F_SETFL, O_WRONLY|O_NONBLOCK|O_LARGEFILE<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> write<span style="color:#f92672">(</span>5, <span style="color:#e6db74">&#34;a *:* rwm&#34;</span>, 9<span style="color:#f92672">)</span>    <span style="color:#f92672">=</span> <span style="color:#ae81ff">9</span>
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> epoll_ctl<span style="color:#f92672">(</span>4, EPOLL_CTL_DEL, 5, 0xc42013e84c<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> close<span style="color:#f92672">(</span>5<span style="color:#f92672">)</span>                    <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> openat<span style="color:#f92672">(</span>AT_FDCWD, <span style="color:#e6db74">&#34;/sys/fs/cgroup/devices/kubepods/burstable/pod0dbd65af-6693-11eb-994b-246e9634b5c8/90d6d4dbe64f821d43e4ef954808089d3f2f63af3fc9824d2c1e719768cd7d18/devices.allow&#34;</span>, O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0700<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">5</span>
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> epoll_ctl<span style="color:#f92672">(</span>4, EPOLL_CTL_ADD, 5, <span style="color:#f92672">{</span>EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, <span style="color:#f92672">{</span>u32<span style="color:#f92672">=</span>669191840, u64<span style="color:#f92672">=</span>139870574153376<span style="color:#f92672">}})</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> fcntl<span style="color:#f92672">(</span>5, F_GETFL<span style="color:#f92672">)</span>           <span style="color:#f92672">=</span> 0x8001 <span style="color:#f92672">(</span>flags O_WRONLY|O_LARGEFILE<span style="color:#f92672">)</span>
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> fcntl<span style="color:#f92672">(</span>5, F_SETFL, O_WRONLY|O_NONBLOCK|O_LARGEFILE<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+<span style="color:#f92672">[</span>pid 30755<span style="color:#f92672">]</span> write<span style="color:#f92672">(</span>5, <span style="color:#e6db74">&#34;c 1:5 rwm&#34;</span>, 9<span style="color:#f92672">)</span>    <span style="color:#f92672">=</span> <span style="color:#ae81ff">9</span>
+...
+</code></pre></div><p>从 strace 结果我们可以看出来，
+它先往 devices.deny 写了一条<code>&quot;a *:* rwm&quot;</code>从而禁用了所有设备，
+然后往 devices.allow 添加设备。
+所以估计 containerd-shim 是根据 spec 中 devices 设置设备的白名单，
+这一点可以从 kubelet 的代码中得到验证，
+<code>kubernetes/vendor/github.com/opencontainers/runc/libcontainer/cgroups/fs/devices.go</code>：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">...</span>
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">DevicesGroup</span>) <span style="color:#a6e22e">Set</span>(<span style="color:#a6e22e">path</span> <span style="color:#66d9ef">string</span>, <span style="color:#a6e22e">cgroup</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">configs</span>.<span style="color:#a6e22e">Cgroup</span>) <span style="color:#66d9ef">error</span> {
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">system</span>.<span style="color:#a6e22e">RunningInUserNS</span>() {
+		<span style="color:#66d9ef">return</span> <span style="color:#66d9ef">nil</span>
+	}
+
+	<span style="color:#a6e22e">devices</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">cgroup</span>.<span style="color:#a6e22e">Resources</span>.<span style="color:#a6e22e">Devices</span>
+	<span style="color:#66d9ef">if</span> len(<span style="color:#a6e22e">devices</span>) &gt; <span style="color:#ae81ff">0</span> {
+		<span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">dev</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">devices</span> {
+			<span style="color:#a6e22e">file</span> <span style="color:#f92672">:=</span> <span style="color:#e6db74">&#34;devices.deny&#34;</span>
+			<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">dev</span>.<span style="color:#a6e22e">Allow</span> {
+				<span style="color:#a6e22e">file</span> = <span style="color:#e6db74">&#34;devices.allow&#34;</span>
+			}
+			<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">writeFile</span>(<span style="color:#a6e22e">path</span>, <span style="color:#a6e22e">file</span>, <span style="color:#a6e22e">dev</span>.<span style="color:#a6e22e">CgroupString</span>()); <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+				<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">err</span>
+			}
+		}
+		<span style="color:#66d9ef">return</span> <span style="color:#66d9ef">nil</span>
+	}
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">cgroup</span>.<span style="color:#a6e22e">Resources</span>.<span style="color:#a6e22e">AllowAllDevices</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#66d9ef">if</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">cgroup</span>.<span style="color:#a6e22e">Resources</span>.<span style="color:#a6e22e">AllowAllDevices</span> <span style="color:#f92672">==</span> <span style="color:#66d9ef">false</span> {
+			<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">writeFile</span>(<span style="color:#a6e22e">path</span>, <span style="color:#e6db74">&#34;devices.deny&#34;</span>, <span style="color:#e6db74">&#34;a&#34;</span>); <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+				<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">err</span>
+			}
+
+			<span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">dev</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">cgroup</span>.<span style="color:#a6e22e">Resources</span>.<span style="color:#a6e22e">AllowedDevices</span> {
+				<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">writeFile</span>(<span style="color:#a6e22e">path</span>, <span style="color:#e6db74">&#34;devices.allow&#34;</span>, <span style="color:#a6e22e">dev</span>.<span style="color:#a6e22e">CgroupString</span>()); <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+					<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">err</span>
+				}
+			}
+			<span style="color:#66d9ef">return</span> <span style="color:#66d9ef">nil</span>
+		}
+
+		<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">writeFile</span>(<span style="color:#a6e22e">path</span>, <span style="color:#e6db74">&#34;devices.allow&#34;</span>, <span style="color:#e6db74">&#34;a&#34;</span>); <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+			<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">err</span>
+		}
+	}
+
+	<span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">dev</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">cgroup</span>.<span style="color:#a6e22e">Resources</span>.<span style="color:#a6e22e">DeniedDevices</span> {
+		<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">writeFile</span>(<span style="color:#a6e22e">path</span>, <span style="color:#e6db74">&#34;devices.deny&#34;</span>, <span style="color:#a6e22e">dev</span>.<span style="color:#a6e22e">CgroupString</span>()); <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+			<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">err</span>
+		}
+	}
+
+	<span style="color:#66d9ef">return</span> <span style="color:#66d9ef">nil</span>
+}
+<span style="color:#f92672">...</span>
+</code></pre></div><p>所以，为什么 GPU 实例的 spec 中没有 nvidia-uvm 设备？
+这个设备应该是实例启动前由 nvidia 的 k8s device plugin 添加到 spec 里的，
+翻出代码来验证猜想<code>k8s-device-plugin-master/server.go</code>：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">...</span>
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">m</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">NvidiaDevicePlugin</span>) <span style="color:#a6e22e">apiDeviceSpecs</span>(<span style="color:#a6e22e">filter</span> []<span style="color:#66d9ef">string</span>) []<span style="color:#f92672">*</span><span style="color:#a6e22e">pluginapi</span>.<span style="color:#a6e22e">DeviceSpec</span> {
+    <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">specs</span> []<span style="color:#f92672">*</span><span style="color:#a6e22e">pluginapi</span>.<span style="color:#a6e22e">DeviceSpec</span>
+
+    <span style="color:#a6e22e">paths</span> <span style="color:#f92672">:=</span> []<span style="color:#66d9ef">string</span>{
+        <span style="color:#e6db74">&#34;/dev/nvidiactl&#34;</span>,
+        <span style="color:#e6db74">&#34;/dev/nvidia-uvm&#34;</span>,
+        <span style="color:#e6db74">&#34;/dev/nvidia-uvm-tools&#34;</span>,
+        <span style="color:#e6db74">&#34;/dev/nvidia-modeset&#34;</span>,
+    }
+
+    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">paths</span> {
+        <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">os</span>.<span style="color:#a6e22e">Stat</span>(<span style="color:#a6e22e">p</span>); <span style="color:#a6e22e">err</span> <span style="color:#f92672">==</span> <span style="color:#66d9ef">nil</span> {
+            <span style="color:#a6e22e">spec</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">pluginapi</span>.<span style="color:#a6e22e">DeviceSpec</span>{
+                <span style="color:#a6e22e">ContainerPath</span>: <span style="color:#a6e22e">p</span>,
+                <span style="color:#a6e22e">HostPath</span>:      <span style="color:#a6e22e">p</span>,
+                <span style="color:#a6e22e">Permissions</span>:   <span style="color:#e6db74">&#34;rw&#34;</span>,
+            }
+            <span style="color:#a6e22e">specs</span> = append(<span style="color:#a6e22e">specs</span>, <span style="color:#a6e22e">spec</span>)
+        }
+    }
+
+    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">d</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">m</span>.<span style="color:#a6e22e">cachedDevices</span> {
+        <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">id</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">filter</span> {
+            <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">d</span>.<span style="color:#a6e22e">ID</span> <span style="color:#f92672">==</span> <span style="color:#a6e22e">id</span> {
+                <span style="color:#a6e22e">spec</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">pluginapi</span>.<span style="color:#a6e22e">DeviceSpec</span>{
+                    <span style="color:#a6e22e">ContainerPath</span>: <span style="color:#a6e22e">d</span>.<span style="color:#a6e22e">Path</span>,
+                    <span style="color:#a6e22e">HostPath</span>:      <span style="color:#a6e22e">d</span>.<span style="color:#a6e22e">Path</span>,
+                    <span style="color:#a6e22e">Permissions</span>:   <span style="color:#e6db74">&#34;rw&#34;</span>,
+                }
+                <span style="color:#a6e22e">specs</span> = append(<span style="color:#a6e22e">specs</span>, <span style="color:#a6e22e">spec</span>)
+            }
+        }
+    }
+
+    <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">specs</span>
+}
+<span style="color:#f92672">...</span>
+</code></pre></div><p>nvidia device plugin 会在 spec 里面添加 nvidia-uvm 设备，
+但前提是它能在系统中找到这个设备。
+系统里明明有这个设备为啥 device plugin 没把它加进去？
+莫非 device plugin 抽了？
+docker exec 进入 device plugin 里，果然，没这个设备：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#75715e"># ls -l /dev/nvidia*</span>
+crw-rw-rw-. <span style="color:#ae81ff">1</span> root root 195,   <span style="color:#ae81ff">0</span> Jan <span style="color:#ae81ff">11</span> 05:32 /dev/nvidia0
+crw-rw-rw-. <span style="color:#ae81ff">1</span> root root 195,   <span style="color:#ae81ff">1</span> Jan <span style="color:#ae81ff">11</span> 05:33 /dev/nvidia1
+crw-rw-rw-. <span style="color:#ae81ff">1</span> root root 195,   <span style="color:#ae81ff">2</span> Jan <span style="color:#ae81ff">11</span> 05:33 /dev/nvidia2
+crw-rw-rw-. <span style="color:#ae81ff">1</span> root root 195,   <span style="color:#ae81ff">3</span> Jan <span style="color:#ae81ff">11</span> 05:33 /dev/nvidia3
+crw-rw-rw-. <span style="color:#ae81ff">1</span> root root 195, <span style="color:#ae81ff">255</span> Jan <span style="color:#ae81ff">11</span> 05:32 /dev/nvidiactl
+</code></pre></div><p>靠，找不到 uvm 设备为什么 device plugin 还要继续执行不报错啊？
+为什么 device plugin 找不到 nvidia-uvm 设备？
+目前还不知道是什么原因，
+估计是 device plugin 启动的时候 cuda 驱动还没完全搞好或者是像同事说的&quot;nvidia-docker 还没装好&rdquo;，
+这个问题暂时放着不去验证。
+考虑修复方案，抽调一台新机器过来，
+让 device plugin 调度上去运行，
+确定 device plugin 挂载了 nvidia-uvm 设备后节点上的实例就不再发生 GPU 设备挂载的问题。
+预计后续可以通过重启 device plugin 的方式解决 这个问题。</p>
+
+</article>
+
+
+
+</html>
