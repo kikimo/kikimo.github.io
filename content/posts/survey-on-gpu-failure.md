@@ -172,7 +172,7 @@ $ docker inspect 90d6d4dbe64f
 ```
 
 注意到 GPU 实例的 docker spec 里面指定了设备列表，
-但是并没有 nvidia-uvm 设备， 为啥啊？
+但是并没有`nvidia-uvm`设备， 为啥啊？
 检查线上的其他机器，
 发现抽查的几个实例都是这个情况，
 包括服务已经成功挂载到 GPU 上的实例。
@@ -200,7 +200,7 @@ c 5:2 rwm
 c 10:200 rwm
 ```
 
-我们发现 nvidia-uvm 不在 GPU 实例可访问的设备设备列表上。
+我们发现`nvidia-uvm`不在 GPU 实例可访问的设备列表上。
 手工加上去呢？
 我们发现一个很有意思的情况：确实可以通过 device.allow 手工把设备权限加上去，
 但是没过一会儿，设备又从列表上消失了：
@@ -239,7 +239,7 @@ c 5:2 rwm
 c 10:200 rwm
 ```
 
-在 /dev/nvidia-uvm 设备的短暂可用期间，
+在`/dev/nvidia-uvm`设备的短暂可用期间，
 dev.cu 代码是可以正常执行的。
 nvida-uvm 设备添加后被不明实体清除了，谁干的？
 嫌疑最大的可能就是 containerd-shim，
@@ -320,7 +320,7 @@ func (s *DevicesGroup) Set(path string, cgroup *configs.Cgroup) error {
 ...
 ```
 
-所以，为什么 GPU 实例的 spec 中没有 nvidia-uvm 设备？
+所以，为什么 GPU 实例的 spec 中没有`nvidia-uvm`设备？
 这个设备应该是实例启动前由 nvidia 的 k8s device plugin 添加到 spec 里的，
 翻出代码来验证猜想`k8s-device-plugin-master/server.go`：
 
@@ -365,7 +365,7 @@ func (m *NvidiaDevicePlugin) apiDeviceSpecs(filter []string) []*pluginapi.Device
 ...
 ```
 
-nvidia device plugin 会在 spec 里面添加 nvidia-uvm 设备，
+nvidia device plugin 会在 spec 里面添加`nvidia-uvm`设备，
 但前提是它能在系统中找到这个设备。
 系统里明明有这个设备为啥 device plugin 没把它加进去？
 莫非 device plugin 抽了？
@@ -381,12 +381,12 @@ crw-rw-rw-. 1 root root 195, 255 Jan 11 05:32 /dev/nvidiactl
 ```
 
 靠，找不到 uvm 设备为什么 device plugin 还要继续执行不报错啊？
-为什么 device plugin 找不到 nvidia-uvm 设备？
+为什么 device plugin 找不到`nvidia-uvm`设备？
 目前还不知道是什么原因，
 估计是 device plugin 启动的时候 cuda 驱动还没完全搞好或者是像同事说的"nvidia-docker 还没装好"，
 这个问题暂时放着不去验证。
 考虑修复方案，抽调一台新机器过来，
 让 device plugin 调度上去运行，
-确定 device plugin 挂载了 nvidia-uvm 设备后节点上的实例就不再发生 GPU 设备挂载的问题。
+确定 device plugin 挂载了`nvidia-uvm`设备后节点上的实例就不再发生 GPU 设备挂载的问题。
 预计后续可以通过重启 device plugin 的方式解决 这个问题。
 
