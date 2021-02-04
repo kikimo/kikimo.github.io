@@ -241,7 +241,7 @@ c 10:200 rwm
 
 在`/dev/nvidia-uvm`设备的短暂可用期间，
 dev.cu 代码是可以正常执行的。
-nvida-uvm 设备添加后被不明实体清除了，谁干的？
+nvidia-uvm 设备添加后被不明实体清除了，谁干的？
 嫌疑最大的可能就是 containerd-shim，
 通过 strace 跟踪 containerd-shim，我们发现：
 
