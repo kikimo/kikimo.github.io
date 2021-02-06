@@ -6,10 +6,21 @@
     <description>Recent content in Posts on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 04 Feb 2021 20:29:25 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 06 Feb 2021 12:47:51 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>SIGPIPE 引发的悲剧</title>
+      <link>https://coderatwork.cn/posts/sigpipe-tragedy/</link>
+      <pubDate>Sat, 06 Feb 2021 12:47:51 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/sigpipe-tragedy/</guid>
+      <description>快放年假了，昨天公司同事突然要求帮忙紧急看个线上问题。 原来线上告警系统的一个核心服务最近一个礼拜突然频繁挂掉， 系统挂掉时毫无征兆，也没有任何日志或异常堆栈， 每次挂都是所有服务节点一起挂，导致线上告警系统完全不可用, 而且只要手工 kill 掉其中给一个服务节点所有其他服务也跟着挂掉。
+没有日志，服务节点的各项基础监控数据看起来也没什么异常， 这种情况下，马上想到的就是 strace attach 上去观察。 让同事 kill 一个其他节点上的服务， strace 跟踪的进程也挂了，查看 strace 的输出：
+[pid 22772] tgkill(22314, 22772, SIGPIPE &amp;lt;unfinished ...&amp;gt; [pid 22325] &amp;lt;... write resumed&amp;gt; ) = 42 [pid 22326] &amp;lt;... write resumed&amp;gt; ) = 335 [pid 22772] &amp;lt;... tgkill resumed&amp;gt; ) = 0 [pid 22319] futex(0xc0000924c8, FUTEX_WAKE_PRIVATE, 1 &amp;lt;unfinished ...&amp;gt; [pid 22326] write(183, &amp;#34;\2Y\366\327\35\0\1\274\371\25\0\0\0\0\0\1\0\0\0\1\6offset\10\0\0\0\0&amp;#34;..., 36 &amp;lt;unfinished ...&amp;gt; [pid 22772] --- SIGPIPE {si_signo=SIGPIPE, si_code=SI_TKILL, si_pid=22314, si_uid=1000} --- [pid 22325] write(179, &amp;#34;\32\235\313\213\33\0\1\272\371\25\0\0\0\0\0\1\0\0\0\1\4size\10\0\0\0\0\0\0&amp;#34;.</description>
+    </item>
     
     <item>
       <title>k8s GPU 加载失败问题排查</title>

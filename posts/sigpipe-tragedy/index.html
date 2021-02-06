@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>SIGPIPE 引发的悲剧 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/sigpipe-tragedy/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>SIGPIPE 引发的悲剧</h1>
+    <time datetime="2021-02-06T12:47:51&#43;08:00">February 06, 2021</time>
+  </header>
+  <p>快放年假了，昨天公司同事突然要求帮忙紧急看个线上问题。
+原来线上告警系统的一个核心服务最近一个礼拜突然频繁挂掉，
+系统挂掉时毫无征兆，也没有任何日志或异常堆栈，
+每次挂都是所有服务节点一起挂，导致线上告警系统完全不可用,
+而且只要手工 kill 掉其中给一个服务节点所有其他服务也跟着挂掉。</p>
+<p>没有日志，服务节点的各项基础监控数据看起来也没什么异常，
+这种情况下，马上想到的就是 strace attach 上去观察。
+让同事 kill 一个其他节点上的服务，
+strace 跟踪的进程也挂了，查看 strace 的输出：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">[pid 22772] tgkill(22314, 22772, SIGPIPE &lt;unfinished ...&gt;
+[pid 22325] &lt;... write resumed&gt; )       = 42
+[pid 22326] &lt;... write resumed&gt; )       = 335
+[pid 22772] &lt;... tgkill resumed&gt; )      = 0
+[pid 22319] futex(0xc0000924c8, FUTEX_WAKE_PRIVATE, 1 &lt;unfinished ...&gt;
+[pid 22326] write(183, &#34;\2Y\366\327\35\0\1\274\371\25\0\0\0\0\0\1\0\0\0\1\6offset\10\0\0\0\0&#34;..., 36 &lt;unfinished ...&gt;
+[pid 22772] --- SIGPIPE {si_signo=SIGPIPE, si_code=SI_TKILL, si_pid=22314, si_uid=1000} ---
+[pid 22325] write(179, &#34;\32\235\313\213\33\0\1\272\371\25\0\0\0\0\0\1\0\0\0\1\4size\10\0\0\0\0\0\0&#34;..., 34 &lt;ptrace(SYSCALL):No such process&gt;
+[pid 22323] &lt;... futex resumed&gt; )       = ? &lt;unavailable&gt;
+[pid 23419] +++ killed by SIGPIPE +++
+[pid 22772] +++ killed by SIGPIPE +++
+[pid 22771] +++ killed by SIGPIPE +++
+[pid 22770] +++ killed by SIGPIPE +++
+[pid 22769] +++ killed by SIGPIPE +++
+[pid 22328] +++ killed by SIGPIPE +++
+[pid 22326] +++ killed by SIGPIPE +++
+[pid 22325] +++ killed by SIGPIPE +++
+[pid 22324] +++ killed by SIGPIPE +++
+[pid 22323] +++ killed by SIGPIPE +++
+[pid 22322] +++ killed by SIGPIPE +++
+[pid 22321] +++ killed by SIGPIPE +++
+[pid 22319] +++ killed by SIGPIPE +++
+[pid 22318] +++ killed by SIGPIPE +++
+[pid 22317] +++ killed by SIGPIPE +++
+[pid 22316] +++ killed by SIGPIPE +++
+[pid 22329] +++ killed by SIGPIPE +++
+[pid 22327] +++ killed by SIGPIPE +++
+[pid 22320] +++ killed by SIGPIPE +++
++++ killed by SIGPIPE +++
+</code></pre></div><p>看出啥端倪出来了？<code>+++ killed by SIGPIPE +++</code>！
+<code>SIGPIPE</code>信号通常是往 broken pipe 或者关闭的 socket 写数据时触发的。
+哪里的操作触发了服务的<code>SIGPIPE</code>呢。
+我们把线程<code>22772</code>的 strace 结果过滤出来做进一步分析：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">[pid 22772] &lt;... close resumed&gt; )       = 0
+[pid 22772] write(2, &#34;2021-02-05 20:06:14.345637 W | r&#34;..., 126 &lt;unfinished ...&gt;
+[pid 22772] &lt;... write resumed&gt; )       = -1 EPIPE (Broken pipe)
+[pid 22772] --- SIGPIPE {si_signo=SIGPIPE, si_code=SI_USER, si_pid=22314, si_uid=1000} ---
+[pid 22772] rt_sigreturn({mask=[]} &lt;unfinished ...&gt;
+[pid 22772] &lt;... rt_sigreturn resumed&gt; ) = -1 EPIPE (Broken pipe)
+[pid 22772] rt_sigprocmask(SIG_UNBLOCK, [PIPE],  &lt;unfinished ...&gt;
+[pid 22772] &lt;... rt_sigprocmask resumed&gt; NULL, 8) = 0
+[pid 22772] getpid()                    = 22314
+[pid 22772] gettid( &lt;unfinished ...&gt;
+[pid 22772] &lt;... gettid resumed&gt; )      = 22772
+[pid 22772] tgkill(22314, 22772, SIGPIPE &lt;unfinished ...&gt;
+[pid 22772] &lt;... tgkill resumed&gt; )      = 0
+[pid 22772] --- SIGPIPE {si_signo=SIGPIPE, si_code=SI_TKILL, si_pid=22314, si_uid=1000} ---
+[pid 22772] rt_sigreturn({mask=[]} &lt;unfinished ...&gt;
+[pid 22772] &lt;... rt_sigreturn resumed&gt; ) = 0
+[pid 22772] sched_yield( &lt;unfinished ...&gt;
+[pid 22772] &lt;... sched_yield resumed&gt; ) = 0
+[pid 22772] sched_yield( &lt;unfinished ...&gt;
+[pid 22772] &lt;... sched_yield resumed&gt; ) = 0
+[pid 22772] sched_yield( &lt;unfinished ...&gt;
+[pid 22772] &lt;... sched_yield resumed&gt; ) = 0
+[pid 22772] rt_sigaction(SIGPIPE, {SIG_DFL, ~[], SA_RESTORER|SA_STACK|SA_RESTART|SA_SIGINFO, 0x1606810},  &lt;unfinished ...&gt;
+[pid 22772] &lt;... rt_sigaction resumed&gt; NULL, 8) = 0
+[pid 22772] getpid( &lt;unfinished ...&gt;
+[pid 22772] &lt;... getpid resumed&gt; )      = 22314
+[pid 22772] gettid( &lt;unfinished ...&gt;
+[pid 22772] &lt;... gettid resumed&gt; )      = 22772
+[pid 22772] tgkill(22314, 22772, SIGPIPE &lt;unfinished ...&gt;
+[pid 22772] &lt;... tgkill resumed&gt; )      = 0
+[pid 22772] --- SIGPIPE {si_signo=SIGPIPE, si_code=SI_TKILL, si_pid=22314, si_uid=1000} ---
+[pid 22772] +++ killed by SIGPIPE +++
+</code></pre></div><p>可以看到最近的一个<code>write()</code>系统调用是:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">[pid 22772] write(2, &#34;2021-02-05 20:06:14.345637 W | r&#34;..., 126 &lt;unfinished ...&gt;
+</code></pre></div><p>往<code>stderr</code>写数据的时候报错了？
+不能啊，服务用<code>nohup</code>起的，
+按理<code>stderr</code>和<code>stdout</code>都被重定向到<code>nohup.out</code>上了。
+跑到进程的<code>proc</code>目录检查一下，
+发现<code>stderr</code>和<code>stdout</code>真的指向两条管道-_-！：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">...
+l-wx------. 1 admin admin 64 Feb  5 19:58 1 -&gt; pipe:[203861356]
+...
+l-wx------. 1 admin admin 64 Feb  5 19:58 2 -&gt; pipe:[203861357]
+...
+</code></pre></div><p>所以 nohup 这是什么情况？翻出<a href="https://github.com/openbsd/src/blob/master/usr.bin/nohup/nohup.c">nohup 代码</a>来确认下，发现，nohup 还真有特例：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">int</span>
+<span style="color:#a6e22e">main</span>(<span style="color:#66d9ef">int</span> argc, <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>argv[])
+{
+...
+	<span style="color:#66d9ef">if</span> (isatty(STDOUT_FILENO) <span style="color:#f92672">||</span> errno <span style="color:#f92672">==</span> EBADF)
+		dofile();
+
+	<span style="color:#66d9ef">if</span> (pledge(<span style="color:#e6db74">&#34;stdio exec&#34;</span>, NULL) <span style="color:#f92672">==</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>)
+		err(<span style="color:#ae81ff">1</span>, <span style="color:#e6db74">&#34;pledge&#34;</span>);
+
+	<span style="color:#66d9ef">if</span> ((isatty(STDERR_FILENO) <span style="color:#f92672">||</span> errno <span style="color:#f92672">==</span> EBADF) <span style="color:#f92672">&amp;&amp;</span>
+	    dup2(STDOUT_FILENO, STDERR_FILENO) <span style="color:#f92672">==</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>) {
+		<span style="color:#75715e">/* may have just closed stderr */</span>
+		(<span style="color:#66d9ef">void</span>)fprintf(stdin, <span style="color:#e6db74">&#34;nohup: %s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, strerror(errno));
+		exit(EXIT_MISC);
+	}
+
+	<span style="color:#75715e">/*
+</span><span style="color:#75715e">	 * The nohup utility shall take the standard action for all signals
+</span><span style="color:#75715e">	 * except that SIGHUP shall be ignored.
+</span><span style="color:#75715e">	 */</span>
+	(<span style="color:#66d9ef">void</span>)signal(SIGHUP, SIG_IGN);
+
+	execvp(argv[<span style="color:#ae81ff">1</span>], <span style="color:#f92672">&amp;</span>argv[<span style="color:#ae81ff">1</span>]);
+	exit_status <span style="color:#f92672">=</span> (errno <span style="color:#f92672">==</span> ENOENT) <span style="color:#f92672">?</span> EXIT_NOTFOUND : EXIT_NOEXEC;
+	err(exit_status, <span style="color:#e6db74">&#34;%s&#34;</span>, argv[<span style="color:#ae81ff">1</span>]);
+}
+
+<span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span>
+<span style="color:#a6e22e">dofile</span>(<span style="color:#66d9ef">void</span>)
+{
+	<span style="color:#66d9ef">int</span> fd;
+	<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>p;
+	<span style="color:#66d9ef">char</span> path[PATH_MAX];
+
+	p <span style="color:#f92672">=</span> FILENAME;
+	<span style="color:#66d9ef">if</span> ((fd <span style="color:#f92672">=</span> open(p, O_RDWR<span style="color:#f92672">|</span>O_CREAT<span style="color:#f92672">|</span>O_APPEND, S_IRUSR<span style="color:#f92672">|</span>S_IWUSR)) <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span>)
+		<span style="color:#66d9ef">goto</span> dupit;
+	<span style="color:#66d9ef">if</span> ((p <span style="color:#f92672">=</span> getenv(<span style="color:#e6db74">&#34;HOME&#34;</span>)) <span style="color:#f92672">!=</span> NULL <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">*</span>p <span style="color:#f92672">!=</span> <span style="color:#e6db74">&#39;\0&#39;</span> <span style="color:#f92672">&amp;&amp;</span>
+	    (strlen(p) <span style="color:#f92672">+</span> strlen(FILENAME) <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">&lt;</span> <span style="color:#66d9ef">sizeof</span>(path)) {
+		(<span style="color:#66d9ef">void</span>)strlcpy(path, p, <span style="color:#66d9ef">sizeof</span>(path));
+		(<span style="color:#66d9ef">void</span>)strlcat(path, <span style="color:#e6db74">&#34;/&#34;</span>, <span style="color:#66d9ef">sizeof</span>(path));
+		(<span style="color:#66d9ef">void</span>)strlcat(path, FILENAME, <span style="color:#66d9ef">sizeof</span>(path));
+		<span style="color:#66d9ef">if</span> ((fd <span style="color:#f92672">=</span> open(p <span style="color:#f92672">=</span> path, O_RDWR<span style="color:#f92672">|</span>O_CREAT<span style="color:#f92672">|</span>O_APPEND, S_IRUSR<span style="color:#f92672">|</span>S_IWUSR)) <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span>)
+			<span style="color:#66d9ef">goto</span> dupit;
+	}
+	errx(EXIT_MISC, <span style="color:#e6db74">&#34;can&#39;t open a nohup.out file&#34;</span>);
+
+dupit:
+	(<span style="color:#66d9ef">void</span>)lseek(fd, (off_t)<span style="color:#ae81ff">0</span>, SEEK_END);
+	<span style="color:#66d9ef">if</span> (dup2(fd, STDOUT_FILENO) <span style="color:#f92672">==</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>)
+		err(EXIT_MISC, NULL);
+	<span style="color:#66d9ef">if</span> (fd <span style="color:#f92672">&gt;</span> STDERR_FILENO)
+		(<span style="color:#66d9ef">void</span>)close(fd);
+	(<span style="color:#66d9ef">void</span>)fprintf(stderr, <span style="color:#e6db74">&#34;sending output to %s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, p);
+}
+</code></pre></div><p><code>dofile()</code>把<code>stderr</code>和<code>stdout</code>重定向到<code>nohup.out</code>，
+但是它被执行的前提是<code>STDOUT_FILENO</code>关联的是一个终端设备（暨<code>isatty(STDOUT_FILENO)</code>）。
+所以如何解决当前的问题？在启动脚本里把<code>stderr</code>和<code>stdout</code>重定向到<code>/dev/null</code>或某个文件即可。
+还有一个问题是：服务的<code>stdout</code>和<code>sterr</code>为什么关联到管道上了？
+了解到当时服务是通过<code>salt</code>远程启动的，估计是<code>salt</code>做了管道重定向。
+之前是手工在机器上启动，不存在这个问题。
+最近一段时间服务都是通过<code>salt</code>远程脚本启动的，所以酿成悲剧。</p>
+
+</article>
+
+
+
+</html>
