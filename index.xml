@@ -6,10 +6,24 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 06 Feb 2021 12:47:51 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 13 Feb 2021 08:16:42 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Raft 算法笔记（四）——集群节点变更</title>
+      <link>https://coderatwork.cn/posts/notes-on-raft-4/</link>
+      <pubDate>Sat, 13 Feb 2021 08:16:42 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/notes-on-raft-4/</guid>
+      <description>集群节点变更需要保证
+ 任意时刻最多只有一个主节点 主节点完备性    直接变更集群节点无法保证任意时刻只有一个主节点，例如：
+ 旧节点 o1、o2、o3 新节点 n4、n5 o3 知悉 n4、n5 且 o3、n4、n5 选出一个主节点 o1、o2、o3 选出另外一个主节点，违背主节点唯一的性质    联合共识（joint consensus）
+ 联合指 C(old) 和 C(new) 配置的联合，用 C(old, new) 表示    配置的两阶段提交算法
+ 联合共识生效阶段 新配置生效阶段    联合共识阶段的规则
+ 所有日志需要同时提交到 C(old) 集群和 C(new) 集群 C(old) 和 C(new) 集群中的节点都可以当选主节点 当选的主节点必须同时获得 C(old) 和 C(new) 的多数票  这一要求保证了系统不会在一个 term 内同时出现两个主节点      联合共识阶段允许节点在任意时刻执行配置变更，而且可以继续为客户端提供服务，那么问题来了：</description>
+    </item>
     
     <item>
       <title>SIGPIPE 引发的悲剧</title>
