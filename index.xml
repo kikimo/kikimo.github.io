@@ -6,10 +6,22 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 13 Feb 2021 08:16:42 +0800</lastBuildDate>
+    <lastBuildDate>Tue, 09 Mar 2021 20:27:18 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>kube-router 服务就绪慢问题分析</title>
+      <link>https://coderatwork.cn/posts/trouble-shooting-kube-router/</link>
+      <pubDate>Tue, 09 Mar 2021 20:27:18 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/trouble-shooting-kube-router/</guid>
+      <description>1. 问题简介 线下的 kube-router 运行一段时间后我们发现它存在一个令人难以忍受的问题： 每次遇到节点 crash 重启后，pod 的网络都需要很长时间才能就绪。 最近对这个问题做了研究，这篇文章对记录当时排查问题的经过，并提出问题的集中处理方法。
+2. 问题分析 因为 kube-router 是基于 BGP 构建的 k8s 网络解决方案， 所以我们在节点上对针对 kube-router 的 BGP 通信做了抓包分析。 在抓包分析中我们发现在宕机超过 90s 后（我们把 BGP graceful restart period 设为 90s）， 从 kube-rouer 和交换机建立 peer 关系到它上报第一条路由 update 消息隔了六分钟， 而且这一现象可以稳定复现。
+(1) peer 关系建立时间 (2) kube-router 第一条路由上报时间 通过跟踪 kube-router 代码， 我们发现当前场景下 kube-router 的第一条路由 update 消息的发送是通过一个定时器触发的（vendor/github.com/osrg/gobgp/pkg/server/server.go）：
+1486 // RFC 4724 4.1 1487 // Once the session between the Restarting Speaker and the Receiving 1488 // Speaker is re-established, .</description>
+    </item>
     
     <item>
       <title>Raft 算法笔记（四）——集群节点变更</title>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>kube-router 服务就绪慢问题分析 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/trouble-shooting-kube-router/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>kube-router 服务就绪慢问题分析</h1>
+    <time datetime="2021-03-09T20:27:18&#43;08:00">March 09, 2021</time>
+  </header>
+  <h2 id="1-问题简介">1. 问题简介</h2>
+<p>线下的 kube-router 运行一段时间后我们发现它存在一个令人难以忍受的问题：
+每次遇到节点 crash 重启后，pod 的网络都需要很长时间才能就绪。
+最近对这个问题做了研究，这篇文章对记录当时排查问题的经过，并提出问题的集中处理方法。</p>
+<h2 id="2-问题分析">2. 问题分析</h2>
+<p>因为 kube-router 是基于 BGP 构建的 k8s 网络解决方案，
+所以我们在节点上对针对 kube-router 的 BGP 通信做了抓包分析。
+在抓包分析中我们发现在宕机超过 90s 后（我们把 BGP graceful restart period 设为 90s），
+从 kube-rouer 和交换机建立 peer 关系到它上报第一条路由 update 消息隔了六分钟，
+而且这一现象可以稳定复现。</p>
+<h3 id="1-peer-关系建立时间">(1) peer 关系建立时间</h3>
+<p><img src="/images/kr/kr_conn.png" alt="kr_conn"></p>
+<h3 id="2-kube-router-第一条路由上报时间">(2) kube-router 第一条路由上报时间</h3>
+<p><img src="/images/kr/first_update.png" alt="kr_conn"></p>
+<p>通过跟踪 kube-router 代码，
+我们发现当前场景下 kube-router 的第一条路由 update 消息的发送是通过一个定时器触发的（vendor/github.com/osrg/gobgp/pkg/server/server.go）：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#ae81ff">1486</span>                                 <span style="color:#75715e">// RFC 4724 4.1
+</span><span style="color:#75715e"></span><span style="color:#ae81ff">1487</span>                                 <span style="color:#75715e">// Once the session between the Restarting Speaker and the Receiving
+</span><span style="color:#75715e"></span><span style="color:#ae81ff">1488</span>                                 <span style="color:#75715e">// Speaker is re-established, ...snip... it MUST defer route
+</span><span style="color:#75715e"></span><span style="color:#ae81ff">1489</span>                                 <span style="color:#75715e">// selection for an address family until it either (a) receives the
+</span><span style="color:#75715e"></span><span style="color:#ae81ff">1490</span>                                 <span style="color:#75715e">// End-of-RIB marker from all its peers (excluding the ones with the
+</span><span style="color:#75715e"></span><span style="color:#ae81ff">1491</span>                                 <span style="color:#75715e">// &#34;Restart State&#34; bit set in the received capability and excluding the
+</span><span style="color:#75715e"></span><span style="color:#ae81ff">1492</span>                                 <span style="color:#75715e">// ones that do not advertise the graceful restart capability) or (b)
+</span><span style="color:#75715e"></span><span style="color:#ae81ff">1493</span>                                 <span style="color:#75715e">// the Selection_Deferral_Timer referred to below has expired.
+</span><span style="color:#75715e"></span><span style="color:#ae81ff">1494</span>                                 <span style="color:#a6e22e">allEnd</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">func</span>() <span style="color:#66d9ef">bool</span> {
+<span style="color:#ae81ff">1495</span>                                         <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">s</span>.<span style="color:#a6e22e">neighborMap</span> {
+<span style="color:#ae81ff">1496</span>                                                 <span style="color:#66d9ef">if</span> !<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">recvedAllEOR</span>() {
+<span style="color:#ae81ff">1497</span>                                                         <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">false</span>
+<span style="color:#ae81ff">1498</span>                                                 }
+<span style="color:#ae81ff">1499</span>                                         }
+<span style="color:#ae81ff">1500</span>                                         <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">true</span>
+<span style="color:#ae81ff">1501</span>                                 }()
+<span style="color:#ae81ff">1502</span>                                 <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">allEnd</span> {
+<span style="color:#ae81ff">1503</span>                                         <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">s</span>.<span style="color:#a6e22e">neighborMap</span> {
+<span style="color:#ae81ff">1504</span>                                                 <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">lock</span>.<span style="color:#a6e22e">Lock</span>()
+<span style="color:#ae81ff">1505</span>                                                 <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">pConf</span>.<span style="color:#a6e22e">GracefulRestart</span>.<span style="color:#a6e22e">State</span>.<span style="color:#a6e22e">LocalRestarting</span> = <span style="color:#66d9ef">false</span>
+<span style="color:#ae81ff">1506</span>                                                 <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">lock</span>.<span style="color:#a6e22e">Unlock</span>()
+<span style="color:#ae81ff">1507</span>                                                 <span style="color:#66d9ef">if</span> !<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">isGracefulRestartEnabled</span>() {
+<span style="color:#ae81ff">1508</span>                                                         <span style="color:#66d9ef">continue</span>
+<span style="color:#ae81ff">1509</span>                                                 }
+<span style="color:#ae81ff">1510</span>                                                 <span style="color:#a6e22e">paths</span>, <span style="color:#a6e22e">_</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">s</span>.<span style="color:#a6e22e">getBestFromLocal</span>(<span style="color:#a6e22e">p</span>, <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">configuredRFlist</span>())
+<span style="color:#ae81ff">1511</span>                                                 <span style="color:#66d9ef">if</span> len(<span style="color:#a6e22e">paths</span>) &gt; <span style="color:#ae81ff">0</span> {
+<span style="color:#ae81ff">1512</span>                                                         <span style="color:#a6e22e">sendfsmOutgoingMsg</span>(<span style="color:#a6e22e">p</span>, <span style="color:#a6e22e">paths</span>, <span style="color:#66d9ef">nil</span>, <span style="color:#66d9ef">false</span>)
+<span style="color:#ae81ff">1513</span>                                                 }
+<span style="color:#ae81ff">1514</span>                                         }
+<span style="color:#ae81ff">1515</span>                                         <span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">WithFields</span>(<span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">Fields</span>{
+<span style="color:#ae81ff">1516</span>                                                 <span style="color:#e6db74">&#34;Topic&#34;</span>: <span style="color:#e6db74">&#34;Server&#34;</span>,
+<span style="color:#ae81ff">1517</span>                                         }).<span style="color:#a6e22e">Info</span>(<span style="color:#e6db74">&#34;sync finished&#34;</span>)
+<span style="color:#ae81ff">1518</span>                                 } <span style="color:#66d9ef">else</span> {
+<span style="color:#ae81ff">1519</span>                                         <span style="color:#a6e22e">peer</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">lock</span>.<span style="color:#a6e22e">RLock</span>()
+<span style="color:#ae81ff">1520</span>                                         <span style="color:#a6e22e">deferral</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">peer</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">pConf</span>.<span style="color:#a6e22e">GracefulRestart</span>.<span style="color:#a6e22e">Config</span>.<span style="color:#a6e22e">DeferralTime</span>
+<span style="color:#ae81ff">1521</span>                                         <span style="color:#a6e22e">peer</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">lock</span>.<span style="color:#a6e22e">RUnlock</span>()
+<span style="color:#ae81ff">1522</span>                                         <span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">WithFields</span>(<span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">Fields</span>{
+<span style="color:#ae81ff">1523</span>                                                 <span style="color:#e6db74">&#34;Topic&#34;</span>: <span style="color:#e6db74">&#34;Peer&#34;</span>,
+<span style="color:#ae81ff">1524</span>                                                 <span style="color:#e6db74">&#34;Key&#34;</span>:   <span style="color:#a6e22e">peer</span>.<span style="color:#a6e22e">ID</span>(),
+<span style="color:#ae81ff">1525</span>                                         }).<span style="color:#a6e22e">Debugf</span>(<span style="color:#e6db74">&#34;Now syncing, suppress sending updates. start deferral timer(%d)&#34;</span>, <span style="color:#a6e22e">deferral</span>)
+<span style="color:#ae81ff">1526</span>                                         <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">AfterFunc</span>(<span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Second</span><span style="color:#f92672">*</span><span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Duration</span>(<span style="color:#a6e22e">deferral</span>), <span style="color:#a6e22e">deferralExpiredFunc</span>(<span style="color:#a6e22e">bgp</span>.<span style="color:#a6e22e">RouteFamily</span>(<span style="color:#ae81ff">0</span>)))
+<span style="color:#ae81ff">1527</span>                                 }
+</code></pre></div><p>注意这行代码<code>time.AfterFunc(time.Second*time.Duration(deferral)</code>，
+其中<code>deferralExpiredFunc(bgp.RouteFamily(0)))</code>会发送第一条 BGP 路由 update 消息，
+触发时间由<code>deferral</code>变量控制。
+而<code>deferral</code>变量的赋值则是<code>deferral := peer.fsm.pConf.GracefulRestart.Config.DeferralTime</code>，
+通过简单的检索，
+可以发现<code>peer.fsm.pConf.GracefulRestart.Config.DeferralTime</code>参数是由 kube-router 的命令行参数控制：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">--bgp-graceful-restart-deferral-time duration   BGP Graceful restart deferral time according to RFC4724 4.1, maximum 18h. (default 6m0s)
+</code></pre></div><p>这个参数默认配置是六分钟，
+而我们抓包分析观察到的服务就绪延迟也刚好是六分钟。
+通过测试，
+我们发现 kube-router 第一条路由 update 消息的发送时间完全可由这个参数控制。
+所以解决 kube-router 服务就绪时间长的一种可行的解决方案就是通过调整这个参数来缩短延迟。
+但是，我们需要搞清楚这个参数到底有什么作用。
+从 &ndash;bgp-graceful-restart-deferral-time 参数的注释上我们注意到这个参数和 RFC 4724 有关，
+而这份 RFC 是专门讲 BGP 优雅重启的。
+我们在 RFC 4724 4.1 这一节中看到一段非常有意思的话：</p>
+<blockquote>
+<p>Once the session between the Restarting Speaker and the Receiving
+Speaker is re-established, the Restarting Speaker will receive and
+process BGP messages from its peers.  However, it MUST defer route
+selection for an address family until it either (a) receives the
+End-of-RIB marker from all its peers (excluding the ones with the
+&ldquo;Restart State&rdquo; bit set in the received capability and excluding the
+ones that do not advertise the graceful restart capability) or (b)
+the Selection_Deferral_Timer referred to below has expired.  It is
+noted that prior to route selection, the speaker has no routes to
+advertise to its peers and no routes to update the forwarding state.</p>
+</blockquote>
+<p>它解释了 GBP 优雅重启后发送第一调路由 update 消息的两种情况：</p>
+<ol>
+<li>a: 收到 peer 端发送过来的 End-of-RIB 消息</li>
+<li>b: 否则就等待 Selection_Deferral_Timer 定时器超时</li>
+</ol>
+<p>我们在上面摘录的 kube-router 代码中可以看到它在注释里把这段话完整的抄下来了。
+所以我们遇到的问题应该是 kube-router 没收到 peer 端发送的 EOR（End-of-RIB）消息它才执行 b 这一分支——至少 kube-router 认为它自己是没收到 EOR 消息的。
+根据 RFC 4724 中的定义，
+EOR 本质上就是一条空的 BGP update 消息，
+从我们抓包的截图上我们可以看到交换机在和 kube-router 建立 peer 关系后马上就给 kube-router 发送了一条空的 update 消息。
+为什么 kube-router 还是掉进 b 这个分支呢？
+仍然在以上代码的基础上分析，
+可知对 a 情况的判断实际上是用了以下函数：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#ae81ff">1494</span>                                 <span style="color:#a6e22e">allEnd</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">func</span>() <span style="color:#66d9ef">bool</span> {
+<span style="color:#ae81ff">1495</span>                                         <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">s</span>.<span style="color:#a6e22e">neighborMap</span> {
+<span style="color:#ae81ff">1496</span>                                                 <span style="color:#66d9ef">if</span> !<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">recvedAllEOR</span>() {
+<span style="color:#ae81ff">1497</span>                                                         <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">false</span>
+<span style="color:#ae81ff">1498</span>                                                 }
+<span style="color:#ae81ff">1499</span>                                         }
+<span style="color:#ae81ff">1500</span>                                         <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">true</span>
+<span style="color:#ae81ff">1501</span>                                 }()
+</code></pre></div><p>核心的点是 p.recvedAllEOR() 这个函数，vendor/github.com/osrg/gobgp/pkg/server/peer.go:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#ae81ff">191</span> <span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">peer</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">peer</span>) <span style="color:#a6e22e">recvedAllEOR</span>() <span style="color:#66d9ef">bool</span> {
+<span style="color:#ae81ff">192</span>         <span style="color:#a6e22e">peer</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">lock</span>.<span style="color:#a6e22e">RLock</span>()
+<span style="color:#ae81ff">193</span>         <span style="color:#66d9ef">defer</span> <span style="color:#a6e22e">peer</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">lock</span>.<span style="color:#a6e22e">RUnlock</span>()
+<span style="color:#ae81ff">194</span>         <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">a</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">peer</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">pConf</span>.<span style="color:#a6e22e">AfiSafis</span> {
+<span style="color:#ae81ff">195</span>                 <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">s</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">a</span>.<span style="color:#a6e22e">MpGracefulRestart</span>.<span style="color:#a6e22e">State</span>; <span style="color:#a6e22e">s</span>.<span style="color:#a6e22e">Enabled</span> <span style="color:#f92672">&amp;&amp;</span> !<span style="color:#a6e22e">s</span>.<span style="color:#a6e22e">EndOfRibReceived</span> {
+<span style="color:#ae81ff">196</span>                         <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">false</span>
+<span style="color:#ae81ff">197</span>                 }
+<span style="color:#ae81ff">198</span>         }
+<span style="color:#ae81ff">199</span>         <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">true</span>
+<span style="color:#ae81ff">200</span> }
+</code></pre></div><p>peer.fsm.pConf.AfiSafis 是 BGP 地址族信息相关的配置，
+我们在 vendor/github.com/osrg/gobgp/pkg/server/fsm.go 可以看到相应的设置代码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
+<span style="color:#ae81ff">1331</span>                     <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">pConf</span>.<span style="color:#a6e22e">GracefulRestart</span>.<span style="color:#a6e22e">Config</span>.<span style="color:#a6e22e">Enabled</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">ok</span> {
+<span style="color:#ae81ff">1332</span>                         <span style="color:#a6e22e">state</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">pConf</span>.<span style="color:#a6e22e">GracefulRestart</span>.<span style="color:#a6e22e">State</span>
+<span style="color:#ae81ff">1333</span>                         <span style="color:#a6e22e">state</span>.<span style="color:#a6e22e">Enabled</span> = <span style="color:#66d9ef">true</span>
+<span style="color:#ae81ff">1334</span>                         <span style="color:#a6e22e">cap</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">gr</span>[len(<span style="color:#a6e22e">gr</span>)<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>].(<span style="color:#f92672">*</span><span style="color:#a6e22e">bgp</span>.<span style="color:#a6e22e">CapGracefulRestart</span>)
+<span style="color:#ae81ff">1335</span>                         <span style="color:#a6e22e">state</span>.<span style="color:#a6e22e">PeerRestartTime</span> = uint16(<span style="color:#a6e22e">cap</span>.<span style="color:#a6e22e">Time</span>)
+<span style="color:#ae81ff">1336</span>
+<span style="color:#ae81ff">1337</span>                         <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">t</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">cap</span>.<span style="color:#a6e22e">Tuples</span> {
+<span style="color:#ae81ff">1338</span>                             <span style="color:#a6e22e">n</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">bgp</span>.<span style="color:#a6e22e">AddressFamilyNameMap</span>[<span style="color:#a6e22e">bgp</span>.<span style="color:#a6e22e">AfiSafiToRouteFamily</span>(<span style="color:#a6e22e">t</span>.<span style="color:#a6e22e">AFI</span>, <span style="color:#a6e22e">t</span>.<span style="color:#a6e22e">SAFI</span>)]
+<span style="color:#ae81ff">1339</span>                             <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">i</span>, <span style="color:#a6e22e">a</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">pConf</span>.<span style="color:#a6e22e">AfiSafis</span> {
+<span style="color:#ae81ff">1340</span>                                 <span style="color:#66d9ef">if</span> string(<span style="color:#a6e22e">a</span>.<span style="color:#a6e22e">Config</span>.<span style="color:#a6e22e">AfiSafiName</span>) <span style="color:#f92672">==</span> <span style="color:#a6e22e">n</span> {
+<span style="color:#ae81ff">1341</span>                                     <span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">pConf</span>.<span style="color:#a6e22e">AfiSafis</span>[<span style="color:#a6e22e">i</span>].<span style="color:#a6e22e">MpGracefulRestart</span>.<span style="color:#a6e22e">State</span>.<span style="color:#a6e22e">Enabled</span> = <span style="color:#66d9ef">true</span>
+<span style="color:#ae81ff">1342</span>                                     <span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">pConf</span>.<span style="color:#a6e22e">AfiSafis</span>[<span style="color:#a6e22e">i</span>].<span style="color:#a6e22e">MpGracefulRestart</span>.<span style="color:#a6e22e">State</span>.<span style="color:#a6e22e">Received</span> = <span style="color:#66d9ef">true</span>
+<span style="color:#ae81ff">1343</span>                                     <span style="color:#66d9ef">break</span>
+<span style="color:#ae81ff">1344</span>                                 }
+<span style="color:#ae81ff">1345</span>                             }
+<span style="color:#ae81ff">1346</span>                         }
+</code></pre></div><p><code>fsm.pConf.AfiSafis[i].MpGracefulRestart.State.Enabled = true</code>是在协商阶段执行的设置，
+我们在代码里只看到将 peer 这个配置设置为 true 的操作。
+peer 端的 AfiSafi 由 kube-router 配置，
+kube-router 默认给配置了 ipv4 和 ipv6 两个地址族，
+而且两个地址族默认 Enabled 配置都是 true，
+pkg/controllers/routing/bgp_peers.go：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
+<span style="color:#ae81ff">112</span>             <span style="color:#a6e22e">n</span>.<span style="color:#a6e22e">AfiSafis</span> = []<span style="color:#f92672">*</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">AfiSafi</span>{
+<span style="color:#ae81ff">113</span>                 {
+<span style="color:#ae81ff">114</span>                     <span style="color:#a6e22e">Config</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">AfiSafiConfig</span>{
+<span style="color:#ae81ff">115</span>                         <span style="color:#a6e22e">Family</span>:  <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">Family</span>{<span style="color:#a6e22e">Afi</span>: <span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">Family_AFI_IP</span>, <span style="color:#a6e22e">Safi</span>: <span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">Family_SAFI_UNICAST</span>},
+<span style="color:#ae81ff">116</span>                         <span style="color:#a6e22e">Enabled</span>: <span style="color:#66d9ef">true</span>,
+<span style="color:#ae81ff">117</span>                     },
+<span style="color:#ae81ff">118</span>                     <span style="color:#a6e22e">MpGracefulRestart</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">MpGracefulRestart</span>{
+<span style="color:#ae81ff">119</span>                         <span style="color:#a6e22e">Config</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">MpGracefulRestartConfig</span>{
+<span style="color:#ae81ff">120</span>                             <span style="color:#a6e22e">Enabled</span>: <span style="color:#66d9ef">true</span>,
+<span style="color:#ae81ff">121</span>                         },
+<span style="color:#ae81ff">122</span>                         <span style="color:#a6e22e">State</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">MpGracefulRestartState</span>{},
+<span style="color:#ae81ff">123</span>                     },
+<span style="color:#ae81ff">124</span>                 },
+<span style="color:#ae81ff">125</span>                 {
+<span style="color:#ae81ff">126</span>                     <span style="color:#a6e22e">Config</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">AfiSafiConfig</span>{
+<span style="color:#ae81ff">127</span>                         <span style="color:#a6e22e">Family</span>:  <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">Family</span>{<span style="color:#a6e22e">Afi</span>: <span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">Family_AFI_IP6</span>, <span style="color:#a6e22e">Safi</span>: <span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">Family_SAFI_UNICAST</span>},
+<span style="color:#ae81ff">128</span>                         <span style="color:#a6e22e">Enabled</span>: <span style="color:#66d9ef">true</span>,
+<span style="color:#ae81ff">129</span>                     },
+<span style="color:#ae81ff">130</span>                     <span style="color:#a6e22e">MpGracefulRestart</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">MpGracefulRestart</span>{
+<span style="color:#ae81ff">131</span>                         <span style="color:#a6e22e">Config</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">MpGracefulRestartConfig</span>{
+<span style="color:#ae81ff">132</span>                             <span style="color:#a6e22e">Enabled</span>: <span style="color:#66d9ef">true</span>,
+<span style="color:#ae81ff">133</span>                         },
+<span style="color:#ae81ff">134</span>                         <span style="color:#a6e22e">State</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">MpGracefulRestartState</span>{},
+<span style="color:#ae81ff">135</span>                     },
+<span style="color:#ae81ff">136</span>                 },
+<span style="color:#ae81ff">137</span>             }
+</code></pre></div><p>再回头分析我们之前抓下来的 BGP 通信包：</p>
+<h3 id="3-交换机上的-bgp-cap-设置">(3) 交换机上的 BGP cap 设置：</h3>
+<p><img src="/images/kr/switch_afisafi.png" alt="switch_afisafi"></p>
+<h3 id="3-kube-router-上的-bgp-cap-设置">(3) kube-router 上的 BGP cap 设置：</h3>
+<p><img src="/images/kr/node_afisafi.png" alt="node_afisafi"></p>
+<p>由此，即便交换机已经发送了 EOR 消息，
+kube-router 仍然认为它没有收到交换机 ipv6 地址族的 EOR，
+所以，kube-router 代码在执行的时候就退化到 RFC 4724 4.1 节中描述的 b 情况，
+也就是等待六分钟的 Selection_Deferral_Timer 定时器超时。</p>
+<h2 id="3-解决方案">3. 解决方案</h2>
+<p>通过以上分析，针对 kube-route 就绪时间过长问题我们可以有以下几种解决办法：</p>
+<ol>
+<li>调整 kube-router 的 bgp-graceful-restart-deferral-time 参数</li>
+<li>或者通过修改 kube-router 代码调整 ipv6 相关配置（相关代码我们已经提交给社区）</li>
+<li>开启交换机上的 ipv6 支持</li>
+</ol>
+
+</article>
+
+
+
+</html>
