@@ -6,10 +6,23 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Tue, 09 Mar 2021 20:27:18 +0800</lastBuildDate>
+    <lastBuildDate>Mon, 05 Apr 2021 14:44:54 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>分布式系统中的时间、时钟和事件的排序（一）</title>
+      <link>https://coderatwork.cn/posts/time-clocks/</link>
+      <pubDate>Mon, 05 Apr 2021 14:44:54 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/time-clocks/</guid>
+      <description>Time, Clocks, and the Ordering of Events in a Distributed System 是分布式理论中一篇非常经典也非常基础的论文， 这篇文章是该论文的阅读笔记，主要记录文章中关于逻辑时钟和分布式锁的实现算法。 论文还有一部分内容是介绍如何利用物理时钟在有外部系统参与的情况下解决分布式的同步问题。
+我们可以通过时钟来知道时间。 那么时间和时钟的本质关系是什么？ 当我们看到时钟上的读数便能了解当前的时间。 当时钟上读数显示某个数值时，这是一个特定的事件，本质上我们是通过一系列时间发生的顺序来了解时间。
+分布式系统意味着多个节点参与，那么我们如何实现在分布式系统中的过程同步呢？ 一种思路是通过时间来记录各个节点上事件发生的时间顺序，从而实现过程同步。 那如何记录事件发生的时间顺序呢？用物理时钟？ 使用物理时钟的问题在于，每个节点上都需要一个物理时钟， 而我们很难保证不同物理时钟完全一致。 既然我们是通过事件来认识时间，那么我们也就可以摆脱物理时钟，用一些特定的事件取代时钟事件来认知时间。 这些事件可以形成分布式系统中的一个逻辑时钟。
+首先我们来定义进程中时间发生的顺序关系，我们用 a -&amp;gt; b 表示事件 a 发生在事件 b 之前， 当满以下条件时我们认为 a -&amp;gt; b 成立：
+ a、b 在同一个进程内部，a 发生在 b 之前 a 是一条消息发送事件，b 相应的消息接收事件  可以看到这一关系具有传递性，暨如果 a -&amp;gt; b &amp;amp;&amp;amp; b -&amp;gt; c =&amp;gt; a -&amp;gt; c。 我们记录 C为 a 事件发生的时间，那么如果 a -&amp;gt; b 则必然有 C&amp;lt; C， 但反过来不一定成立（a、b 可能是不同进程中并发执行的事件）。 可以看到这个关系只能给部分事件排序（无法给并发时间做排序），为了进一步得到所有事件的排序， 我们做一步简单的约定，对于并发事件直接根据进程编号来排序，如此一来我们就能给所有事件做排序， 而这些事件的排列变可以用来做我们在分布式系统中的逻辑时钟。</description>
+    </item>
     
     <item>
       <title>kube-router 服务就绪慢问题分析</title>
