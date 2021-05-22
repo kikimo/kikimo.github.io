@@ -6,10 +6,20 @@
     <description>Recent content in Posts on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Mon, 05 Apr 2021 14:44:54 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 22 May 2021 14:28:17 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>修复一个 kubelet numa 节点设备分配的 bug</title>
+      <link>https://coderatwork.cn/posts/fix-kubelet-device-numa-allocation-bug/</link>
+      <pubDate>Sat, 22 May 2021 14:28:17 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/fix-kubelet-device-numa-allocation-bug/</guid>
+      <description>最近修复了一个 kubelet numa 设备分配的 bug， 目前相关 fix已经提交给社区并 merge 到主干了。 k8s 在 1.18 以后发布了 topology manager 功能，允许用户根据硬件设备的 numa 拓扑来分配资源。 topology manager 支持多种分配策略，其中一种叫 single numa node policy， 这种策略承诺分配给 pod 的硬件都属于同一个 numa 节点。 然而我们发现某些场景下，虽然选择的是 single numa node policy， 但是 kublet 分配的设备却可能跨越多个 numa 节点。 通过排查我们发现这个问题的根源在于 devicemanager 中设备分配的实现算法上，具体问题代码在pkg/kubelet/cm/devicemanager/manager.go:filterByAffinity()
+func (m *ManagerImpl) filterByAffinity(podUID, contName, resource string, available sets.String) (sets.String, sets.String, sets.String) { // If alignment information is not available, just pass the available list back. 	hint := m.</description>
+    </item>
     
     <item>
       <title>分布式系统中的时间、时钟和事件的排序（一）</title>
