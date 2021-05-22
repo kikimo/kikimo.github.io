@@ -89,7 +89,7 @@ func (m *ManagerImpl) filterByAffinity(podUID, contName, resource string, availa
 }
 ```
 
-这个函把当前的可用这被按 numa 亲和性、非 numa 亲和性、无 numa 拓扑结构来划分。
+这个函把当前的可用设备按 numa 亲和性、非 numa 亲和性、无 numa 拓扑结构来划分。
 它存在的问题是，当一个设备属于多个 numa 节点时（没错，一个物理设备是可以同时属于多个 numa 节点的），
 它会把 numa 亲和性的设备划分到非 numa 亲和性的集合里。
 例如，设备 dev1 同时属于 nuam1 和 numa2 节点，设备 dev2 属于 numa1 节点，假设我们现在要求选择 numa2 节点上的设备，
