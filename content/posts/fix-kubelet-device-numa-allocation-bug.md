@@ -4,8 +4,6 @@ date: 2021-05-22T14:28:17+08:00
 draft: false
 ---
 
-最近修复了一个 kubelet numa 设备分配的 bug，
-目前[相关 fix](https://github.com/kubernetes/kubernetes/pull/101893/files)已经提交给社区并 merge 到主干了。
 k8s 在 1.18 以后发布了 topology manager 功能，允许用户根据硬件设备的 numa 拓扑来分配资源。
 topology manager 支持多种分配策略，其中一种叫 single numa node policy，
 这种策略承诺分配给 pod 的硬件都属于同一个 numa 节点。
@@ -158,3 +156,4 @@ dev2 又会被划到非亲和性设备集里。
 	})
 ```
 
+目前这个 bug 的[相关 fix](https://github.com/kubernetes/kubernetes/pull/101893/files)已经提交给社区并 merge 到主干了。
