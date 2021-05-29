@@ -16,7 +16,7 @@ x， y 可以用扩展欧几里德算法来计算。
 我们记录 d, x', y1 = egcd(b, c)，其中 x'b + y'c = d。
 记录 k = [a / b]，那么有 c = a - kb，所以有
 x'b + y'(a - kb) = d，整理后可得 y'a + (x' - ky')b = d，
-可知有 x = y', y = x' - k 使 ax + by = d。
+可知有 x = y', y = x' - ky' 使 ax + by = d。
 算法的实现如下：
 
 ```go
