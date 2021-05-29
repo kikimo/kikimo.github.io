@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>扩展欧几里德算法 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/egcd/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>扩展欧几里德算法</h1>
+    <time datetime="2021-05-29T18:56:21&#43;08:00">May 29, 2021</time>
+  </header>
+  <p>利用辗转相除法可以计算两个整数的最大公约数。
+我们记两个整数 a, b 的最大公约数为 gcd(a, b)，假设 gcd(a, b) = d，
+那么必定存在两个整数 x, y 使得 ax + by = d。
+x， y 可以用扩展欧几里德算法来计算。
+我们记 egcd(a, b) 为扩展欧几里德算法，且 d, x, y = egcd(a, b)
+其中 d = gcd(a, b)，且 ax + by = d。</p>
+<p>另 c = a % b，当 c = 0 时，易知 egcd(a, b) = b, 0, 1。
+当 c != 0，那么此时有 gcd(a, b) = gcd(b, c) = d。
+我们记录 d, x&rsquo;, y1 = egcd(b, c)，其中 x&rsquo;b + y&rsquo;c = d。
+记录 k = [a / b]，那么有 c = a - kb，所以有
+x&rsquo;b + y&rsquo;(a - kb) = d，整理后可得 y&rsquo;a + (x&rsquo; - ky&rsquo;)b = d，
+可知有 x = y&rsquo;, y = x&rsquo; - k 使 ax + by = d。
+算法的实现如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> <span style="color:#e6db74">&#34;fmt&#34;</span>
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">egcd</span>(<span style="color:#a6e22e">a</span>, <span style="color:#a6e22e">b</span> <span style="color:#66d9ef">int</span>) (<span style="color:#a6e22e">d</span>, <span style="color:#a6e22e">x</span>, <span style="color:#a6e22e">y</span> <span style="color:#66d9ef">int</span>) {
+    <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">a</span> &gt; <span style="color:#a6e22e">b</span> {
+        <span style="color:#a6e22e">d</span>, <span style="color:#a6e22e">x</span>, <span style="color:#a6e22e">y</span> = <span style="color:#a6e22e">doEgcd</span>(<span style="color:#a6e22e">a</span>, <span style="color:#a6e22e">b</span>)
+    } <span style="color:#66d9ef">else</span> {
+        <span style="color:#a6e22e">d</span>, <span style="color:#a6e22e">y</span>, <span style="color:#a6e22e">x</span> = <span style="color:#a6e22e">doEgcd</span>(<span style="color:#a6e22e">b</span>, <span style="color:#a6e22e">a</span>)
+    }
+
+    <span style="color:#66d9ef">return</span>
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">doEgcd</span>(<span style="color:#a6e22e">a</span>, <span style="color:#a6e22e">b</span> <span style="color:#66d9ef">int</span>) (<span style="color:#a6e22e">d</span>, <span style="color:#a6e22e">x</span>, <span style="color:#a6e22e">y</span> <span style="color:#66d9ef">int</span>) {
+    <span style="color:#75715e">// assume a &gt;= b
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">c</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">a</span> <span style="color:#f92672">%</span> <span style="color:#a6e22e">b</span>
+    <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">c</span> <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span> {
+        <span style="color:#a6e22e">d</span>, <span style="color:#a6e22e">x</span>, <span style="color:#a6e22e">y</span> = <span style="color:#a6e22e">b</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">1</span>
+        <span style="color:#66d9ef">return</span>
+    }
+
+    <span style="color:#a6e22e">d</span>, <span style="color:#a6e22e">xp</span>, <span style="color:#a6e22e">yp</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">doEgcd</span>(<span style="color:#a6e22e">b</span>, <span style="color:#a6e22e">c</span>)
+    <span style="color:#a6e22e">x</span>, <span style="color:#a6e22e">y</span> = <span style="color:#a6e22e">yp</span>, <span style="color:#a6e22e">xp</span> <span style="color:#f92672">-</span> (<span style="color:#a6e22e">a</span> <span style="color:#f92672">/</span> <span style="color:#a6e22e">b</span>) <span style="color:#f92672">*</span> <span style="color:#a6e22e">yp</span>
+    <span style="color:#66d9ef">return</span>
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+    <span style="color:#a6e22e">d</span>, <span style="color:#a6e22e">x</span>, <span style="color:#a6e22e">y</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">egcd</span>(<span style="color:#ae81ff">5</span>, <span style="color:#ae81ff">3</span>)
+    <span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;egcd %d, %d: %d, x: %d, y: %d\n&#34;</span>, <span style="color:#ae81ff">5</span>, <span style="color:#ae81ff">3</span>, <span style="color:#a6e22e">d</span>, <span style="color:#a6e22e">x</span>, <span style="color:#a6e22e">y</span>)
+}
+</code></pre></div><p>扩展欧激励得算法可用来求解以下问题：
+设 a, m 为整数且 m 为素数，求某个整数 x 使得 ax=1(mod m)。
+这个问题其实也可以理解为求 a 在取模运算下的倒数，既 x=a^-1(mod m)。
+由于 m 为素数，所以必然有 gcd(a, m) = 1，
+又通过扩展欧几里德算法我们可以计算出 x, y 使得 ax + my = 1，
+可知 x 即是我们要的解，因为 (ax + my)=1(mod m)，my=0(mod m)，所以 ax=1(mod m)。</p>
+
+</article>
+
+
+
+</html>
