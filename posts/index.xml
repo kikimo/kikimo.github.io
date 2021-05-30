@@ -18,7 +18,7 @@
       
       <guid>https://coderatwork.cn/posts/egcd/</guid>
       <description>利用辗转相除法可以计算两个整数的最大公约数。 我们记两个整数 a, b 的最大公约数为 gcd(a, b)，假设 gcd(a, b) = d， 那么必定存在两个整数 x, y 使得 ax + by = d。 x， y 可以用扩展欧几里德算法来计算。 我们记 egcd(a, b) 为扩展欧几里德算法，且 d, x, y = egcd(a, b) 其中 d = gcd(a, b)，且 ax + by = d。
-令 c = a % b，当 c = 0 时，易知 egcd(a, b) = b, 0, 1。 当 c != 0，那么此时有 gcd(a, b) = gcd(b, c) = d。 我们记录 d, x&amp;rsquo;, y1 = egcd(b, c)，其中 x&amp;rsquo;b + y&amp;rsquo;c = d。 记录 k = [a / b]，那么有 c = a - kb，所以有 x&amp;rsquo;b + y&amp;rsquo;(a - kb) = d，整理后可得 y&amp;rsquo;a + (x&amp;rsquo; - ky&amp;rsquo;)b = d， 可知有 x = y&amp;rsquo;, y = x&amp;rsquo; - ky&amp;rsquo; 使 ax + by = d。 算法的实现如下：</description>
+令 c = a % b，当 c = 0 时，易知 egcd(a, b) = b, 0, 1。 当 c != 0，那么此时有 gcd(a, b) = gcd(b, c) = d。 我们记录 d, x&amp;rsquo;, y&amp;rsquo; = egcd(b, c)，其中 x&amp;rsquo;b + y&amp;rsquo;c = d。 记录 k = [a / b]，那么有 c = a - kb，所以有 x&amp;rsquo;b + y&amp;rsquo;(a - kb) = d，整理后可得 y&amp;rsquo;a + (x&amp;rsquo; - ky&amp;rsquo;)b = d， 可知有 x = y&amp;rsquo;, y = x&amp;rsquo; - ky&amp;rsquo; 使 ax + by = d。 算法的实现如下：</description>
     </item>
     
     <item>
