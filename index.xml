@@ -6,10 +6,21 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 29 May 2021 18:56:21 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 30 Oct 2021 19:23:36 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Raft 中的选举风暴</title>
+      <link>https://coderatwork.cn/posts/raft-election-storm/</link>
+      <pubDate>Sat, 30 Oct 2021 19:23:36 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/raft-election-storm/</guid>
+      <description>A server remains in follower state as long as it receives valid RPCs from a leader or candidate.
+ Follower 在 election timeout 期间内如果收到合法的心跳包或者选举请求就会继续保持 follower 状态。 那么，什么是合法的选举请求？一个合法的选举请求必须满足一下两个条件：
+ 选举请求中的 term 满足 term &amp;gt;= currentTerm 当前节点中 votedFor 字段为 null 或者等于 candidateId  当 term &amp;gt; currentTerm 时需要把节点转为 follower，同时设置 votedFor 字段为 null。 什么情况下 term == currentTerm &amp;amp;&amp;amp; votedFor == null？ 当 Raft 第一次运行的时候，此时各个实例的 term == 0，且 votedFor == null。 什么情况下 term == currentTerm &amp;amp;&amp;amp; votedFor == candidteId？ 当 raft 实例收到 candidate 重复的 RPC 请求， 此时可能 term == currentTerm 且 votedFor == candidateId， 此时 follower 也要投票给 candidate。</description>
+    </item>
     
     <item>
       <title>扩展欧几里德算法及其应用</title>
