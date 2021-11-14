@@ -2,6 +2,17 @@
 <html lang="en-us">
 <title>单例模式和内存屏障 | kikimo</title>
 <meta charset="utf-8">
+
+<script>
+  var _hmt = _hmt || [];
+  (function() {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0]; 
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
+
 <meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/singleton-and-mb/">
@@ -270,17 +281,6 @@ b <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>;
 所以重新翻了<code>Why Memory Barrier</code>这篇文章，把单例的实现和内存屏障相关的知识点也整理在这篇笔记中。</p>
 
 </article>
-
-<script>
-  var _hmt = _hmt || [];
-  (function() {
-    var hm = document.createElement("script");
-    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
-    var s = document.getElementsByTagName("script")[0]; 
-    s.parentNode.insertBefore(hm, s);
-  })();
-</script>
-
 
 
 </html>
