@@ -6,10 +6,20 @@
     <description>Recent content in Posts on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 17 Nov 2021 21:49:32 +0800</lastBuildDate>
+    <lastBuildDate>Wed, 17 Nov 2021 21:59:08 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Nebula Raft 死锁问题分析</title>
+      <link>https://coderatwork.cn/posts/raft-deadlock/</link>
+      <pubDate>Wed, 17 Nov 2021 21:59:08 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/raft-deadlock/</guid>
+      <description>最近几周在测试 Nebula 的时候经常碰到 raft storage 节点莫名离线的问题。 具体情况是这样的: 起一个 5storage 节点的 raft 集群， 然后开插边压测程序，同时不停的制造 leader change 的场景， 通常十分钟以内就能看到至少一个 storage 节点变成离线状态， 但是节点对应的进程却还活着的：
+(root@nebula) [(none)]&amp;gt; show hosts; +-----------------+-------+-----------+--------------+----------------------+------------------------+ | Host | Port | Status | Leader count | Leader distribution | Partition distribution | +-----------------+-------+-----------+--------------+----------------------+------------------------+ | &amp;#34;192.168.15.11&amp;#34; | 33299 | &amp;#34;OFFLINE&amp;#34; | 0 | &amp;#34;No valid partition&amp;#34; | &amp;#34;ttos_3p3r:1&amp;#34; | +-----------------+-------+-----------+--------------+----------------------+------------------------+ | &amp;#34;192.168.15.11&amp;#34; | 54889 | &amp;#34;ONLINE&amp;#34; | 0 | &amp;#34;No valid partition&amp;#34; | &amp;#34;ttos_3p3r:1&amp;#34; | +-----------------+-------+-----------+--------------+----------------------+------------------------+ | &amp;#34;192.</description>
+    </item>
     
     <item>
       <title>为什么 Raft 遇到 higher term 要 update 本地 term</title>
