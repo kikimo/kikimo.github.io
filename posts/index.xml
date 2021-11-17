@@ -19,7 +19,7 @@
       <guid>https://coderatwork.cn/posts/raft-election-storm/</guid>
       <description>A server remains in follower state as long as it receives valid RPCs from a leader or candidate.
  Follower 在 election timeout 期间内如果收到合法的心跳包或者选举请求就会继续保持 follower 状态。 那么，什么是合法的选举请求？一个合法的选举请求必须满足一下两个条件：
- 选举请求中的 term 满足 term &amp;gt;= currentTerm 当前节点中 votedFor 字段为 null 或者等于 candidateId  当 term &amp;gt; currentTerm 时需要把节点转为 follower，同时设置 votedFor 字段为 null。 什么情况下 term == currentTerm &amp;amp;&amp;amp; votedFor == null？ 当 Raft 第一次运行的时候，此时各个实例的 term == 0，且 votedFor == null。 什么情况下 term == currentTerm &amp;amp;&amp;amp; votedFor == candidteId？ 当 raft 实例收到 candidate 重复的 RPC 请求， 此时可能 term == currentTerm 且 votedFor == candidateId， 此时 follower 也要投票给 candidate。</description>
+ 选举请求中的 term 满足 term &amp;gt;= currentTerm 当前节点中 votedFor 字段为 null 或者等于 candidateId  当 term &amp;gt; currentTerm 时需要把节点转为 follower，同时设置 votedFor 字段为 null。 什么情况下 term == currentTerm &amp;amp;&amp;amp; votedFor == null？ 一种场景是某个 raft 实例收到一个 higher term 的 vote 请求，但是因为它的日志更新， 此时它的 term 被 update，但是因为没有投票所以 voteFor 字段是 null， 这时候如果刚好另外一个处于同样 term 的 candidate 的 vote 请求过来， 他就能看到 term == currentTerm &amp;amp;&amp;amp; votedFor == null 的情况。 什么情况下 term == currentTerm &amp;amp;&amp;amp; votedFor == candidteId？ 当 raft 实例收到 candidate 重复的 RPC 请求， 可能 term == currentTerm 且 votedFor == candidateId， 此时 follower 也要投票给 candidate。</description>
     </item>
     
     <item>

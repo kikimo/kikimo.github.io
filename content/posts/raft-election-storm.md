@@ -14,10 +14,13 @@ Follower 在 election timeout 期间内如果收到合法的心跳包或者选�
 
 当 term > currentTerm 时需要把节点转为 follower，同时设置 votedFor 字段为 null。
 什么情况下 term == currentTerm && votedFor == null？
-当 Raft 第一次运行的时候，此时各个实例的 term == 0，且 votedFor == null。
+一种场景是某个 raft 实例收到一个 higher term 的 vote 请求，但是因为它的日志更新，
+此时它的 term 被 update，但是因为没有投票所以 voteFor 字段是 null，
+这时候如果刚好另外一个处于同样 term 的 candidate 的 vote 请求过来，
+他就能看到 term == currentTerm && votedFor == null 的情况。
 什么情况下 term == currentTerm && votedFor == candidteId？
 当 raft 实例收到 candidate 重复的 RPC 请求，
-此时可能 term == currentTerm 且 votedFor == candidateId，
+可能 term == currentTerm 且 votedFor == candidateId，
 此时 follower 也要投票给 candidate。
 
 为什么收到合法的 candidateId 时 raft 实例也要保持 follower 状态——即重置 election timeout 计时器？
