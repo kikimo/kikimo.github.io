@@ -6,10 +6,20 @@
     <description>Recent content in Posts on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 17 Nov 2021 21:59:08 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 04 Dec 2021 04:24:48 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>二分搜索</title>
+      <link>https://coderatwork.cn/posts/binary-search/</link>
+      <pubDate>Sat, 04 Dec 2021 04:24:48 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/binary-search/</guid>
+      <description>二分搜索指在有序列表中通过折半查找的方式寻找目标允许。 对比顺序检索，二分搜索可以吧时间复杂度从 O(n) 优化到 O(nlogn)。 来看二分搜索的示例代码：
+int bsearch(std::vector&amp;lt;int&amp;gt; &amp;amp;a, int target) { int s = 0, e = a.size(); while (s &amp;lt; e) { int m = (s + e) / 2; if (a[m] == target) { return m; } else if (a[m] &amp;gt; target) { e = m; } else { // a[m] &amp;lt; target  s = m + 1; } } return -1; } 注意到变量s和e，它们构成一个左闭右开的搜索空间[s, e)， 每次迭代取中点m = floor((s + e) / 2)， 它满足s &amp;lt;= m &amp;lt; e。 每次迭代如果没有发现目标元素那么算法或者更新s = m + 1，或者更新e = m， 这可以保证我们的搜索范围是严格收敛的（因为s &amp;lt;= m &amp;lt; e）。</description>
+    </item>
     
     <item>
       <title>Nebula Raft 死锁问题分析</title>

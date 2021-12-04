@@ -3,6 +3,16 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
+    <loc>https://coderatwork.cn/posts/</loc>
+    <lastmod>2021-12-04T04:24:48+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://coderatwork.cn/posts/binary-search/</loc>
+    <lastmod>2021-12-04T04:24:48+08:00</lastmod>
+  </url>
+  
+  <url>
     <loc>https://coderatwork.cn/</loc>
     <lastmod>2021-11-17T21:59:08+08:00</lastmod>
   </url>
@@ -14,11 +24,6 @@
   
   <url>
     <loc>https://coderatwork.cn/raft-deadlock/</loc>
-    <lastmod>2021-11-17T21:59:08+08:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://coderatwork.cn/posts/</loc>
     <lastmod>2021-11-17T21:59:08+08:00</lastmod>
   </url>
   
