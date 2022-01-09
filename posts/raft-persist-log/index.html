@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>Raft 日志持久化 | kikimo</title>
+<meta charset="utf-8">
+
+<script>
+  var _hmt = _hmt || [];
+  (function() {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0]; 
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
+
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/raft-persist-log/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>Raft 日志持久化</h1>
+    <time datetime="2022-01-09T13:53:52&#43;08:00">January 09, 2022</time>
+  </header>
+  <p>Raft 日志需要持久化，问题是在什么时候持久化？
+用户每提交一条日志都要先保证落盘吗？
+这种做法可以保证数据的完整性，
+但想象一下每次都是单条日志进来，每条日志都触发<code>write()</code>、<code>fsync()</code>等操作，
+如此一来性能肯定不理想。
+我们可以等一批日志进来后再批量落盘。
+但还是要回答一个问题，什么时候需要保证日志数据落盘？
+或者我们不妨换个角度考虑这个问题：如果日志数据没有及时落盘会出现什么问题？
+我们知道，一条日志包括几种状态：</p>
+<ol>
+<li>uncommited：未提交</li>
+<li>commited：已提交</li>
+<li>applied：已执行</li>
+</ol>
+<p>先考虑已提交的日志——如果一条日志已经提交但是没有落盘会出现什么问题？
+我们假设在一个五节点的 Raft 集群中出现的一个场景：</p>
+<ol>
+<li>p1 是 leader，p1 成功将一条日志 l1 复制到 p2、p3</li>
+<li>p2、p3 感知到 l1 被提交，并在本地执行这条日志</li>
+<li>p1 尚未执行 l1，且 l1 在 p1 上尚未落盘，这时候 p1 crash</li>
+<li>p1 重启，p4、p5 两个节点选举 p1 为 leader</li>
+<li>p1 在原来 l1 日志对应的 index 提交一条新日志 l2</li>
+</ol>
+<p>可以看到日志 l2 和原来的 l1 冲突了，而不幸的是 l1 在 p2、p3 上已经被执行了。
+通过以上分析可以知道一条日志在提交之前一定要保证落盘，
+因为日志的执行在日志提交之后，
+所以如果我们保证这一点那也就意味着一条被执行的日志肯定已经落盘。</p>
+<p>不考虑快照、日志压缩的情况下，Raft 要保证数据不丢失只要保证提交的日志数据不丢失即可。
+因为对于尚未明确需不需要提交的日志数据，及时丢了也不会影响到算法的正确运行。
+综上，在实现 Raft 的时，
+我们可以在确定一批日志数据可以提交的时候再执行批量落盘操作，
+这样既保证算法的正确运行又提升了算法的效率。</p>
+
+</article>
+
+
+</html>
