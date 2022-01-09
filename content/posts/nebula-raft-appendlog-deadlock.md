@@ -21,8 +21,6 @@ W1019 08:28:34.615942 539751 RaftPart.cpp:601] [Port: 50944, Space: 3, Part: 1] 
 这个报错信息诡异的地方就在于，一方面系统告诉你 raft append log 缓冲已经满了，
 另一方面 raft leader 又没在复制日志。
 
-In bool RaftPart::checkAppendLogResult(AppendLogResult res) we can see that it release logsLock_ before setting replicatingLogs_ to false, during this period, log can be append to logs_ until it overflows and set bufferOverFlow_ to true:
-
 在`bool RaftPart::checkAppendLogResult(AppendLogResult res)`这个方法里我们可以看到，
 它在把`replicatingLogs_`变量设置为`false`前释放`logsLock_`锁。
 那么在`logsLock_`锁释放且`replicatingLogs = false`的这个间隙
