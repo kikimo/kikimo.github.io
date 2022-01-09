@@ -12,6 +12,16 @@
     
     
     <item>
+      <title>Nebula Raft Appendlog 死锁问题分析</title>
+      <link>https://coderatwork.cn/posts/nebula-raft-appendlog-deadlock/</link>
+      <pubDate>Sun, 09 Jan 2022 17:43:08 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/nebula-raft-appendlog-deadlock/</guid>
+      <description>Nebula 在高并发的情况下整个集群经常会陷入不可用的状态， 在这种状态下不管你执行什么操作系统都只给你返回一个 leader change 的错误信息。 storage 的日志中我们可以看到大量如下报错信息：
+W1019 08:26:21.220441 539751 RaftPart.cpp:601] [Port: 50944, Space: 3, Part: 1] The appendLog buffer is full. Please slow down the log appending rate.replicatingLogs_ :0 W1019 08:26:54.569221 539751 RaftPart.cpp:601] [Port: 50944, Space: 3, Part: 1] The appendLog buffer is full. Please slow down the log appending rate.replicatingLogs_ :0 W1019 08:27:27.919421 539751 RaftPart.cpp:601] [Port: 50944, Space: 3, Part: 1] The appendLog buffer is full. Please slow down the log appending rate.</description>
+    </item>
+    
+    <item>
       <title>Nebula Storage 无法 Kill 问题分析</title>
       <link>https://coderatwork.cn/posts/nebula-kill-fail/</link>
       <pubDate>Sun, 09 Jan 2022 16:48:52 +0800</pubDate>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>Nebula Raft Appendlog 死锁问题分析 | kikimo</title>
+<meta charset="utf-8">
+
+<script>
+  var _hmt = _hmt || [];
+  (function() {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0]; 
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
+
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/nebula-raft-appendlog-deadlock/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>Nebula Raft Appendlog 死锁问题分析</h1>
+    <time datetime="2022-01-09T17:43:08&#43;08:00">January 09, 2022</time>
+  </header>
+  <p>Nebula 在高并发的情况下整个集群经常会陷入不可用的状态，
+在这种状态下不管你执行什么操作系统都只给你返回一个 leader change 的错误信息。
+storage 的日志中我们可以看到大量如下报错信息：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">W1019 08:26:21.220441 539751 RaftPart.cpp:601] [Port: 50944, Space: 3, Part: 1] The appendLog buffer is full. Please slow down the log appending rate.replicatingLogs_ :0
+W1019 08:26:54.569221 539751 RaftPart.cpp:601] [Port: 50944, Space: 3, Part: 1] The appendLog buffer is full. Please slow down the log appending rate.replicatingLogs_ :0
+W1019 08:27:27.919421 539751 RaftPart.cpp:601] [Port: 50944, Space: 3, Part: 1] The appendLog buffer is full. Please slow down the log appending rate.replicatingLogs_ :0
+W1019 08:28:01.268051 539751 RaftPart.cpp:601] [Port: 50944, Space: 3, Part: 1] The appendLog buffer is full. Please slow down the log appending rate.replicatingLogs_ :0
+W1019 08:28:34.615942 539751 RaftPart.cpp:601] [Port: 50944, Space: 3, Part: 1] The appendLog buffer is full. Please slow down the log appending rate.replicatingLogs_ :0
+</code></pre></div><p>如果我们跟进 storage 的代码里就会发现，
+<code>replicatingLogs_ </code>这个变量表示当前 Raft leader 是否正在复制日志到其他节点。
+这个报错信息诡异的地方就在于，一方面系统告诉你 raft append log 缓冲已经满了，
+另一方面 raft leader 又没在复制日志。</p>
+<p>In bool RaftPart::checkAppendLogResult(AppendLogResult res) we can see that it release logsLock_ before setting replicatingLogs_ to false, during this period, log can be append to logs_ until it overflows and set bufferOverFlow_ to true:</p>
+<p>在<code>bool RaftPart::checkAppendLogResult(AppendLogResult res)</code>这个方法里我们可以看到，
+它在把<code>replicatingLogs_</code>变量设置为<code>false</code>前释放<code>logsLock_</code>锁。
+那么在<code>logsLock_</code>锁释放且<code>replicatingLogs = false</code>的这个间隙
+系统可以一直 appendlog 直到 appendlog 的缓冲区满了、<code>bufferOverFlow</code>被设置为<code>true</code>。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">bool</span> RaftPart<span style="color:#f92672">::</span>checkAppendLogResult(AppendLogResult res) { 
+  <span style="color:#66d9ef">if</span> (res <span style="color:#f92672">!=</span> AppendLogResult<span style="color:#f92672">::</span>SUCCEEDED) { 
+    { 
+      std<span style="color:#f92672">::</span>lock_guard<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>mutex<span style="color:#f92672">&gt;</span> lck(logsLock_); 
+      logs_.clear(); 
+      cachingPromise_.setValue(res); 
+      cachingPromise_.reset(); 
+      bufferOverFlow_ <span style="color:#f92672">=</span> false; 
+    } 
+    sendingPromise_.setValue(res); 
+    replicatingLogs_ <span style="color:#f92672">=</span> false; 
+    <span style="color:#66d9ef">return</span> false; 
+  } 
+  <span style="color:#66d9ef">return</span> true; 
+} 
+</code></pre></div><p>这个操作是灾难性的，因为，在
+<code>folly::Future&lt;AppendLogResult&gt; RaftPart::appendLogAsync()</code>
+中我们看到一旦<code>bufferOverFlow</code>被设置为<code>true</code>，<code>appendLogAsync()</code>会立即返回报错，
+同时，因为<code>replicatingLogs = false</code>系统中不会再启动任务消费缓冲区中的 Raft log，
+整个服务就这样死锁了：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"> folly<span style="color:#f92672">::</span>Future<span style="color:#f92672">&lt;</span>AppendLogResult<span style="color:#f92672">&gt;</span> RaftPart<span style="color:#f92672">::</span>appendLogAsync(ClusterID source, 
+                                                         LogType logType, 
+                                                         std<span style="color:#f92672">::</span>string log, 
+                                                         AtomicOp op) { 
+   <span style="color:#66d9ef">if</span> (blocking_) { 
+     <span style="color:#75715e">// No need to block heartbeats and empty log. 
+</span><span style="color:#75715e"></span>     <span style="color:#66d9ef">if</span> ((logType <span style="color:#f92672">==</span> LogType<span style="color:#f92672">::</span>NORMAL <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">!</span>log.empty()) <span style="color:#f92672">||</span> logType <span style="color:#f92672">==</span> LogType<span style="color:#f92672">::</span>ATOMIC_OP) { 
+       <span style="color:#66d9ef">return</span> AppendLogResult<span style="color:#f92672">::</span>E_WRITE_BLOCKING; 
+     } 
+   } 
+  
+   LogCache swappedOutLogs; 
+   <span style="color:#66d9ef">auto</span> retFuture <span style="color:#f92672">=</span> folly<span style="color:#f92672">::</span>Future<span style="color:#f92672">&lt;</span>AppendLogResult<span style="color:#f92672">&gt;::</span>makeEmpty(); 
+  
+   <span style="color:#66d9ef">if</span> (bufferOverFlow_) { 
+     LOG_EVERY_N(WARNING, <span style="color:#ae81ff">100</span>) <span style="color:#f92672">&lt;&lt;</span> idStr_ 
+                               <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;The appendLog buffer is full.&#34;</span> 
+                                  <span style="color:#e6db74">&#34; Please slow down the log appending rate.&#34;</span> 
+                               <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;replicatingLogs_ :&#34;</span> <span style="color:#f92672">&lt;&lt;</span> replicatingLogs_; 
+     <span style="color:#66d9ef">return</span> AppendLogResult<span style="color:#f92672">::</span>E_BUFFER_OVERFLOW; 
+   } 
+   { 
+     std<span style="color:#f92672">::</span>lock_guard<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>mutex<span style="color:#f92672">&gt;</span> lck(logsLock_); 
+  
+     VLOG(<span style="color:#ae81ff">2</span>) <span style="color:#f92672">&lt;&lt;</span> idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Checking whether buffer overflow&#34;</span>; 
+  
+     <span style="color:#66d9ef">if</span> (logs_.size() <span style="color:#f92672">&gt;=</span> FLAGS_max_batch_size) { 
+       <span style="color:#75715e">// Buffer is full 
+</span><span style="color:#75715e"></span>       LOG(WARNING) <span style="color:#f92672">&lt;&lt;</span> idStr_ 
+                    <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;The appendLog buffer is full.&#34;</span> 
+                       <span style="color:#e6db74">&#34; Please slow down the log appending rate.&#34;</span> 
+                    <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;replicatingLogs_ :&#34;</span> <span style="color:#f92672">&lt;&lt;</span> replicatingLogs_; 
+       bufferOverFlow_ <span style="color:#f92672">=</span> true; 
+       <span style="color:#66d9ef">return</span> AppendLogResult<span style="color:#f92672">::</span>E_BUFFER_OVERFLOW; 
+     } 
+  
+     VLOG(<span style="color:#ae81ff">2</span>) <span style="color:#f92672">&lt;&lt;</span> idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Appending logs to the buffer&#34;</span>; 
+  
+     <span style="color:#75715e">// Append new logs to the buffer 
+</span><span style="color:#75715e"></span>     DCHECK_GE(source, <span style="color:#ae81ff">0</span>); 
+     logs_.emplace_back(source, logType, std<span style="color:#f92672">::</span>move(log), std<span style="color:#f92672">::</span>move(op)); 
+     <span style="color:#66d9ef">switch</span> (logType) { 
+       <span style="color:#66d9ef">case</span> LogType<span style="color:#f92672">::</span>ATOMIC_OP: 
+         retFuture <span style="color:#f92672">=</span> cachingPromise_.getSingleFuture(); 
+         <span style="color:#66d9ef">break</span>; 
+       <span style="color:#66d9ef">case</span> LogType<span style="color:#f92672">::</span>COMMAND: 
+         retFuture <span style="color:#f92672">=</span> cachingPromise_.getAndRollSharedFuture(); 
+         <span style="color:#66d9ef">break</span>; 
+       <span style="color:#66d9ef">case</span> LogType<span style="color:#f92672">::</span>NORMAL: 
+         retFuture <span style="color:#f92672">=</span> cachingPromise_.getSharedFuture(); 
+         <span style="color:#66d9ef">break</span>; 
+     } 
+  
+     <span style="color:#66d9ef">bool</span> expected <span style="color:#f92672">=</span> false; 
+     <span style="color:#66d9ef">if</span> (replicatingLogs_.compare_exchange_strong(expected, true)) { 
+       <span style="color:#75715e">// We need to send logs to all followers 
+</span><span style="color:#75715e"></span>       VLOG(<span style="color:#ae81ff">2</span>) <span style="color:#f92672">&lt;&lt;</span> idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Preparing to send AppendLog request&#34;</span>; 
+       sendingPromise_ <span style="color:#f92672">=</span> std<span style="color:#f92672">::</span>move(cachingPromise_); 
+       cachingPromise_.reset(); 
+       std<span style="color:#f92672">::</span>swap(swappedOutLogs, logs_); 
+       bufferOverFlow_ <span style="color:#f92672">=</span> false; 
+     } <span style="color:#66d9ef">else</span> { 
+       VLOG(<span style="color:#ae81ff">2</span>) <span style="color:#f92672">&lt;&lt;</span> idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Another AppendLogs request is ongoing, just return&#34;</span>; 
+       <span style="color:#66d9ef">return</span> retFuture; 
+     } 
+   } 
+...
+</code></pre></div>
+</article>
+
+
+</html>
