@@ -12,6 +12,17 @@
     
     
     <item>
+      <title>Nebula Raft 中的选举死锁</title>
+      <link>https://coderatwork.cn/posts/nebula-raft-election-lock/</link>
+      <pubDate>Sun, 09 Jan 2022 19:05:51 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/nebula-raft-election-lock/</guid>
+      <description>最近碰到 Nebula storage 节点无法选举的问题， 集体场景是：在一个七节点的集群中挂了三个节点， 按照预期剩下的四个节点应该能选出新的 leader 让继续提供服务， 但是我们观察到这四个节点选不出 leader 了：
+我们筛选出没挂掉的四个节点：
+# sh show.sh | grep storaged | grep -v T root 1840662 234 0.0 1464340 191056 ? Ssl 14:42 51:20 /root/src/nebula/build/bin/nebula-storaged --flagfile /data/src/ntest/test/etc/nebula-storaged.conf --pid_file /data/src/ntest/test/pids/nebula-storaged.pid.0 --meta_server_addrs 192.168.15.12:9559 --heartbeat_interval_secs 1 --raft_heartbeat_interval_secs 1 --wal_ttl 259200 --clean_wal_interval_secs 259200 --minloglevel 2 --log_dir /data/src/ntest/test/logs/storaged.0 --local_ip 192.168.15.12 --port 54773 --ws_http_port 55577 --ws_h2_port 47925 --data_path /data/src/ntest/test/data/storaged.0 root 1840954 960 0.0 1473044 198408 ? Ssl 14:42 208:39 /root/src/nebula/build/bin/nebula-storaged --flagfile /data/src/ntest/test/etc/nebula-storaged.</description>
+    </item>
+    
+    <item>
       <title>Nebula Raft Appendlog 死锁问题分析</title>
       <link>https://coderatwork.cn/posts/nebula-raft-appendlog-deadlock/</link>
       <pubDate>Sun, 09 Jan 2022 17:43:08 +0800</pubDate>
