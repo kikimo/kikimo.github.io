@@ -12,6 +12,16 @@
     
     
     <item>
+      <title>Nebula Storage 无法 Kill 问题分析</title>
+      <link>https://coderatwork.cn/posts/nebula-kill-fail/</link>
+      <pubDate>Sun, 09 Jan 2022 16:48:52 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/nebula-kill-fail/</guid>
+      <description>Nebula storage 实例经常出现无法 kill 的情况。 必须使用暴力的kill -9才能强行让它退出。 storage 无法 kill 一例：
+# ps aux USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND root 1 0.0 0.0 1104 4 ? Ss 14:43 0:00 /sbin/docker-init -- /bin/bash -c /root/nebula-cluster/scripts/run-storage.sh root 7 0.0 0.0 3976 3136 ? S 14:43 0:00 /bin/bash /root/nebula-cluster/scripts/run-storage.sh root 11 0.0 0.0 12176 4300 ? Ss 14:43 0:00 sshd: /usr/sbin/sshd [listener] 0 of 10-100 startups root 12 14.</description>
+    </item>
+    
+    <item>
       <title>Raft 选主问题——及时更新 currentTerm</title>
       <link>https://coderatwork.cn/posts/raft-update-current-term/</link>
       <pubDate>Sun, 09 Jan 2022 15:28:52 +0800</pubDate>

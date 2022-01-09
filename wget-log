@@ -1,0 +1,15 @@
+--2022-01-09 17:10:33--  https://confluence.nebula-graph.io/download/attachments/10735171/image2021-12-8_17-2-47.png?version=1
+Resolving confluence.nebula-graph.io (confluence.nebula-graph.io)... 104.214.179.252
+Connecting to confluence.nebula-graph.io (confluence.nebula-graph.io)|104.214.179.252|:443... connected.
+HTTP request sent, awaiting response... 302 
+Location: https://confluence.nebula-graph.io/login.action?os_destination=%2Fdownload%2Fattachments%2F10735171%2Fimage2021-12-8_17-2-47.png%3Fversion%3D1&permissionViolation=true [following]
+--2022-01-09 17:10:33--  https://confluence.nebula-graph.io/login.action?os_destination=%2Fdownload%2Fattachments%2F10735171%2Fimage2021-12-8_17-2-47.png%3Fversion%3D1&permissionViolation=true
+Reusing existing connection to confluence.nebula-graph.io:443.
+HTTP request sent, awaiting response... 200 
+Length: unspecified [text/html]
+Saving to: ‘image2021-12-8_17-2-47.png?version=1’
+
+image2021-12-8_17-2-47.png?version=1                  [<=>                                                                                                         ]       0  --.-KB/s               image2021-12-8_17-2-47.png?version=1                  [ <=>                                                                                                        ]  32.83K  --.-KB/s    in 0.08s   
+
+2022-01-09 17:10:33 (411 KB/s) - ‘image2021-12-8_17-2-47.png?version=1’ saved [33620]
+
