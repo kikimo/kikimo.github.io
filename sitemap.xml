@@ -3,12 +3,17 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
-    <loc>https://coderatwork.cn/posts/nebula-raft-inconsistency/</loc>
-    <lastmod>2022-01-09T19:22:15+08:00</lastmod>
+    <loc>https://coderatwork.cn/posts/nebula-storage-crazy/</loc>
+    <lastmod>2022-01-11T21:05:11+08:00</lastmod>
   </url>
   
   <url>
     <loc>https://coderatwork.cn/posts/</loc>
+    <lastmod>2022-01-11T21:05:11+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://coderatwork.cn/posts/nebula-raft-inconsistency/</loc>
     <lastmod>2022-01-09T19:22:15+08:00</lastmod>
   </url>
   

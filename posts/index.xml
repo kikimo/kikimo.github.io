@@ -6,10 +6,21 @@
     <description>Recent content in Posts on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sun, 09 Jan 2022 19:22:15 +0800</lastBuildDate>
+    <lastBuildDate>Tue, 11 Jan 2022 21:05:11 +0800</lastBuildDate>
     
 	<atom:link href="https://coderatwork.cn/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Nebula Storage 疯了（一）</title>
+      <link>https://coderatwork.cn/posts/nebula-storage-crazy/</link>
+      <pubDate>Tue, 11 Jan 2022 21:05:11 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/nebula-storage-crazy/</guid>
+      <description>问题详情参考这两个 issue：
+ Storage go crazy while balancing data #3664 Extra parts found after performing balance operation #3657  这个问题概括而言就是： 在 storage balance data 的时候如果触发 leader change 那么集群中至少会发现有一个节点进入一种疯狂的状态——CPU 飙升到 3000+%， pstack 显示有大量线程在获取 RWSpinlock。
+# pidstat -p 14 -u 1 Linux 5.4.0-91-generic (store1) 01/11/22 _x86_64_ (128 CPU) 10:25:23 UID PID %usr %system %guest %wait %CPU CPU Command 10:25:24 0 14 3147.00 1755.00 0.00 0.00 4902.00 27 nebula-storaged 10:25:25 0 14 4899.00 0.</description>
+    </item>
     
     <item>
       <title>Nebula Raft 中的数据不一致问题</title>

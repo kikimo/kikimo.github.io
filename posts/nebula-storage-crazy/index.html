@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>Nebula Storage 疯了（一） | kikimo</title>
+<meta charset="utf-8">
+
+<script>
+  var _hmt = _hmt || [];
+  (function() {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0]; 
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
+
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/nebula-storage-crazy/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>Nebula Storage 疯了（一）</h1>
+    <time datetime="2022-01-11T21:05:11&#43;08:00">January 11, 2022</time>
+  </header>
+  <p>问题详情参考这两个 issue：</p>
+<ol>
+<li>Storage go crazy while balancing data #3664</li>
+<li>Extra parts found after performing balance operation #3657</li>
+</ol>
+<p>这个问题概括而言就是：
+在 storage balance data 的时候如果触发 leader change 那么集群中至少会发现有一个节点进入一种疯狂的状态——CPU 飙升到 3000+%，
+pstack 显示有大量线程在获取 RWSpinlock。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># pidstat -p 14 -u 1
+Linux 5.4.0-91-generic (store1)     01/11/22    _x86_64_    (128 CPU)
+ 
+10:25:23      UID       PID    %usr %system  %guest   %wait    %CPU   CPU  Command
+10:25:24        0        14 3147.00 1755.00    0.00    0.00 4902.00    27  nebula-storaged
+10:25:25        0        14 4899.00    0.00    0.00    0.00 4899.00    27  nebula-storaged
+10:25:26        0        14 3979.00  921.00    0.00    0.00 4900.00    27  nebula-storaged
+10:25:27        0        14 3095.00 1765.00    0.00    0.00 4860.00    27  nebula-storaged
+10:25:28        0        14 4900.00    0.00    0.00    0.00 4900.00    27  nebula-storaged
+10:25:29        0        14 4020.00  878.00    0.00    0.00 4898.00    27  nebula-storaged
+10:25:30        0        14 3089.00 1810.00    0.00    0.00 4899.00    27  nebula-storaged
+^C
+Average:        0        14 3875.57 1018.43    0.00    0.00 4894.00     -  nebula-storaged
+</code></pre></div><p>猜测主要问题应该就在 spinlock 上。
+观察 pstack 中的堆栈，所有的 spinlock 似乎都是 RaftexService.cpp:165 这样代码调用的：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+thread: 0, lwp: 22, type: 0
+#0  0x000000000352adeb in folly::RWSpinLock::try_lock_shared()+107 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RWSpinLock.h:281
+#1  0x000000000352ac41 in folly::RWSpinLock::lock_shared()+34 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RWSpinLock.h:210
+#2  0x000000000352ae65 in ReadHolder()+44 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RWSpinLock.h:320
+#3  0x00000000048819fd in nebula::raftex::RaftexService::findPart()+68 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RaftexService.cpp:165
+#4  0x0000000004882067 in nebula::raftex::RaftexService::appendLog()+96 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RaftexService.cpp:200
+#5  0x000000000496021e in nebula::raftex::cpp2::RaftexServiceSvIf::async_tm_appendLog()+559 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RaftexService.cpp:131
+#6  0x00000000049692b2 in nebula::raftex::cpp2::RaftexServiceAsyncProcessor::process_appendLog&lt;apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter&gt;()+795 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RaftexService.tcc:115
+#7  0x000000000498d1c4 in apache::thrift::RequestTask&lt;nebula::raftex::cpp2::RaftexServiceAsyncProcessor&gt;::run()+315 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at AsyncProcessor.h:471
+#8  0x00000000049684cb in apache::thrift::GeneratedAsyncProcessor::processInThread&lt;nebula::raftex::cpp2::RaftexServiceAsyncProcessor&gt;(std::unique_ptr&lt;apache::thrift::ResponseChannelRequest, apache::thrift::RequestsRegistry::Deleter&gt;, apache::thrift::SerializedCompressedRequest&amp;&amp;, apache::thrift::Cpp2RequestContext*, folly::EventBase*, apache::thrift::concurrency::ThreadManager*, apache::thrift::RpcKind, void (nebula::raftex::cpp2::RaftexServiceAsyncProcessor::*)(std::unique_ptr&lt;apache::thrift::ResponseChannelRequest, apache::thrift::RequestsRegistry::Deleter&gt;, apache::thrift::SerializedCompressedRequest&amp;&amp;, apache::thrift::Cpp2RequestContext*, folly::EventBase*, apache::thrift::concurrency::ThreadManager*), nebula::raftex::cpp2::RaftexServiceAsyncProcessor*)::{lambda()#1}::operator()() const!()+56 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at AsyncProcessor.h:1114
+#9  0x000000000497d324 in folly::detail::function::FunctionTraits&lt;void()&gt;::callSmall&lt;apache::thrift::GeneratedAsyncProcessor::processInThread(apache::thrift::ResponseChannelRequest::UniquePtr, apache::thrift::SerializedCompressedRequest&amp;&amp;, apache::thrift::Cpp2RequestContext*, folly::EventBase*, apache::thrift::concurrency::ThreadManager*, apache::thrift::RpcKind, apache::thrift::GeneratedAsyncProcessor::ProcessFunc&lt;Derived&gt;, ChildType*) [with ChildType = nebula::raftex::cpp2::RaftexServiceAsyncProcessor]::&lt;lambda()&gt; &gt;()+35 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at Function.h:371
+#10 0x0000000004e3d7ba in virtual thunk to apache::thrift::concurrency::FunctionRunner::run()!()+169 in /root/src/balance-fix-nebula/build/bin/nebula-storaged
+#11 0x0000000004fb4259 in apache::thrift::concurrency::ThreadManager::Impl::Worker::run()!()+488 in /root/src/balance-fix-nebula/build/bin/nebula-storaged
+#12 0x0000000004fb65c1 in apache::thrift::concurrency::PthreadThread::threadMain(void*)!()+224 in /root/src/balance-fix-nebula/build/bin/nebula-storaged
+#13 0x00007f9149c84609 in start_thread()+216 in /lib/x86_64-linux-gnu/libpthread.so.0 at pthread_create.c:477
+#14 0x00007f9149bab293 in __GI___clone!()+66 in /lib/x86_64-linux-gnu/libc.so.6 at clone.S:95
+</code></pre></div><p>检查 RaftexService.cpp:165 附近的代码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>RaftPart<span style="color:#f92672">&gt;</span> RaftexService<span style="color:#f92672">::</span>findPart(GraphSpaceID spaceId, PartitionID partId) {
+  folly<span style="color:#f92672">::</span>RWSpinLock<span style="color:#f92672">::</span>ReadHolder rh(partsLock_);
+  <span style="color:#66d9ef">auto</span> it <span style="color:#f92672">=</span> parts_.find(std<span style="color:#f92672">::</span>make_pair(spaceId, partId));
+  <span style="color:#66d9ef">if</span> (it <span style="color:#f92672">==</span> parts_.end()) {
+    <span style="color:#75715e">// Part not found
+</span><span style="color:#75715e"></span>    LOG_EVERY_N(WARNING, <span style="color:#ae81ff">100</span>) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Cannot find the part &#34;</span> <span style="color:#f92672">&lt;&lt;</span> partId <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34; in the graph space &#34;</span>
+                              <span style="color:#f92672">&lt;&lt;</span> spaceId;
+    <span style="color:#66d9ef">return</span> std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>RaftPart<span style="color:#f92672">&gt;</span>();
+  }
+ 
+  <span style="color:#75715e">// Otherwise, return the part pointer
+</span><span style="color:#75715e"></span>  <span style="color:#66d9ef">return</span> it<span style="color:#f92672">-&gt;</span>second;
+}
+</code></pre></div><p>获取读锁阻塞了，
+那应该是哪个地方拿了写锁没有释放？
+列出所有使用 partsLock 的代码片段：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> RaftexService<span style="color:#f92672">::</span>stop() {
+  <span style="color:#66d9ef">int</span> expected <span style="color:#f92672">=</span> STATUS_RUNNING;
+  <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>status_.compare_exchange_strong(expected, STATUS_NOT_RUNNING)) {
+    <span style="color:#66d9ef">return</span>;
+  }
+ 
+  <span style="color:#75715e">// stop service
+</span><span style="color:#75715e"></span>  LOG(INFO) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Stopping the raftex service on port &#34;</span> <span style="color:#f92672">&lt;&lt;</span> serverPort_;
+  {
+    folly<span style="color:#f92672">::</span>RWSpinLock<span style="color:#f92672">::</span>WriteHolder wh(partsLock_);
+    <span style="color:#66d9ef">for</span> (<span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;</span> p : parts_) {
+      p.second<span style="color:#f92672">-&gt;</span>stop();
+    }
+    parts_.clear();
+    LOG(INFO) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;All partitions have stopped&#34;</span>;
+  }
+  server_<span style="color:#f92672">-&gt;</span>stop();
+}
+</code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> RaftexService<span style="color:#f92672">::</span>addPartition(std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>RaftPart<span style="color:#f92672">&gt;</span> part) {
+  <span style="color:#75715e">// todo(doodle): If we need to start both listener and normal replica on same
+</span><span style="color:#75715e"></span>  <span style="color:#75715e">// hosts, this class need to be aware of type.
+</span><span style="color:#75715e"></span>  folly<span style="color:#f92672">::</span>RWSpinLock<span style="color:#f92672">::</span>WriteHolder wh(partsLock_);
+  parts_.emplace(std<span style="color:#f92672">::</span>make_pair(part<span style="color:#f92672">-&gt;</span>spaceId(), part<span style="color:#f92672">-&gt;</span>partitionId()), part);
+}
+ 
+<span style="color:#66d9ef">void</span> RaftexService<span style="color:#f92672">::</span>removePartition(std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>RaftPart<span style="color:#f92672">&gt;</span> part) {
+  folly<span style="color:#f92672">::</span>RWSpinLock<span style="color:#f92672">::</span>WriteHolder wh(partsLock_);
+  parts_.erase(std<span style="color:#f92672">::</span>make_pair(part<span style="color:#f92672">-&gt;</span>spaceId(), part<span style="color:#f92672">-&gt;</span>partitionId()));
+  <span style="color:#75715e">// Stop the partition
+</span><span style="color:#75715e"></span>  part<span style="color:#f92672">-&gt;</span>stop();
+}
+ 
+std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>RaftPart<span style="color:#f92672">&gt;</span> RaftexService<span style="color:#f92672">::</span>findPart(GraphSpaceID spaceId, PartitionID partId) {
+  folly<span style="color:#f92672">::</span>RWSpinLock<span style="color:#f92672">::</span>ReadHolder rh(partsLock_);
+  <span style="color:#66d9ef">auto</span> it <span style="color:#f92672">=</span> parts_.find(std<span style="color:#f92672">::</span>make_pair(spaceId, partId));
+  <span style="color:#66d9ef">if</span> (it <span style="color:#f92672">==</span> parts_.end()) {
+    <span style="color:#75715e">// Part not found
+</span><span style="color:#75715e"></span>    LOG_EVERY_N(WARNING, <span style="color:#ae81ff">100</span>) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Cannot find the part &#34;</span> <span style="color:#f92672">&lt;&lt;</span> partId <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34; in the graph space &#34;</span>
+                              <span style="color:#f92672">&lt;&lt;</span> spaceId;
+    <span style="color:#66d9ef">return</span> std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>RaftPart<span style="color:#f92672">&gt;</span>();
+  }
+ 
+  <span style="color:#75715e">// Otherwise, return the part pointer
+</span><span style="color:#75715e"></span>  <span style="color:#66d9ef">return</span> it<span style="color:#f92672">-&gt;</span>second;
+}
+</code></pre></div><p>合理猜测 void RaftexService::stop() 或者 void RaftexService::removePartition(std::shared_ptr<!-- raw HTML omitted --> part) 中的 part→stop() 调用卡住了，
+pstack 记录了 removePartition() 的一个调用堆栈：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+thread: 0, lwp: 23, type: 0
+#0  0x00007f9149c8b376 in __pthread_cond_wait()+534 in /lib/x86_64-linux-gnu/libpthread.so.0 at futex-internal.h:183
+#1  0x00000000057d8f60 in std::condition_variable::wait(std::unique_lock&lt;std::mutex&gt;&amp;)!()+15 in /root/src/balance-fix-nebula/build/bin/nebula-storaged
+#2  0x000000000488d056 in std::condition_variable::wait&lt;nebula::raftex::Host::waitForStop()::&lt;lambda()&gt; &gt;()+59 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at condition_variable:101
+#3  0x0000000004885679 in nebula::raftex::Host::waitForStop()+226 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at Host.cpp:42
+#4  0x000000000482a963 in nebula::raftex::RaftPart::stop()+1380 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RaftPart.cpp:347
+#5  0x0000000004881966 in nebula::raftex::RaftexService::removePartition()+177 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RaftexService.cpp:161
+#6  0x00000000047d0470 in nebula::kvstore::NebulaStore::removePart()+379 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at NebulaStore.cpp:438
+#7  0x00000000032e0214 in nebula::storage::RemovePartProcessor::process()+323 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at AdminProcessor.h:170
+#8  0x00000000032e2fdf in nebula::storage::StorageAdminServiceHandler::future_removePart()+100 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at StorageAdminServiceHandler.cpp:50
+#9  0x0000000003b8f9a0 in nebula::storage::cpp2::StorageAdminServiceSvIf::async_tm_removePart()+267 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at StorageAdminService.cpp:240
+#10 0x0000000003b9ebb5 in nebula::storage::cpp2::StorageAdminServiceAsyncProcessor::process_removePart&lt;apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter&gt;()+716 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at StorageAdminService.tcc:251
+#11 0x0000000003bcd6ae in apache::thrift::RequestTask&lt;nebula::storage::cpp2::StorageAdminServiceAsyncProcessor&gt;::run()+315 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at AsyncProcessor.h:471
+#12 0x0000000003b9c8c9 in apache::thrift::GeneratedAsyncProcessor::processInThread&lt;nebula::storage::cpp2::StorageAdminServiceAsyncProcessor&gt;(std::unique_ptr&lt;apache::thrift::ResponseChannelRequest, apache::thrift::RequestsRegistry::Deleter&gt;, apache::thrift::SerializedCompressedRequest&amp;&amp;, apache::thrift::Cpp2RequestContext*, folly::EventBase*, apache::thrift::concurrency::ThreadManager*, apache::thrift::RpcKind, void (nebula::storage::cpp2::StorageAdminServiceAsyncProcessor::*)(std::unique_ptr&lt;apache::thrift::ResponseChannelRequest, apache::thrift::RequestsRegistry::Deleter&gt;, apache::thrift::SerializedCompressedRequest&amp;&amp;, apache::thrift::Cpp2RequestContext*, folly::EventBase*, apache::thrift::concurrency::ThreadManager*), nebula::storage::cpp2::StorageAdminServiceAsyncProcessor*)::{lambda()#1}::operator()() const!()+56 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at AsyncProcessor.h:1114
+#13 0x0000000003bbc478 in folly::detail::function::FunctionTraits&lt;void()&gt;::callSmall&lt;apache::thrift::GeneratedAsyncProcessor::processInThread(apache::thrift::ResponseChannelRequest::UniquePtr, apache::thrift::SerializedCompressedRequest&amp;&amp;, apache::thrift::Cpp2RequestContext*, folly::EventBase*, apache::thrift::concurrency::ThreadManager*, apache::thrift::RpcKind, apache::thrift::GeneratedAsyncProcessor::ProcessFunc&lt;Derived&gt;, ChildType*) [with ChildType = nebula::storage::cpp2::StorageAdminServiceAsyncProcessor]::&lt;lambda()&gt; &gt;()+35 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at Function.h:371
+#14 0x0000000004e3d7ba in virtual thunk to apache::thrift::concurrency::FunctionRunner::run()!()+169 in /root/src/balance-fix-nebula/build/bin/nebula-storaged
+#15 0x0000000004fb4259 in apache::thrift::concurrency::ThreadManager::Impl::Worker::run()!()+488 in /root/src/balance-fix-nebula/build/bin/nebula-storaged
+#16 0x0000000004fb65c1 in apache::thrift::concurrency::PthreadThread::threadMain(void*)!()+224 in /root/src/balance-fix-nebula/build/bin/nebula-storaged
+#17 0x00007f9149c84609 in start_thread()+216 in /lib/x86_64-linux-gnu/libpthread.so.0 at pthread_create.c:477
+#18 0x00007f9149bab293 in __GI___clone!()+66 in /lib/x86_64-linux-gnu/libc.so.6 at clone.S:95
+</code></pre></div><p>storage 应该是卡在 Host.cpp:42 这行代码上了，拉出来看下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> Host<span style="color:#f92672">::</span>waitForStop() {
+  std<span style="color:#f92672">::</span>unique_lock<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>mutex<span style="color:#f92672">&gt;</span> g(lock_);
+ 
+  CHECK(stopped_);
+  noMoreRequestCV_.wait(g, [<span style="color:#66d9ef">this</span>] { <span style="color:#66d9ef">return</span> <span style="color:#f92672">!</span>requestOnGoing_; });
+  LOG(INFO) <span style="color:#f92672">&lt;&lt;</span> idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;The host has been stopped!&#34;</span>;
+}
+</code></pre></div><p>好眼熟啊，之前定位 <a href="https://coderatwork.cn/posts/raft-deadlock/">Nebula Raft 死锁问题分析</a> 这个问题的时候，
+也是卡在这个 cv 上。复习一下当时 Raft 是怎么死锁的：</p>
+<ol>
+<li>worker thread1 中有
+<ul>
+<li>回调 c1 尝试获取 raftLock_</li>
+<li>回调 c2 设置 requestOnGoing_ = false，且 c1 先于 c2 被调用</li>
+</ul>
+</li>
+<li>回调 c2 设置 requestOnGoing_ = false，且 c1 先于 c2 被调用</li>
+</ol>
+<p>然后 thread1、thread2 就死锁了。
+但是这个场景里面似乎并没有尝试获取 raftLock_ 的地方。
+不过可以换个思路：
+之前是因为 worker thread 拿着 raftLock_ 在等待 requestOnGoing_ == false 导致的死锁，
+如果它拿着另一个锁比如 partsLock_ 在等待 requestOnGoing_ == false 是否也可能导致死锁？
+仔细看以上的堆栈：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">thread: 0, lwp: 23, type: 0
+#0  0x00007f9149c8b376 in __pthread_cond_wait()+534 in /lib/x86_64-linux-gnu/libpthread.so.0 at futex-internal.h:183
+#1  0x00000000057d8f60 in std::condition_variable::wait(std::unique_lock&lt;std::mutex&gt;&amp;)!()+15 in /root/src/balance-fix-nebula/build/bin/nebula-storaged
+#2  0x000000000488d056 in std::condition_variable::wait&lt;nebula::raftex::Host::waitForStop()::&lt;lambda()&gt; &gt;()+59 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at condition_variable:101
+#3  0x0000000004885679 in nebula::raftex::Host::waitForStop()+226 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at Host.cpp:42
+#4  0x000000000482a963 in nebula::raftex::RaftPart::stop()+1380 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RaftPart.cpp:347
+#5  0x0000000004881966 in nebula::raftex::RaftexService::removePartition()+177 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RaftexService.cpp:161
+#6  0x00000000047d0470 in nebula::kvstore::NebulaStore::removePart()+379 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at NebulaStore.cpp:438
+</code></pre></div><p>从线程 23 的调用栈上可以看出，
+它正好拿着 partsLock 这个 spinlock 在等待 requestOnGoing == false（RaftService.cpp:161）。
+除了 partsLock，从调用栈上可以看到 NebulaStore.cpp:438 也拿着个锁：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> NebulaStore<span style="color:#f92672">::</span>removePart(GraphSpaceID spaceId, PartitionID partId) {
+  folly<span style="color:#f92672">::</span>RWSpinLock<span style="color:#f92672">::</span>WriteHolder wh(<span style="color:#f92672">&amp;</span>lock_);
+  <span style="color:#66d9ef">auto</span> spaceIt <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span><span style="color:#f92672">-&gt;</span>spaces_.find(spaceId);
+  <span style="color:#66d9ef">if</span> (spaceIt <span style="color:#f92672">!=</span> <span style="color:#66d9ef">this</span><span style="color:#f92672">-&gt;</span>spaces_.end()) {
+    <span style="color:#66d9ef">auto</span> partIt <span style="color:#f92672">=</span> spaceIt<span style="color:#f92672">-&gt;</span>second<span style="color:#f92672">-&gt;</span>parts_.find(partId);
+    <span style="color:#66d9ef">if</span> (partIt <span style="color:#f92672">!=</span> spaceIt<span style="color:#f92672">-&gt;</span>second<span style="color:#f92672">-&gt;</span>parts_.end()) {
+      <span style="color:#66d9ef">auto</span><span style="color:#f92672">*</span> e <span style="color:#f92672">=</span> partIt<span style="color:#f92672">-&gt;</span>second<span style="color:#f92672">-&gt;</span>engine();
+      CHECK_NOTNULL(e);
+      raftService_<span style="color:#f92672">-&gt;</span>removePartition(partIt<span style="color:#f92672">-&gt;</span>second);
+      diskMan_<span style="color:#f92672">-&gt;</span>removePartFromPath(spaceId, partId, e<span style="color:#f92672">-&gt;</span>getDataRoot());
+      partIt<span style="color:#f92672">-&gt;</span>second<span style="color:#f92672">-&gt;</span>resetPart();
+      spaceIt<span style="color:#f92672">-&gt;</span>second<span style="color:#f92672">-&gt;</span>parts_.erase(partId);
+      e<span style="color:#f92672">-&gt;</span>removePart(partId);
+    }
+  }
+  LOG(INFO) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Space &#34;</span> <span style="color:#f92672">&lt;&lt;</span> spaceId <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, part &#34;</span> <span style="color:#f92672">&lt;&lt;</span> partId <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34; has been removed!&#34;</span>;
+}
+</code></pre></div><p>如果有另外一条路径是需要拿到 partsLock 才能设置 requestOnGoing == fasle，
+那就能找到一条导致死锁的路径了。
+这里需要解释一下，partsLock 锁的获取和 requestOnGoing = false 的设置并不是处在一条调用链上，
+而是被调度倒同一个 worker thread 上的两个不同回调，
+且获取锁的回调先于 requestOnGoing = false 这个回调被执行。
+问题是，具体哪个 worker thread？
+从 pstack 上并不容易看出，没办法，
+上万能的 printf 调试大法。
+requestOnGoing = false 这条语句本质上是在 Host.cpp 中的 appendLogsInternal()中执行的，
+我们就在 appendLogsInternal() 中把回调运行的线程 pid 打印出来：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> Host<span style="color:#f92672">::</span>appendLogsInternal(folly<span style="color:#f92672">::</span>EventBase<span style="color:#f92672">*</span> eb, std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>cpp2<span style="color:#f92672">::</span>AppendLogRequest<span style="color:#f92672">&gt;</span> req) {
+  <span style="color:#66d9ef">using</span> TransportException <span style="color:#f92672">=</span> apache<span style="color:#f92672">::</span>thrift<span style="color:#f92672">::</span>transport<span style="color:#f92672">::</span>TTransportException;
+ 
+  <span style="color:#75715e">// long long microseconds =
+</span><span style="color:#75715e"></span>  <span style="color:#75715e">// std::chrono::duration_cast&lt;std::chrono::microseconds&gt;(elapsed).count();
+</span><span style="color:#75715e"></span>  <span style="color:#66d9ef">auto</span> reqId <span style="color:#f92672">=</span> std<span style="color:#f92672">::</span>chrono<span style="color:#f92672">::</span>high_resolution_clock<span style="color:#f92672">::</span>now().time_since_epoch().count();
+  pid_t thisTid <span style="color:#f92672">=</span> syscall(__NR_gettid);
+  <span style="color:#75715e">// LOG(INFO) &lt;&lt; folly::format(&#34;append with req: {}, started within thread {}&#34;, reqId, thisTid);
+</span><span style="color:#75715e"></span>  std<span style="color:#f92672">::</span>cerr <span style="color:#f92672">&lt;&lt;</span> folly<span style="color:#f92672">::</span>format(<span style="color:#e6db74">&#34;append with req: {}, started within thread {}&#34;</span>, reqId, thisTid)
+            <span style="color:#f92672">&lt;&lt;</span> std<span style="color:#f92672">::</span>endl;
+  <span style="color:#75715e">// LOG(INFO) &lt;&lt; &#34;append with req: &#34; &lt;&lt; reqId &lt;&lt; &#34; start within thread: &#34; &lt;&lt; tid;
+</span><span style="color:#75715e"></span>  eb<span style="color:#f92672">-&gt;</span>runImmediatelyOrRunInEventBaseThreadAndWait([reqId]() {
+    pid_t tid <span style="color:#f92672">=</span> syscall(__NR_gettid);
+    <span style="color:#75715e">// LOG(INFO) &lt;&lt; folly::format(&#34;append log req {} will run within thread {}&#34;, reqId, tid);
+</span><span style="color:#75715e"></span>    std<span style="color:#f92672">::</span>cerr <span style="color:#f92672">&lt;&lt;</span> folly<span style="color:#f92672">::</span>format(<span style="color:#e6db74">&#34;append log req {} will run within thread {}&#34;</span>, reqId, tid)
+              <span style="color:#f92672">&lt;&lt;</span> std<span style="color:#f92672">::</span>endl;
+    <span style="color:#75715e">// LOG(INFO) &lt;&lt; &#34;append log req &#34; &lt;&lt; reqId &lt;&lt; &#34; will run within thread &#34; &lt;&lt; tid;
+</span><span style="color:#75715e"></span>  });
+ 
+  sendAppendLogRequest(eb, req)
+      .via(eb)
+      .thenValue([eb, self <span style="color:#f92672">=</span> shared_from_this()](cpp2<span style="color:#f92672">::</span>AppendLogResponse<span style="color:#f92672">&amp;&amp;</span> resp) {
+        pid_t tid <span style="color:#f92672">=</span> syscall(__NR_gettid);
+        <span style="color:#75715e">// LOG(INFO) &lt;&lt; folly::format(&#34;append log req {} done within thread {}&#34;, reqId, tid);
+</span><span style="color:#75715e"></span>        std<span style="color:#f92672">::</span>cerr <span style="color:#f92672">&lt;&lt;</span> folly<span style="color:#f92672">::</span>format(<span style="color:#e6db74">&#34;append log req {} done within thread {}&#34;</span>, reqId, tid)
+                  <span style="color:#f92672">&lt;&lt;</span> std<span style="color:#f92672">::</span>endl;
+        <span style="color:#75715e">// LOG(INFO) &lt;&lt; &#34;append log req &#34; &lt;&lt; reqId &lt;&lt; &#34; will done within thread &#34; &lt;&lt;
+</span><span style="color:#75715e"></span>        <span style="color:#75715e">// std::this_thread::get_id();
+</span><span style="color:#75715e"></span> 
+        LOG_IF(INFO, FLAGS_trace_raft)
+            <span style="color:#f92672">&lt;&lt;</span> self<span style="color:#f92672">-&gt;</span>idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;AppendLogResponse &#34;</span>
+            <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;code &#34;</span> <span style="color:#f92672">&lt;&lt;</span> apache<span style="color:#f92672">::</span>thrift<span style="color:#f92672">::</span>util<span style="color:#f92672">::</span>enumNameSafe(resp.get_error_code()) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, currTerm &#34;</span>
+            <span style="color:#f92672">&lt;&lt;</span> resp.get_current_term() <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, lastLogTerm &#34;</span> <span style="color:#f92672">&lt;&lt;</span> resp.get_last_matched_log_term()
+            <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, commitLogId &#34;</span> <span style="color:#f92672">&lt;&lt;</span> resp.get_committed_log_id() <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, lastLogIdSent_ &#34;</span>
+            <span style="color:#f92672">&lt;&lt;</span> self<span style="color:#f92672">-&gt;</span>lastLogIdSent_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, lastLogTermSent_ &#34;</span> <span style="color:#f92672">&lt;&lt;</span> self<span style="color:#f92672">-&gt;</span>lastLogTermSent_;
+        <span style="color:#66d9ef">switch</span> (resp.get_error_code()) {
+          <span style="color:#66d9ef">case</span> cpp2<span style="color:#f92672">::</span>ErrorCode<span style="color:#f92672">::</span>SUCCEEDED:
+          <span style="color:#66d9ef">case</span> cpp2<span style="color:#f92672">::</span>ErrorCode<span style="color:#f92672">::</span>E_LOG_GAP:
+          <span style="color:#66d9ef">case</span> cpp2<span style="color:#f92672">::</span>ErrorCode<span style="color:#f92672">::</span>E_LOG_STALE: {
+            VLOG(<span style="color:#ae81ff">2</span>) <span style="color:#f92672">&lt;&lt;</span> self<span style="color:#f92672">-&gt;</span>idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;AppendLog request sent successfully&#34;</span>;
+ 
+            std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>cpp2<span style="color:#f92672">::</span>AppendLogRequest<span style="color:#f92672">&gt;</span> newReq;
+            {
+              std<span style="color:#f92672">::</span>lock_guard<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>mutex<span style="color:#f92672">&gt;</span> g(self<span style="color:#f92672">-&gt;</span>lock_);
+              <span style="color:#66d9ef">auto</span> res <span style="color:#f92672">=</span> self<span style="color:#f92672">-&gt;</span>canAppendLog();
+              <span style="color:#66d9ef">if</span> (res <span style="color:#f92672">!=</span> cpp2<span style="color:#f92672">::</span>ErrorCode<span style="color:#f92672">::</span>SUCCEEDED) {
+                cpp2<span style="color:#f92672">::</span>AppendLogResponse r;
+                r.error_code_ref() <span style="color:#f92672">=</span> res;
+                self<span style="color:#f92672">-&gt;</span>setResponse(r);
+                <span style="color:#66d9ef">return</span>;
+              }
+              <span style="color:#75715e">// Host is working
+</span><span style="color:#75715e"></span>              self<span style="color:#f92672">-&gt;</span>lastLogIdSent_ <span style="color:#f92672">=</span> resp.get_last_matched_log_id();
+              self<span style="color:#f92672">-&gt;</span>lastLogTermSent_ <span style="color:#f92672">=</span> resp.get_last_matched_log_term();
+              self<span style="color:#f92672">-&gt;</span>followerCommittedLogId_ <span style="color:#f92672">=</span> resp.get_committed_log_id();
+              <span style="color:#66d9ef">if</span> (self<span style="color:#f92672">-&gt;</span>lastLogIdSent_ <span style="color:#f92672">&lt;</span> self<span style="color:#f92672">-&gt;</span>logIdToSend_) {
+                <span style="color:#75715e">// More to send
+</span><span style="color:#75715e"></span>                VLOG(<span style="color:#ae81ff">2</span>) <span style="color:#f92672">&lt;&lt;</span> self<span style="color:#f92672">-&gt;</span>idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;There are more logs to send&#34;</span>;
+                <span style="color:#66d9ef">auto</span> result <span style="color:#f92672">=</span> self<span style="color:#f92672">-&gt;</span>prepareAppendLogRequest();
+                <span style="color:#66d9ef">if</span> (ok(result)) {
+                  newReq <span style="color:#f92672">=</span> std<span style="color:#f92672">::</span>move(value(result));
+                } <span style="color:#66d9ef">else</span> {
+                  cpp2<span style="color:#f92672">::</span>AppendLogResponse r;
+                  r.error_code_ref() <span style="color:#f92672">=</span> error(result);
+                  self<span style="color:#f92672">-&gt;</span>setResponse(r);
+                  <span style="color:#66d9ef">return</span>;
+                }
+              } <span style="color:#66d9ef">else</span> {
+                <span style="color:#75715e">// resp.get_last_matched_log_id() &gt;= self-&gt;logIdToSend_
+</span><span style="color:#75715e"></span>                <span style="color:#75715e">// All logs up to logIdToSend_ has been sent, fulfill the promise
+</span><span style="color:#75715e"></span>                self<span style="color:#f92672">-&gt;</span>promise_.setValue(resp);
+                <span style="color:#75715e">// Check if there are any pending request:
+</span><span style="color:#75715e"></span>                <span style="color:#75715e">// Eithor send pending requst if any, or set Host to vacant
+</span><span style="color:#75715e"></span>                newReq <span style="color:#f92672">=</span> self<span style="color:#f92672">-&gt;</span>getPendingReqIfAny(self);
+              }
+            }
+            <span style="color:#66d9ef">if</span> (newReq) {
+              self<span style="color:#f92672">-&gt;</span>appendLogsInternal(eb, newReq);
+            }
+            <span style="color:#66d9ef">return</span>;
+          }
+          <span style="color:#75715e">// Usually the peer is not in proper state, for example:
+</span><span style="color:#75715e"></span>          <span style="color:#75715e">// E_UNKNOWN_PART/E_BAD_STATE/E_NOT_READY/E_WAITING_SNAPSHOT
+</span><span style="color:#75715e"></span>          <span style="color:#75715e">// In this case, nothing changed, just return the error
+</span><span style="color:#75715e"></span>          <span style="color:#66d9ef">default</span><span style="color:#f92672">:</span> {
+            LOG_EVERY_N(ERROR, <span style="color:#ae81ff">100</span>)
+                <span style="color:#f92672">&lt;&lt;</span> self<span style="color:#f92672">-&gt;</span>idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Failed to append logs to the host (Err: &#34;</span>
+                <span style="color:#f92672">&lt;&lt;</span> apache<span style="color:#f92672">::</span>thrift<span style="color:#f92672">::</span>util<span style="color:#f92672">::</span>enumNameSafe(resp.get_error_code()) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;)&#34;</span>;
+            {
+              std<span style="color:#f92672">::</span>lock_guard<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>mutex<span style="color:#f92672">&gt;</span> g(self<span style="color:#f92672">-&gt;</span>lock_);
+              self<span style="color:#f92672">-&gt;</span>setResponse(resp);
+            }
+            <span style="color:#66d9ef">return</span>;
+          }
+        }
+      })
+      .thenError(
+          folly<span style="color:#f92672">::</span>tag_t<span style="color:#f92672">&lt;</span>TransportException<span style="color:#f92672">&gt;</span>{},
+          [self <span style="color:#f92672">=</span> shared_from_this(), req](TransportException<span style="color:#f92672">&amp;&amp;</span> ex) {
+            pid_t tid <span style="color:#f92672">=</span> syscall(__NR_gettid);
+            std<span style="color:#f92672">::</span>cerr <span style="color:#f92672">&lt;&lt;</span> folly<span style="color:#f92672">::</span>format(<span style="color:#e6db74">&#34;append log req {} encounter exception {} within thread {}&#34;</span>,
+                                       reqId,
+                                       ex.what(),
+                                       tid)
+                      <span style="color:#f92672">&lt;&lt;</span> std<span style="color:#f92672">::</span>endl;
+            <span style="color:#75715e">//  LOG(INFO) &lt;&lt; folly::format(&#34;append log req {} encounter exception {} within thread
+</span><span style="color:#75715e"></span>            <span style="color:#75715e">//  {}&#34;, reqId, ex.what(), tid); LOG(INFO) &lt;&lt; &#34;append log req &#34; &lt;&lt; reqId &lt;&lt; &#34; encounter
+</span><span style="color:#75715e"></span>            <span style="color:#75715e">//  exception:&#34; &lt;&lt;  ex.what() &lt;&lt; &#34; within thread &#34; &lt;&lt; std::this_thread::get_id();
+</span><span style="color:#75715e"></span> 
+            VLOG(<span style="color:#ae81ff">2</span>) <span style="color:#f92672">&lt;&lt;</span> self<span style="color:#f92672">-&gt;</span>idStr_ <span style="color:#f92672">&lt;&lt;</span> ex.what();
+            cpp2<span style="color:#f92672">::</span>AppendLogResponse r;
+            r.error_code_ref() <span style="color:#f92672">=</span> cpp2<span style="color:#f92672">::</span>ErrorCode<span style="color:#f92672">::</span>E_RPC_EXCEPTION;
+            {
+              std<span style="color:#f92672">::</span>lock_guard<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>mutex<span style="color:#f92672">&gt;</span> g(self<span style="color:#f92672">-&gt;</span>lock_);
+              <span style="color:#66d9ef">if</span> (ex.getType() <span style="color:#f92672">==</span> TransportException<span style="color:#f92672">::</span>TIMED_OUT) {
+                LOG_IF(INFO, FLAGS_trace_raft)
+                    <span style="color:#f92672">&lt;&lt;</span> self<span style="color:#f92672">-&gt;</span>idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;append log time out&#34;</span>
+                    <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, space &#34;</span> <span style="color:#f92672">&lt;&lt;</span> req<span style="color:#f92672">-&gt;</span>get_space() <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, part &#34;</span> <span style="color:#f92672">&lt;&lt;</span> req<span style="color:#f92672">-&gt;</span>get_part()
+                    <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, current term &#34;</span> <span style="color:#f92672">&lt;&lt;</span> req<span style="color:#f92672">-&gt;</span>get_current_term() <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, committed_id &#34;</span>
+                    <span style="color:#f92672">&lt;&lt;</span> req<span style="color:#f92672">-&gt;</span>get_committed_log_id() <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, last_log_term_sent &#34;</span>
+                    <span style="color:#f92672">&lt;&lt;</span> req<span style="color:#f92672">-&gt;</span>get_last_log_term_sent() <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, last_log_id_sent &#34;</span>
+                    <span style="color:#f92672">&lt;&lt;</span> req<span style="color:#f92672">-&gt;</span>get_last_log_id_sent() <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, set lastLogIdSent_ to logIdToSend_ &#34;</span>
+                    <span style="color:#f92672">&lt;&lt;</span> self<span style="color:#f92672">-&gt;</span>logIdToSend_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, logs size &#34;</span> <span style="color:#f92672">&lt;&lt;</span> req<span style="color:#f92672">-&gt;</span>get_log_str_list().size();
+              }
+              self<span style="color:#f92672">-&gt;</span>setResponse(r);
+            }
+            <span style="color:#75715e">// a new raft log or heartbeat will trigger another appendLogs in Host
+</span><span style="color:#75715e"></span>            <span style="color:#66d9ef">return</span>;
+          })
+      .thenError(folly<span style="color:#f92672">::</span>tag_t<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>exception<span style="color:#f92672">&gt;</span>{}, [self <span style="color:#f92672">=</span> shared_from_this()](std<span style="color:#f92672">::</span>exception<span style="color:#f92672">&amp;&amp;</span> ex) {
+        pid_t tid <span style="color:#f92672">=</span> syscall(__NR_gettid);
+        <span style="color:#75715e">// LOG(INFO) &lt;&lt; folly::format(&#34;append log req {} encounter exception {} within thread {}&#34;,
+</span><span style="color:#75715e"></span>        <span style="color:#75715e">// reqId, ex.what(), tid);
+</span><span style="color:#75715e"></span>        std<span style="color:#f92672">::</span>cerr <span style="color:#f92672">&lt;&lt;</span> folly<span style="color:#f92672">::</span>format(<span style="color:#e6db74">&#34;append log req {} encounter exception {} within thread {}&#34;</span>,
+                                   reqId,
+                                   ex.what(),
+                                   tid)
+                  <span style="color:#f92672">&lt;&lt;</span> std<span style="color:#f92672">::</span>endl;
+        <span style="color:#75715e">// LOG(INFO) &lt;&lt; &#34;append log req &#34; &lt;&lt; reqId &lt;&lt; &#34; encounter exception:&#34; &lt;&lt;  ex.what() &lt;&lt; &#34;
+</span><span style="color:#75715e"></span>        <span style="color:#75715e">// within thread &#34; &lt;&lt; std::this_thread::get_id();
+</span><span style="color:#75715e"></span> 
+        VLOG(<span style="color:#ae81ff">2</span>) <span style="color:#f92672">&lt;&lt;</span> self<span style="color:#f92672">-&gt;</span>idStr_ <span style="color:#f92672">&lt;&lt;</span> ex.what();
+        cpp2<span style="color:#f92672">::</span>AppendLogResponse r;
+        r.error_code_ref() <span style="color:#f92672">=</span> cpp2<span style="color:#f92672">::</span>ErrorCode<span style="color:#f92672">::</span>E_RPC_EXCEPTION;
+        {
+          std<span style="color:#f92672">::</span>lock_guard<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>mutex<span style="color:#f92672">&gt;</span> g(self<span style="color:#f92672">-&gt;</span>lock_);
+          self<span style="color:#f92672">-&gt;</span>setResponse(r);
+        }
+        <span style="color:#75715e">// a new raft log or heartbeat will trigger another appendLogs in Host
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">return</span>;
+      });
+}
+</code></pre></div><p>run again, storage 很快又扑街了：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+(root@nebula) [ttos_3p3r]&gt; show hosts
++----------+------+-----------+--------------+----------------------+------------------------+
+| Host     | Port | Status    | Leader count | Leader distribution  | Partition distribution |
++----------+------+-----------+--------------+----------------------+------------------------+
+| &#34;store1&#34; | 9779 | &#34;OFFLINE&#34; | 0            | &#34;No valid partition&#34; | &#34;ttos_3p3r:446&#34;        |
+| &#34;store2&#34; | 9779 | &#34;OFFLINE&#34; | 0            | &#34;No valid partition&#34; | &#34;ttos_3p3r:443&#34;        |
+| &#34;store3&#34; | 9779 | &#34;ONLINE&#34;  | 247          | &#34;ttos_3p3r:247&#34;      | &#34;ttos_3p3r:432&#34;        |
+| &#34;store4&#34; | 9779 | &#34;ONLINE&#34;  | 108          | &#34;ttos_3p3r:108&#34;      | &#34;ttos_3p3r:109&#34;        |
+| &#34;store5&#34; | 9779 | &#34;ONLINE&#34;  | 20           | &#34;ttos_3p3r:20&#34;       | &#34;ttos_3p3r:106&#34;        |
+| &#34;Total&#34;  |      |           | 375          | &#34;ttos_3p3r:375&#34;      | &#34;ttos_3p3r:1536&#34;       |
++----------+------+-----------+--------------+----------------------+------------------------+
+Got 6 rows (time spent 9484/10020 us)
+ 
+Tue, 11 Jan 2022 12:21:45 CST
+ 
+(root@nebula) [ttos_3p3r]&gt;
+</code></pre></div><p>查看 store1 的日志：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># tail storaged-stderr.log
+append log req 1641874628611367114 will run within thread 71
+append log req 1641874628611367114 done within thread 71
+append with req: 1641874628614040712, started within thread 71
+append log req 1641874628614040712 will run within thread 71
+append log req 1641874628614040712 done within thread 71
+append with req: 1641874628616965551, started within thread 71
+append log req 1641874628616965551 will run within thread 71
+append log req 1641874628616965551 done within thread 71
+append with req: 1641874628619785706, started within thread 71
+append log req 1641874628619785706 will run within thread 71
+</code></pre></div><p>应该是卡在线程 71 上了，gdb attach 上去看这家伙在干嘛，呵呵呵，果然不出所料，partsLock_ 搞出一个死循环了：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+(gdb) bt
+#0  0x00007f8ad6e2289b in sched_yield () at ../sysdeps/unix/syscall-template.S:78
+#1  0x00000000030eeb00 in __gthread_yield () at /usr/include/x86_64-linux-gnu/c++/9/bits/gthr-default.h:693
+#2  0x00000000030ef6ce in std::this_thread::yield () at /usr/include/c++/9/thread:356
+#3  0x0000000003530c69 in folly::RWSpinLock::lock_shared (this=0x75fdf48) at /data/src/raft-nebula/build/third-party/install/include/folly/synchronization/RWSpinLock.h:212
+#4  0x0000000003530e65 in folly::RWSpinLock::ReadHolder::ReadHolder (this=0x7f89fe7f2780, lock=...) at /data/src/raft-nebula/build/third-party/install/include/folly/synchronization/RWSpinLock.h:320
+#5  0x00000000048879fd in nebula::raftex::RaftexService::findPart (this=0x75fdee0, spaceId=1, partId=352) at /data/src/balance-fix-nebula/src/kvstore/raftex/RaftexService.cpp:165
+#6  0x00000000048883ce in nebula::raftex::RaftexService::async_eb_heartbeat (this=0x75fdee0, callback=..., req=...) at /data/src/balance-fix-nebula/src/kvstore/raftex/RaftexService.cpp:226
+#7  0x0000000004977a32 in nebula::raftex::cpp2::RaftexServiceAsyncProcessor::process_heartbeat&lt;apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter&gt; (this=0x7f89e4032aa0, req=..., serializedRequest=..., ctx=0x7f89e4057e08, eb=0x7f89e4000e30, tm=0x756e250)
+    at /data/src/balance-fix-nebula/build/src/interface/gen-cpp2/RaftexService.tcc:229
+#8  0x00000000049716c3 in nebula::raftex::cpp2::RaftexServiceAsyncProcessor::setUpAndProcess_heartbeat&lt;apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter&gt; (this=0x7f89e4032aa0, req=..., serializedRequest=..., ctx=0x7f89e4057e08, eb=0x7f89e4000e30,
+    tm=0x756e250) at /data/src/balance-fix-nebula/build/src/interface/gen-cpp2/RaftexService.tcc:203
+#9  0x0000000004975101 in apache::thrift::detail::ap::nonRecursiveProcess&lt;apache::thrift::CompactProtocolReader, nebula::raftex::cpp2::RaftexServiceAsyncProcessor&gt; (processor=0x7f89e4032aa0, req=..., serializedRequest=..., untypedMethodMetadata=..., ctx=0x7f89e4057e08,
+    eb=0x7f89e4000e30, tm=0x756e250) at /data/src/raft-nebula/build/third-party/install/include/thrift/lib/cpp2/GeneratedCodeHelper.h:922
+#10 0x0000000004970a3c in apache::thrift::detail::ap::process&lt;nebula::raftex::cpp2::RaftexServiceAsyncProcessor&gt; (processor=0x7f89e4032aa0, req=..., serializedRequest=..., methodMetadata=..., protType=apache::thrift::protocol::T_COMPACT_PROTOCOL, ctx=0x7f89e4057e08,
+    eb=0x7f89e4000e30, tm=0x756e250) at /data/src/raft-nebula/build/third-party/install/include/thrift/lib/cpp2/GeneratedCodeHelper.h:949
+#11 0x000000000496e2af in nebula::raftex::cpp2::RaftexServiceAsyncProcessor::processSerializedCompressedRequestWithMetadata (this=0x7f89e4032aa0, req=..., serializedRequest=..., methodMetadata=..., protType=apache::thrift::protocol::T_COMPACT_PROTOCOL, context=0x7f89e4057e08,
+    eb=0x7f89e4000e30, tm=0x756e250) at /data/src/balance-fix-nebula/build/src/interface/gen-cpp2/RaftexService.cpp:294
+#12 0x0000000004f34126 in ?? ()
+#13 0x0000000004f111cd in ?? ()
+#14 0x0000000004f11efa in apache::thrift::rocket::ThriftRocketServerHandler::handleRequestResponseFrame(apache::thrift::rocket::RequestResponseFrame&amp;&amp;, apache::thrift::rocket::RocketServerFrameContext&amp;&amp;) ()
+#15 0x0000000004efeb2f in apache::thrift::rocket::RocketServerConnection::handleFrame(std::unique_ptr&lt;folly::IOBuf, std::default_delete&lt;folly::IOBuf&gt; &gt;) ()
+#16 0x0000000004f07046 in apache::thrift::rocket::Parser&lt;apache::thrift::rocket::RocketServerConnection&gt;::readDataAvailableOld(unsigned long) ()
+#17 0x0000000004f076e9 in apache::thrift::rocket::Parser&lt;apache::thrift::rocket::RocketServerConnection&gt;::readDataAvailable(unsigned long) ()
+#18 0x00000000052a8f8b in folly::AsyncSocket::handleRead() ()
+#19 0x000000000529da0e in folly::AsyncSocket::ioReady(unsigned short) ()
+#20 0x000000000537a653 in ?? ()
+#21 0x000000000537ad77 in event_base_loop ()
+#22 0x00000000052b88b8 in folly::EventBase::loopBody(int, bool) ()
+#23 0x00000000052b94b2 in folly::EventBase::loop() ()
+#24 0x00000000052bc1cc in folly::EventBase::loopForever() ()
+#25 0x00000000052404a1 in folly::IOThreadPoolExecutor::threadRun(std::shared_ptr&lt;folly::ThreadPoolExecutor::Thread&gt;) ()
+#26 0x000000000524f6cb in void folly::detail::function::FunctionTraits&lt;void ()&gt;::callBig&lt;std::_Bind&lt;void (folly::ThreadPoolExecutor::*(folly::ThreadPoolExecutor*, std::shared_ptr&lt;folly::ThreadPoolExecutor::Thread&gt;))(std::shared_ptr&lt;folly::ThreadPoolExecutor::Thread&gt;)&gt; &gt;(folly::detail::function::Data&amp;) ()
+#27 0x00000000030d1640 in folly::detail::function::FunctionTraits&lt;void ()&gt;::operator()() (this=0x75bc720) at /data/src/raft-nebula/build/third-party/install/include/folly/Function.h:400
+#28 0x00000000030f06b0 in folly::NamedThreadFactory::newThread(folly::Function&lt;void ()&gt;&amp;&amp;)::{lambda()#1}::operator()() (__closure=0x75bc720) at /data/src/raft-nebula/build/third-party/install/include/folly/executors/thread_factory/NamedThreadFactory.h:40
+#29 0x0000000003151961 in std::__invoke_impl&lt;void, folly::NamedThreadFactory::newThread(folly::Function&lt;void ()&gt;&amp;&amp;)::{lambda()#1}&gt;(std::__invoke_other, folly::NamedThreadFactory::newThread(folly::Function&lt;void ()&gt;&amp;&amp;)::{lambda()#1}&amp;&amp;) (__f=...) at /usr/include/c++/9/bits/invoke.h:60
+#30 0x0000000003150870 in std::__invoke&lt;folly::NamedThreadFactory::newThread(folly::Function&lt;void ()&gt;&amp;&amp;)::{lambda()#1}&gt;(std::__invoke_result&amp;&amp;, (folly::NamedThreadFactory::newThread(folly::Function&lt;void ()&gt;&amp;&amp;)::{lambda()#1}&amp;&amp;)...) (__fn=...) at /usr/include/c++/9/bits/invoke.h:95
+#31 0x000000000314f980 in std::thread::_Invoker&lt;std::tuple&lt;folly::NamedThreadFactory::newThread(folly::Function&lt;void ()&gt;&amp;&amp;)::{lambda()#1}&gt; &gt;::_M_invoke&lt;0ul&gt;(std::_Index_tuple&lt;0ul&gt;) (this=0x75bc720) at /usr/include/c++/9/thread:244
+#32 0x000000000314ecf0 in std::thread::_Invoker&lt;std::tuple&lt;folly::NamedThreadFactory::newThread(folly::Function&lt;void ()&gt;&amp;&amp;)::{lambda()#1}&gt; &gt;::operator()() (this=0x75bc720) at /usr/include/c++/9/thread:251
+#33 0x000000000314ba6c in std::thread::_State_impl&lt;std::thread::_Invoker&lt;std::tuple&lt;folly::NamedThreadFactory::newThread(folly::Function&lt;void ()&gt;&amp;&amp;)::{lambda()#1}&gt; &gt; &gt;::_M_run() (this=0x75bc710) at /usr/include/c++/9/thread:195
+#34 0x000000000585df34 in execute_native_thread_routine ()
+#35 0x00007f8ad6f18609 in start_thread (arg=&lt;optimized out&gt;) at pthread_create.c:477
+#36 0x00007f8ad6e3f293 in clone () at ../sysdeps/unix/sysv/linux/x86_64/clone.S:95
+(gdb)
+</code></pre></div><p>再详细解释一下为什么这里会死锁：</p>
+<ol>
+<li>storage 收到一个 heartbeat 请求，这个请求被调度倒 eb 所在的线程去执行</li>
+<li>heartbeat 调用 findPart() 确定对应的分区，findPart() 尝试获取 partsLock_ 这个 spinlock</li>
+<li>heartbeat 执行结束前，storage 上的一个 appendLogInternal 请求也被调度倒同样的 eb 上执行，appendLogInternal() 执行中会设置 requestOnGoing_ = false</li>
+<li>另一边一个 removePartition() 请求正在执行中，他已经拿到 partsLock_ 等待 part.stop()，part.stop() 又等待 requestOnGoing_ = false</li>
+</ol>
+<p>这样，一个死锁链条就完美诞生了：</p>
+<p>process_heartbeat()→ [等待释放 partsLock_]→ part.stop()→ [等待设置 requestOnGoing_ = false]→ appendLogsInternal()→ [等待 eb 结束执行 process_heartbeat()]</p>
+
+</article>
+
+
+</html>
