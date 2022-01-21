@@ -2,17 +2,6 @@
 <html lang="en-us">
 <title>ptrace 如何实现单步跟进 | kikimo</title>
 <meta charset="utf-8">
-
-<script>
-  var _hmt = _hmt || [];
-  (function() {
-    var hm = document.createElement("script");
-    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
-    var s = document.getElementsByTagName("script")[0]; 
-    s.parentNode.insertBefore(hm, s);
-  })();
-</script>
-
 <meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/">
@@ -326,6 +315,7 @@ When the BS flag is set, any of the other debug status bits also may be set.</p>
 所以，通过 dr6 寄存器就可以直接判断是否利用 <code>ptrace()</code> 执行了指令单步跟进。</p>
 
 </article>
+
 
 
 </html>

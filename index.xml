@@ -12,6 +12,17 @@
     
     
     <item>
+      <title>RPC Pipeline</title>
+      <link>https://coderatwork.cn/posts/rpc-pipeline/</link>
+      <pubDate>Fri, 21 Jan 2022 21:27:19 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/rpc-pipeline/</guid>
+      <description>在使用 RPC 通信时通常我们会等待一次请求结束后再发起下一个请求。 也就等待上一个请求受到回应后才发起下一个请求开始。 但是很多时候，其实并不需要等收到回应后才开始下一个请求。 比如通过 RPC 向服务端发送大量数据，在网络稳定的情况下，服务一般不会出什么错， 这时候如果不等服务端发来回应就继续发起下一个请求的话可以大幅提升数据传输性能。 RPC 回应可以放到异步回调里处理。
+以 Go RPC 为例，我们来开如何实现一个 RPC Pipeline。 首先需要一个客户端，就以最简单的 echo server 当例子：
+package server type HelloService struct {} func (p *HelloService) Hello(request string, reply *string) error { *reply = &amp;#34;hello:&amp;#34; + request return nil } func runServer() { rpc.RegisterName(&amp;#34;HelloService&amp;#34;, new(server.HelloService)) listerner, err := net.Listen(&amp;#34;tcp&amp;#34;, &amp;#34;:8848&amp;#34;) if err != nil { glog.Fatalf(&amp;#34;error starting rpc server: %+v&amp;#34;, err) } for { conn, err := listerner.</description>
+    </item>
+    
+    <item>
       <title>Nebula Storage 疯了（一）</title>
       <link>https://coderatwork.cn/posts/nebula-storage-crazy/</link>
       <pubDate>Tue, 11 Jan 2022 21:05:11 +0800</pubDate>

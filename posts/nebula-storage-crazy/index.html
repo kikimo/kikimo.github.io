@@ -2,17 +2,6 @@
 <html lang="en-us">
 <title>Nebula Storage 疯了（一） | kikimo</title>
 <meta charset="utf-8">
-
-<script>
-  var _hmt = _hmt || [];
-  (function() {
-    var hm = document.createElement("script");
-    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
-    var s = document.getElementsByTagName("script")[0]; 
-    s.parentNode.insertBefore(hm, s);
-  })();
-</script>
-
 <meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/nebula-storage-crazy/">
@@ -459,6 +448,7 @@ append log req 1641874628619785706 will run within thread 71
 <p>process_heartbeat()→ [等待释放 partsLock_]→ part.stop()→ [等待设置 requestOnGoing_ = false]→ appendLogsInternal()→ [等待 eb 结束执行 process_heartbeat()]</p>
 
 </article>
+
 
 
 </html>

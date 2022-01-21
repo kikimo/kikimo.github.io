@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>RPC Pipeline | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.68.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/rpc-pipeline/">
+<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>RPC Pipeline</h1>
+    <time datetime="2022-01-21T21:27:19&#43;08:00">January 21, 2022</time>
+  </header>
+  <p>在使用 RPC 通信时通常我们会等待一次请求结束后再发起下一个请求。
+也就等待上一个请求受到回应后才发起下一个请求开始。
+但是很多时候，其实并不需要等收到回应后才开始下一个请求。
+比如通过 RPC 向服务端发送大量数据，在网络稳定的情况下，服务一般不会出什么错，
+这时候如果不等服务端发来回应就继续发起下一个请求的话可以大幅提升数据传输性能。
+RPC 回应可以放到异步回调里处理。</p>
+<p>以 Go RPC 为例，我们来开如何实现一个 RPC Pipeline。
+首先需要一个客户端，就以最简单的 echo server 当例子：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">server</span>
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">HelloService</span> <span style="color:#66d9ef">struct</span> {}
+
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">p</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">HelloService</span>) <span style="color:#a6e22e">Hello</span>(<span style="color:#a6e22e">request</span> <span style="color:#66d9ef">string</span>, <span style="color:#a6e22e">reply</span> <span style="color:#f92672">*</span><span style="color:#66d9ef">string</span>) <span style="color:#66d9ef">error</span> {
+    <span style="color:#f92672">*</span><span style="color:#a6e22e">reply</span> = <span style="color:#e6db74">&#34;hello:&#34;</span> <span style="color:#f92672">+</span> <span style="color:#a6e22e">request</span>
+    <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">nil</span> 
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">runServer</span>() {
+    <span style="color:#a6e22e">rpc</span>.<span style="color:#a6e22e">RegisterName</span>(<span style="color:#e6db74">&#34;HelloService&#34;</span>, new(<span style="color:#a6e22e">server</span>.<span style="color:#a6e22e">HelloService</span>))
+    <span style="color:#a6e22e">listerner</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">net</span>.<span style="color:#a6e22e">Listen</span>(<span style="color:#e6db74">&#34;tcp&#34;</span>, <span style="color:#e6db74">&#34;:8848&#34;</span>)
+    <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+        <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">Fatalf</span>(<span style="color:#e6db74">&#34;error starting rpc server: %+v&#34;</span>, <span style="color:#a6e22e">err</span>)
+    }   
+
+    <span style="color:#66d9ef">for</span> {
+        <span style="color:#a6e22e">conn</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">listerner</span>.<span style="color:#a6e22e">Accept</span>()
+        <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+            <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">Fatalf</span>(<span style="color:#e6db74">&#34;error accepting connection: %+v&#34;</span>, <span style="color:#a6e22e">err</span>)
+        }
+
+        <span style="color:#66d9ef">go</span> <span style="color:#66d9ef">func</span>(<span style="color:#a6e22e">conn</span> <span style="color:#a6e22e">net</span>.<span style="color:#a6e22e">Conn</span>) {
+            <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">Infof</span>(<span style="color:#e6db74">&#34;serving conn: %+v&#34;</span>, <span style="color:#a6e22e">conn</span>)
+            <span style="color:#a6e22e">rpc</span>.<span style="color:#a6e22e">ServeConn</span>(<span style="color:#a6e22e">conn</span>)
+        }(<span style="color:#a6e22e">conn</span>)
+    }   
+}
+</code></pre></div><p>这就是一个最简单的 Go RPC echo server 实现。
+我们将在客户端实现 RPC Pipeline。
+在实现 RPC Pipeline 之前，
+我们先实现常见的 RPC 同步客户端，也就是需要等待服务端回应再发起下个请求：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">runSyncClient</span>(<span style="color:#a6e22e">loop</span> <span style="color:#66d9ef">int</span>) {
+    <span style="color:#a6e22e">client</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">rpc</span>.<span style="color:#a6e22e">Dial</span>(<span style="color:#e6db74">&#34;tcp&#34;</span>, <span style="color:#e6db74">&#34;localhost:8848&#34;</span>)
+    <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+        <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">Fatalf</span>(<span style="color:#e6db74">&#34;dialing: %+v&#34;</span>, <span style="color:#a6e22e">err</span>)
+    }
+
+    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">i</span> <span style="color:#f92672">:=</span> <span style="color:#ae81ff">0</span>; <span style="color:#a6e22e">i</span> &lt; <span style="color:#a6e22e">loop</span>; <span style="color:#a6e22e">i</span><span style="color:#f92672">++</span> {
+        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">reply</span> <span style="color:#66d9ef">string</span>
+        <span style="color:#a6e22e">err</span> = <span style="color:#a6e22e">client</span>.<span style="color:#a6e22e">Call</span>(<span style="color:#e6db74">&#34;HelloService.Hello&#34;</span>, <span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Sprintf</span>(<span style="color:#e6db74">&#34;client %d&#34;</span>, <span style="color:#a6e22e">i</span>), <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">reply</span>)
+        <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+            <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">Fatal</span>(<span style="color:#a6e22e">err</span>)
+        }
+
+        <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">V</span>(<span style="color:#ae81ff">1</span>).<span style="color:#a6e22e">Infof</span>(<span style="color:#e6db74">&#34;reply: %+v&#34;</span>, <span style="color:#a6e22e">reply</span>)
+    }
+}
+</code></pre></div><p><code>client.Call()</code>一直阻塞指导服务端返回结国。
+要实现 Pipeline 只需要把<code>client.Call()</code>替换成<code>cleint.Go()</code>，
+然后在启一个 goroutine 去异步处理<code>client.Go()</code>返回的结果：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">runPiplineClient</span>(<span style="color:#a6e22e">loop</span> <span style="color:#66d9ef">int</span>) {
+    <span style="color:#a6e22e">client</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">rpc</span>.<span style="color:#a6e22e">Dial</span>(<span style="color:#e6db74">&#34;tcp&#34;</span>, <span style="color:#e6db74">&#34;localhost:8848&#34;</span>)
+    <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+        <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">Fatalf</span>(<span style="color:#e6db74">&#34;dialing: %+v&#34;</span>, <span style="color:#a6e22e">err</span>)
+    }
+
+    <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">wg</span> <span style="color:#a6e22e">sync</span>.<span style="color:#a6e22e">WaitGroup</span>
+    <span style="color:#a6e22e">wg</span>.<span style="color:#a6e22e">Add</span>(<span style="color:#a6e22e">loop</span>)
+
+    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">i</span> <span style="color:#f92672">:=</span> <span style="color:#ae81ff">0</span>; <span style="color:#a6e22e">i</span> &lt; <span style="color:#a6e22e">loop</span>; <span style="color:#a6e22e">i</span><span style="color:#f92672">++</span> {
+        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">reply</span> <span style="color:#66d9ef">string</span>
+        <span style="color:#a6e22e">helloCall</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">client</span>.<span style="color:#a6e22e">Go</span>(<span style="color:#e6db74">&#34;HelloService.Hello&#34;</span>, <span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Sprintf</span>(<span style="color:#e6db74">&#34;client %d&#34;</span>, <span style="color:#a6e22e">i</span>), <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">reply</span>, <span style="color:#66d9ef">nil</span>)
+        <span style="color:#66d9ef">go</span> <span style="color:#66d9ef">func</span>(<span style="color:#a6e22e">call</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">rpc</span>.<span style="color:#a6e22e">Call</span>, <span style="color:#a6e22e">replyp</span> <span style="color:#f92672">*</span><span style="color:#66d9ef">string</span>) {
+            <span style="color:#f92672">&lt;-</span><span style="color:#a6e22e">call</span>.<span style="color:#a6e22e">Done</span>
+            <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">V</span>(<span style="color:#ae81ff">1</span>).<span style="color:#a6e22e">Infof</span>(<span style="color:#e6db74">&#34;reply: %+v&#34;</span>, <span style="color:#a6e22e">reply</span>)
+            <span style="color:#a6e22e">wg</span>.<span style="color:#a6e22e">Done</span>()
+        }(<span style="color:#a6e22e">helloCall</span>, <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">reply</span>)
+    }
+    <span style="color:#a6e22e">wg</span>.<span style="color:#a6e22e">Wait</span>()
+}
+</code></pre></div><p>对比两种实现的执行效率，执行 524288 次 RPC 调用的时间消耗分别如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">// pipeline
+real    0m22.410s
+user    0m10.519s
+sys     0m44.574s
+
+// sync clients:
+real    1m4.834s
+user    0m12.472s
+sys     0m47.499s
+</code></pre></div><p>可以看到，pipeline 的性能提升非常明显，实际运行时间几乎比同步客户端快了三倍！
+而且，cpu 的适用时间也更低，非常优秀有没有。</p>
+<p>注意到我们 Pipeline 发送数据用的是同一个 goroutine，
+如果启动多个 goroutine 并法调 RPC 呢？
+再改一版客户端代码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// not as good as pipeline and for rpcs like apache Thrift concurrent
+</span><span style="color:#75715e">// write to client might not work beacause theire clients are not thread
+</span><span style="color:#75715e">// safe
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">runConncurrentClient</span>() {
+    <span style="color:#a6e22e">client</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">rpc</span>.<span style="color:#a6e22e">Dial</span>(<span style="color:#e6db74">&#34;tcp&#34;</span>, <span style="color:#e6db74">&#34;localhost:8848&#34;</span>)
+    <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+        <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">Fatalf</span>(<span style="color:#e6db74">&#34;dialing: %+v&#34;</span>, <span style="color:#a6e22e">err</span>)
+    }   
+
+    <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">wg</span> <span style="color:#a6e22e">sync</span>.<span style="color:#a6e22e">WaitGroup</span>
+    <span style="color:#a6e22e">wg</span>.<span style="color:#a6e22e">Add</span>(<span style="color:#a6e22e">concurrentClientOpts</span>.<span style="color:#a6e22e">clients</span>)
+    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">i</span> <span style="color:#f92672">:=</span> <span style="color:#ae81ff">0</span>; <span style="color:#a6e22e">i</span> &lt; <span style="color:#a6e22e">concurrentClientOpts</span>.<span style="color:#a6e22e">clients</span>; <span style="color:#a6e22e">i</span><span style="color:#f92672">++</span> {
+        <span style="color:#66d9ef">go</span> <span style="color:#66d9ef">func</span>(<span style="color:#a6e22e">id</span> <span style="color:#66d9ef">int</span>) {
+            <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">reply</span> <span style="color:#66d9ef">string</span>
+            <span style="color:#a6e22e">err</span> = <span style="color:#a6e22e">client</span>.<span style="color:#a6e22e">Call</span>(<span style="color:#e6db74">&#34;HelloService.Hello&#34;</span>, <span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Sprintf</span>(<span style="color:#e6db74">&#34;client %d&#34;</span>, <span style="color:#a6e22e">id</span>), <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">reply</span>)
+            <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+                <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">Fatal</span>(<span style="color:#a6e22e">err</span>)
+            }
+
+            <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">V</span>(<span style="color:#ae81ff">1</span>).<span style="color:#a6e22e">Infof</span>(<span style="color:#e6db74">&#34;reply: %+v&#34;</span>, <span style="color:#a6e22e">reply</span>)
+            <span style="color:#a6e22e">wg</span>.<span style="color:#a6e22e">Done</span>()
+        }(<span style="color:#a6e22e">i</span>)
+    }   
+
+    <span style="color:#a6e22e">wg</span>.<span style="color:#a6e22e">Wait</span>()
+}
+</code></pre></div><p>同样还是测试 524288 次 RPC 调用，我们发现对比单个 Goroutine 的 Pipeline 实现，
+并发请求的效率反而各方面之指标都明显变差了：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">// and for concurrent clients:
+real    0m28.981s
+user    0m14.819s
+sys     1m17.591s
+and sync client takes:
+</code></pre></div><p>估计太多的的并发 goroutine 同时间争用通信信道反而恶化了调度延迟了。
+除了性能变差意外，并发 RPC 调用还有一个严重的问题是——很多 RPC 的客户端实现不是线程安全的。
+例如 Thrift RPC，如果多线程调用同一个 RPC client 并发请求的话很快它就会报错。</p>
+<p>RPC Pipeline 一个经典的应用场景是 Raft 中的日志复制。
+Raft Leader 负责日志复制，
+可以在 Raft leder 中启动一个线程专门负责日志。
+这个线程跑一个循环只要本地还有没发送到客户端的 log。
+这个循环就会调用异步 AppendEntries RPC 把日志复制过去，
+RPC 的回调丢给一个专门的线程池来处理。</p>
+
+</article>
+
+
+
+</html>

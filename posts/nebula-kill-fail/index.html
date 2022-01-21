@@ -2,17 +2,6 @@
 <html lang="en-us">
 <title>Nebula Storage 无法 Kill 问题分析 | kikimo</title>
 <meta charset="utf-8">
-
-<script>
-  var _hmt = _hmt || [];
-  (function() {
-    var hm = document.createElement("script");
-    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
-    var s = document.getElementsByTagName("script")[0]; 
-    s.parentNode.insertBefore(hm, s);
-  })();
-</script>
-
 <meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/nebula-kill-fail/">
@@ -366,6 +355,7 @@ ThriftServer 等待 worker 结束，首尾衔接妙不可言的死循环啊…�
 wait()、join() 这样的调用尽量不要放在 signal handler 里面（应该说这种行为就得杜绝）。</p>
 
 </article>
+
 
 
 </html>

@@ -2,17 +2,6 @@
 <html lang="en-us">
 <title>利用 openssl 生成公钥匙证书 | kikimo</title>
 <meta charset="utf-8">
-
-<script>
-  var _hmt = _hmt || [];
-  (function() {
-    var hm = document.createElement("script");
-    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
-    var s = document.getElementsByTagName("script")[0]; 
-    s.parentNode.insertBefore(hm, s);
-  })();
-</script>
-
 <meta name="generator" content="Hugo 0.68.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/gen-cert-by-openssl/">
@@ -89,6 +78,7 @@ $ openssl x509 -req -in etcd.csr -CA ./fd.crt -CAkey ./fd.key -out etcd.crt -day
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ openssl x509 -text -in fd.crt -noout
 </code></pre></div>
 </article>
+
 
 
 </html>
