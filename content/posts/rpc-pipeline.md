@@ -4,6 +4,8 @@ date: 2022-01-21T21:27:19+08:00
 draft: false
 ---
 
+这篇文章讲 RPC Pipeline，涉及的代码在[rpc-pipeline](https://github.com/kikimo/rpc-pipeline)。
+
 在使用 RPC 通信时通常我们会等待一次请求结束后再发起下一个请求。
 也就等待上一个请求受到回应后才发起下一个请求开始。
 但是很多时候，其实并不需要等收到回应后才开始下一个请求。

@@ -21,7 +21,8 @@
     <h1>RPC Pipeline</h1>
     <time datetime="2022-01-21T21:27:19&#43;08:00">January 21, 2022</time>
   </header>
-  <p>在使用 RPC 通信时通常我们会等待一次请求结束后再发起下一个请求。
+  <p>这篇文章讲 RPC Pipeline，涉及的代码在<a href="https://github.com/kikimo/rpc-pipeline">rpc-pipeline</a>。</p>
+<p>在使用 RPC 通信时通常我们会等待一次请求结束后再发起下一个请求。
 也就等待上一个请求受到回应后才发起下一个请求开始。
 但是很多时候，其实并不需要等收到回应后才开始下一个请求。
 比如通过 RPC 向服务端发送大量数据，在网络稳定的情况下，服务一般不会出什么错，
