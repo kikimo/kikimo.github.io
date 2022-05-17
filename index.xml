@@ -6,7 +6,16 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Fri, 21 Jan 2022 21:27:19 +0800</lastBuildDate><atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Tue, 17 May 2022 21:00:15 +0800</lastBuildDate><atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Raft Stale Read 问题分析</title>
+      <link>https://coderatwork.cn/posts/raft-stale-read/</link>
+      <pubDate>Tue, 17 May 2022 21:00:15 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/raft-stale-read/</guid>
+      <description>这几天在测试一份 Raft 代码的时候发现一个测试过不了： 客户端读不到刚刚写入成功的数据。 这套 Raft 为了保证先行一致性， 所有的读取操作也通过状态机达成一致， 所以出现这种 stale read 的情况就让人很意外。 加几行日志，把所有 Raft apply log 都打印出来， 这套 Raft 代码会批量 apply committed log， 在日志也打印了一次批量 log apply 的开始和结束。 在日志观察到一个情况略神奇： 出现 stale read 时， 总会在一次批量的 log apply 中发现一条 put 操作紧跟着一条 get 操作， 而这条 put 操作的 key/value 就是 stale read 中 miss 的那条记录。 review 代码，发现，在一次批量 Raft log apply 中， 用的是同一个 WriteBatch， 而这中间是允许读操作插进来的。 所以，导致 stale read 的一个合理解释就是 put 操作和紧连的 get 操作塞到同一个批量 raft log apply 操作中， 且他们操作统一个key/value， put 写完但是 WriteBatch 还没提交， 自然后面的 get 也就读不到数据。</description>
+    </item>
+    
     <item>
       <title>RPC Pipeline</title>
       <link>https://coderatwork.cn/posts/rpc-pipeline/</link>
