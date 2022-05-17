@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>Leetcode 题解——1-50 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.89.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/leetcode-1-50/">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>Leetcode 题解——1-50</h1>
+    <time datetime="2020-12-16T19:55:11&#43;08:00">December 16, 2020</time>
+  </header>
+  <h2 id="1-two-sum">1. Two Sum</h2>
+<p>在给定的数组中寻找两个数使其和等于给定的某数，题目保证只有且只有一个解。</p>
+<p>题解：</p>
+<ol>
+<li>使用字典存放数字出现的此时，便利数组中的每个元素，寻找对应的元素时期和等于给定的数。</li>
+<li><em>上述方法使用了两趟便利，也可以使用一趟便利——即一遍存放字典一遍查找互补原数，效果是一样的</em>。</li>
+</ol>
+<h2 id="2-add-two-numbers">2. Add Two Numbers</h2>
+<p>用链表反序存储两非负数字，输出两数之和的结果链表。</p>
+<p>题解：</p>
+<p>链表加法，需要注意处理长度不一致的情况。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">/**
+</span><span style="color:#75715e"> * Definition for singly-linked list.
+</span><span style="color:#75715e"> * type ListNode struct {
+</span><span style="color:#75715e"> *     Val int
+</span><span style="color:#75715e"> *     Next *ListNode
+</span><span style="color:#75715e"> * }
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">addTwoNumbers</span>(<span style="color:#a6e22e">l1</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">ListNode</span>, <span style="color:#a6e22e">l2</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">ListNode</span>) <span style="color:#f92672">*</span><span style="color:#a6e22e">ListNode</span> {
+    <span style="color:#a6e22e">head</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">ListNode</span>{}
+    <span style="color:#a6e22e">ptr</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">head</span>
+    <span style="color:#a6e22e">p1</span>, <span style="color:#a6e22e">p2</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">l1</span>, <span style="color:#a6e22e">l2</span>
+
+    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">p1</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">p2</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span>; <span style="color:#a6e22e">p1</span>, <span style="color:#a6e22e">p2</span> = <span style="color:#a6e22e">p1</span>.<span style="color:#a6e22e">Next</span>, <span style="color:#a6e22e">p2</span>.<span style="color:#a6e22e">Next</span> {
+        <span style="color:#a6e22e">e</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">ListNode</span>{<span style="color:#a6e22e">Val</span>: <span style="color:#a6e22e">p1</span>.<span style="color:#a6e22e">Val</span> <span style="color:#f92672">+</span> <span style="color:#a6e22e">p2</span>.<span style="color:#a6e22e">Val</span>}
+        <span style="color:#a6e22e">ptr</span>.<span style="color:#a6e22e">Next</span> = <span style="color:#a6e22e">e</span>
+        <span style="color:#a6e22e">ptr</span> = <span style="color:#a6e22e">e</span>
+    }
+
+    <span style="color:#a6e22e">left</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">p1</span>
+    <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">left</span> <span style="color:#f92672">==</span> <span style="color:#66d9ef">nil</span> {
+        <span style="color:#a6e22e">left</span> = <span style="color:#a6e22e">p2</span>
+    }
+
+    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">left</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span>; <span style="color:#a6e22e">ptr</span> = <span style="color:#a6e22e">ptr</span>.<span style="color:#a6e22e">Next</span> {
+        <span style="color:#a6e22e">e</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">ListNode</span>{<span style="color:#a6e22e">Val</span>: <span style="color:#a6e22e">left</span>.<span style="color:#a6e22e">Val</span>}
+        <span style="color:#a6e22e">ptr</span>.<span style="color:#a6e22e">Next</span> = <span style="color:#a6e22e">e</span>
+        <span style="color:#a6e22e">ptr</span> = <span style="color:#a6e22e">e</span>
+    }
+
+    <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">head</span>.<span style="color:#a6e22e">Next</span>
+}
+</code></pre></div><h2 id="3-longest-substring-without-repeating-characters">3. Longest Substring Without Repeating Characters</h2>
+<p>寻找子串中最长的无重复子串。</p>
+<p>题解：</p>
+<ol>
+<li>用 Set + 滑动窗口，O(2n) 时间复杂度，实现的技巧中，左右的移动可以合并到一个循环中，嵌套循环的形式代码比较丑。</li>
+<li>用 Map + 滑动窗口的优化形式，时间复杂度可以优化到 O(n)，实现的技巧在于 Map 存储字符在串中出现的位置，Map 中字符不在滑动窗口 [i, j) 之间的的可以直接覆盖</li>
+</ol>
+<h2 id="4-median-of-two-sorted-arrays">4. Median of Two Sorted Arrays</h2>
+<p>求两个有序数组的有序数组的中位数。</p>
+<p>题解：</p>
+<p>使用类似快排的分区算法，具体思路 TODO</p>
+<p><em>important</em></p>
+<h2 id="5-longest-palindromic-substring">5. Longest Palindromic Substring</h2>
+<p>求最长回文子串。</p>
+<p>题解：</p>
+<p>TODO（当初用动态规划做的，思路都忘了）</p>
+<p>important</p>
+<h2 id="6-zigzag-conversion">6. ZigZag Conversion</h2>
+<p>ZigZag 顺序转化。</p>
+<p>题解：</p>
+<p>TODO</p>
+<p><em>very important</em></p>
+<h2 id="7-reverse-integer">7. Reverse Integer</h2>
+<p>整数顺序翻转：123 -&gt; 321, -123 -&gt; -321。</p>
+<p>题解：</p>
+<p>模十取数，整数、整数转换。</p>
+<p>TODO: 熟悉整数、字符串之间相互转换的函数。</p>
+<p><em>easy very important</em></p>
+<h2 id="8-string-to-integer-atoi">8. String to Integer (atoi)</h2>
+<p>字串 -&gt; 整数。</p>
+<p>题解：</p>
+<p>有限状态机器。</p>
+<p><em>easy very important</em>
+TODO: 字符(rune) -&gt; 数字的转换</p>
+<h2 id="9-palindrome-number">9. Palindrome Number</h2>
+<p>判断回文数。</p>
+<p>题解：</p>
+<p>转化为字串判断回文。</p>
+<h2 id="10-regular-expression-matching">10. Regular Expression Matching</h2>
+<p>正则匹配：支持 ./* 操作符。</p>
+<p>题解：</p>
+<p>TODO：dfs 搜索</p>
+<p><em>very important</em></p>
+<h2 id="11-container-with-most-water">11. Container With Most Water</h2>
+<p>最多雨水收集。</p>
+<p>题解：</p>
+<p>TODO</p>
+<h2 id="12-integer-to-roman">12. Integer to Roman</h2>
+<p>整数 -&gt; 罗马数。</p>
+<p>题解：</p>
+<p><em>TODO important</em></p>
+<h2 id="12-roman-to-integer">12. Roman to Integer</h2>
+<p>罗马数 -&gt; 整数</p>
+<p>题解：</p>
+<p><em>TODO important</em></p>
+<h2 id="14-longest-common-prefix">14. Longest Common Prefix</h2>
+<p>最常公共前缀。</p>
+<p>题解：</p>
+<p>遍历字串。</p>
+<h2 id="15-3sum">15. 3Sum</h2>
+<p>寻找数组中所有符合 a + b + c = 0 的组合。</p>
+<p>题解：</p>
+<p><em>TODO important</em></p>
+<h2 id="16-3sum-closest">16. 3Sum Closest</h2>
+<p>寻找数组中三个数之和使其最接近给定的整数 target。</p>
+<p>题解：</p>
+<p><em>TODO important</em></p>
+<h2 id="17-letter-combinations-of-a-phone-number">17. Letter Combinations of a Phone Number</h2>
+<p>根据给定的输入数字，找出手机键盘上的所有可能的字串组合。</p>
+<p>题解：</p>
+<p>循环遍历生成所有字串组合即可。</p>
+<h2 id="18-4sum">18. 4Sum</h2>
+<p>寻找数组中的所有的 a + b + c + d = target。</p>
+<p>题解：</p>
+<p><em>TODO important</em></p>
+<h2 id="19-remove-nth-node-from-end-of-list">19. Remove Nth Node From End of List</h2>
+<p>从链表中删除倒数第 N 个元素。</p>
+<p>题解：</p>
+<p>（1）使用二级指针技巧用于元素删除；
+（2）使用双指针技巧，第一个指针先向前移动 N 个位置，第二指针开始同步移动。</p>
+<p><em>TODO important</em></p>
+<h2 id="20-valid-parentheses">20. Valid Parentheses</h2>
+<p>合法的括号。</p>
+<p>题解：</p>
+<p>堆栈遍历。</p>
+<p><em>TODO importnat</em></p>
+<h2 id="21-merge-two-sorted-lists">21. Merge Two Sorted Lists</h2>
+<p>合并有序链表。</p>
+<p>题解：</p>
+<p>简单的链表操作。</p>
+<p><em>TODO</em></p>
+<h2 id="22-generate-parentheses">22. Generate Parentheses</h2>
+<p>给定 n 对括号，生成所有合法的括号配对。</p>
+<p>题解：</p>
+<ol>
+<li>一种错误的解法：括号生成规则：p(n) = set({ (e), ()e, e()| for e in p(n-1)})，循环迭代生成所有括号集合。
+为什么是错的：以上规则无法生成字串 &ldquo;(())(())&rdquo;</li>
+<li>一种正确的解法：根据括号生成规则深度遍历生成括号字串。</li>
+</ol>
+<p><em>TODO very important</em></p>
+<h2 id="23-merge-k-sorted-lists">23. Merge k Sorted Lists</h2>
+<p>合并 k 个有序链表。</p>
+<p>题解：</p>
+<p>使用最小堆。
+<a href="https://golang.org/pkg/container/heap/">Package heap</a></p>
+<p><em>TODO very important</em></p>
+<h2 id="24-swap-nodes-in-pairs">24. Swap Nodes in Pairs</h2>
+<p>交换链表中每对相邻的两个元素。</p>
+<p>题解：</p>
+<p>二级指针骚操作：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">/**
+</span><span style="color:#75715e"> * Definition for singly-linked list.
+</span><span style="color:#75715e"> * type ListNode struct {
+</span><span style="color:#75715e"> *     Val int
+</span><span style="color:#75715e"> *     Next *ListNode
+</span><span style="color:#75715e"> * }
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">swapPairs</span>(<span style="color:#a6e22e">head</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">ListNode</span>) <span style="color:#f92672">*</span><span style="color:#a6e22e">ListNode</span> {
+    <span style="color:#a6e22e">p</span> = <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">head</span>
+    
+    <span style="color:#75715e">// TODO
+</span><span style="color:#75715e"></span>    <span style="color:#66d9ef">for</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">p</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Next</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+        <span style="color:#a6e22e">next</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Next</span>
+        <span style="color:#a6e22e">nextNext</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">next</span>.<span style="color:#a6e22e">Next</span>
+        
+        <span style="color:#a6e22e">next</span>.<span style="color:#a6e22e">Next</span> = <span style="color:#f92672">*</span><span style="color:#a6e22e">p</span>
+        <span style="color:#f92672">*</span><span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Next</span> = <span style="color:#a6e22e">nextNext</span>
+        <span style="color:#f92672">*</span><span style="color:#a6e22e">p</span> = <span style="color:#a6e22e">next</span>
+    }
+
+    <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">head</span>
+}
+</code></pre></div><p><em>TODO very important</em></p>
+<h2 id="25-reverse-nodes-in-k-group">25. Reverse Nodes in k-Group</h2>
+<p>链表 k 翻转。</p>
+<p>题解：</p>
+<p>先解决链表翻转的问题，然后再利用二级指针的技巧处理链表 k 翻转。</p>
+<h2 id="26-remove-duplicates-from-sorted-array">26. Remove Duplicates from Sorted Array</h2>
+<p>删除有序数组中的重复元素。</p>
+<p>题解：</p>
+<p>双指针移动。</p>
+<p><em>TODO very important</em></p>
+<h2 id="27-remove-element">27. Remove Element</h2>
+<p>原地删除数组中的指定元素。</p>
+<p>题解：</p>
+<p>双指针技巧。i, j: i 表示当前元素会被移动进去的位置，j 表示当前带测试的元素的位置，初始状态 i, j := 0, 0</p>
+<h2 id="28-implement-strstr">28. Implement strStr()</h2>
+<p>字符串子串查找。</p>
+<p>题解：</p>
+<ol>
+<li>KMP：现场敲时间不够</li>
+<li>保险一点用 rabin-karpa 算法 TODO</li>
+</ol>
+<p><em>TODO very import</em></p>
+<h2 id="29-divide-two-integers">29. Divide Two Integers</h2>
+<p>求两数相除的商，要求不能使用乘法、出发、模运算。</p>
+<p>题解：</p>
+<p>TODO</p>
+<p><em>TODO very important</em></p>
+<h2 id="30-substring-with-concatenation-of-all-words">30. Substring with Concatenation of All Words</h2>
+<p>题目没看懂!!!</p>
+<p><em>TODO important</em></p>
+<h2 id="31-next-permutation">31. Next Permutation</h2>
+<p>给定一个数组，求这些数字组成的下一个排列组合数。</p>
+<p>题解：</p>
+<p>交换两个数字形成一个逆序，从右往左找到第一个逆序数对，交换两个数字。</p>
+<p><em>TODO very important</em></p>
+<h2 id="32-longest-valid-parentheses">32. Longest Valid Parentheses</h2>
+<p>最常可行的括号匹配</p>
+<p>题解：</p>
+<p>动态规划
+<em>TODO very important</em></p>
+<h2 id="33-search-in-rotated-sorted-array">33. Search in Rotated Sorted Array</h2>
+<p>旋转有序数组查找</p>
+<p>题解：
+<em>TODO very important</em></p>
+<h2 id="34-find-first-and-last-position-of-element-in-sorted-array">34. Find First and Last Position of Element in Sorted Array</h2>
+<p>寻找有序数组中元素起始和结束的位置。</p>
+<p>题解：</p>
+<p>二分法</p>
+<p><em>TODO very important</em></p>
+<h2 id="35-search-insert-position">35. Search Insert Position</h2>
+<p>寻找数组中元素的插入位置。</p>
+<p>题解：</p>
+<p>二分法变种。</p>
+<p><em>TODO very important</em></p>
+<h2 id="36-valid-sudoku">36. Valid Sudoku</h2>
+<p>验证速度的合法性</p>
+<p>题解：</p>
+<p>简单模拟</p>
+<h2 id="37-sudoku-solver">37. Sudoku Solver</h2>
+<p>数独求解</p>
+<p>题解：</p>
+<p>深度搜索，剪纸策略：可以算出每个格子可行的元素是什么（行、列、方形中可行元素的交集）</p>
+<h2 id="38-count-and-say">38. Count and Say</h2>
+<p>TODO</p>
+<h2 id="39-combination-sum">39. Combination Sum</h2>
+<p>TODO</p>
+<h2 id="40-combination-sum-ii">40. Combination Sum II</h2>
+<p>TODO</p>
+<h2 id="41-first-missing-positive">41. First Missing Positive</h2>
+<p>TODO</p>
+<h2 id="42-trapping-rain-water">42. Trapping Rain Water</h2>
+<p>TODO</p>
+<h2 id="43-multiply-strings">43. Multiply Strings</h2>
+<p>数乘模拟。</p>
+<p>题解：</p>
+<p>数乘模拟。</p>
+<p><em>TODO very important</em></p>
+<h2 id="44-wildcard-matching">44. Wildcard Matching</h2>
+<p>通配符匹配，支持符号：?, *</p>
+<p>题解：</p>
+<p>深度遍历
+<em>TODO very important</em></p>
+<h2 id="45-jump-game-ii">45. Jump Game II</h2>
+<p>TODO</p>
+<h2 id="46-permutations">46. Permutations</h2>
+<p>给定一个数组，数字都不相同，返回所有全排列。</p>
+<p>题解：</p>
+<p>递归函数。</p>
+<p><em>TODO very important</em></p>
+<h2 id="47-permutations-ii">47. Permutations II</h2>
+<p>含重复数的全排列。</p>
+<p>题解：</p>
+<p><em>TODO very important</em></p>
+<h2 id="48-rotate-image">48. Rotate Image</h2>
+<p>矩阵九十度翻转，不能分配额外的内存空间。</p>
+<p>题解：寻找规律，由外二内翻转。</p>
+<p><em>TODO very important</em></p>
+<h2 id="49-group-anagrams">49. Group Anagrams</h2>
+<p>组合字符集相同的单词。</p>
+<p>题解：</p>
+<p>给单词的字母排序，然后组合集合。</p>
+<p><em>TODO very important</em></p>
+<h2 id="50-powx-n">50. Pow(x, n)</h2>
+<p>计算 x^n</p>
+<p>题解：</p>
+<p>连续模平方。</p>
+<p><em>TODO very important</em></p>
+
+</article>
+
+
+
+</html>

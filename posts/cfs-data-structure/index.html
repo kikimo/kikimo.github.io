@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>CFS 调度算法中的数据结构 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/cfs-data-structure/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -32,7 +42,7 @@ CFS 算法的核心并不发复杂，它跟踪每个进程的 CPU 时间，每�
 这些计算公式也许是有效的，但是人们无法解释他们是如何起作用的，这给系统的维护升级都带来麻烦。
 CFS 的出现解决了这些问题，同时也为后来 CGroup 的 CPU 资源隔离打下基础。</p>
 <p>早先 Linux 内核中只有一个调度队列，后来为了提高多核场景下的并发效率，改成每个 CPU 单独分配一个调度队列。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/*
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/*
 </span><span style="color:#75715e"> * This is the main, per-CPU runqueue data structure.
 </span><span style="color:#75715e"> *
 </span><span style="color:#75715e"> * Locking rule: those places that want to lock multiple runqueues
@@ -85,7 +95,7 @@ Linux 支持 CFS、RT 等不同的调度算法。
 这两个结构体字段分别为 CFS 和 RT 调度算法的调度队列。
 我们主要关心 CFS 的调度算法实现，
 所以我们重点关注<code>struct cfs_rq</code>这个结构体：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* CFS-related fields in a runqueue */</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* CFS-related fields in a runqueue */</span>
 <span style="color:#66d9ef">struct</span> cfs_rq {
     <span style="color:#66d9ef">struct</span> load_weight load;
     <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> nr_running, h_nr_running;
@@ -141,7 +151,7 @@ Linux 支持 CFS、RT 等不同的调度算法。
 这是因为 CFS 支持进程组调度，CFS 的调度实体指向的既可能是一个进程也可能是一个进程组。
 当<code>struct sched_entity</code>结构体中的<code>struct cfs_rq       *my_q</code>字段不为空时，
 它只想的是一个进程组<code>struct task_group</code>，<code>struct cfs_rq *my_q</code>则是<code>struct task_group</code>结构体中嵌套的一个 CFS 调度队列。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">struct</span> sched_entity {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">struct</span> sched_entity {
     <span style="color:#66d9ef">struct</span> load_weight  load;       <span style="color:#75715e">/* for load-balancing */</span>
     <span style="color:#66d9ef">struct</span> rb_node      run_node;
     <span style="color:#66d9ef">struct</span> list_head    group_node;
@@ -181,7 +191,7 @@ Linux 支持 CFS、RT 等不同的调度算法。
 };
 </code></pre></div><p><code>struct sched_entity</code>中的<code>vruntime</code>字段既用来表示 CPU 运行时间，他是红黑树中用来排序的 key。
 再来看进程结构体<code>strut task_struct</code>中和 CFS 有关的字段：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">struct</span> task_struct {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">struct</span> task_struct {
     <span style="color:#66d9ef">int</span> on_rq;
     <span style="color:#66d9ef">struct</span> sched_entity se;
     <span style="color:#66d9ef">struct</span> sched_rt_entity rt;
@@ -191,7 +201,7 @@ Linux 支持 CFS、RT 等不同的调度算法。
 </code></pre></div><p>可以看到<code>task_struct</code>结构体中包含了<code>schec_entity</code>，
 当我们知道一个<code>sched_entity</code>指向的是<code>task_struct</code>之后就可以查找它关联的到<code>task_struct</code>结构体了。
 最后我们看<code>struct task_group</code>结构体，我们已经知道这个结构体表示一个进程组，它也有自己的调度队列。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* task group related information */</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* task group related information */</span>
 <span style="color:#66d9ef">struct</span> task_group {
 <span style="color:#75715e">#ifdef CONFIG_FAIR_GROUP_SCHED
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">/* schedulable entities of this group on each cpu */</span>
@@ -207,7 +217,7 @@ Linux 支持 CFS、RT 等不同的调度算法。
     <span style="color:#66d9ef">struct</span> cfs_bandwidth cfs_bandwidth;
 };
 </code></pre></div><p>当 CFS 选择的是一个进程组时，它会递归的从这个进程组的调度队列中选择一个进程来运行。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span><span style="color:#a6e22e">pick_next_task_fair</span>(<span style="color:#66d9ef">struct</span> rq <span style="color:#f92672">*</span>rq)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span><span style="color:#a6e22e">pick_next_task_fair</span>(<span style="color:#66d9ef">struct</span> rq <span style="color:#f92672">*</span>rq)
 {
     <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>p;
     <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-&gt;</span>cfs;
@@ -237,7 +247,7 @@ Linux 支持 CFS、RT 等不同的调度算法。
 一个<code>task_group</code>为每个 CPU 都分配了<code>sched_entity</code>，
 实际上就是，不同的<code>sched_entity</code>可能只想相同的<code>task_group</code>，他们都是<code>task_group</code>中<code>se</code>数组中的元素；
 同时<code>sched_entity</code>中的<code>my_q</code>字段指向对应的 CPU 调度对垒；所有这些操作都是在<code>init_tg_cfs_entry()</code>函数中完成的：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">alloc_fair_sched_group</span>(<span style="color:#66d9ef">struct</span> task_group <span style="color:#f92672">*</span>tg, <span style="color:#66d9ef">struct</span> task_group <span style="color:#f92672">*</span>parent)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">alloc_fair_sched_group</span>(<span style="color:#66d9ef">struct</span> task_group <span style="color:#f92672">*</span>tg, <span style="color:#66d9ef">struct</span> task_group <span style="color:#f92672">*</span>parent)
 {
     <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq;
     <span style="color:#66d9ef">struct</span> sched_entity <span style="color:#f92672">*</span>se;

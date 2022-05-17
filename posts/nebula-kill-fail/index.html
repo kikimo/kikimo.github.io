@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>Nebula Storage 无法 Kill 问题分析 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/nebula-kill-fail/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -24,7 +34,7 @@
   <p><a href="https://github.com/vesoft-inc/nebula">Nebula storage</a> 实例经常出现无法 kill 的情况。
 必须使用暴力的<code>kill -9</code>才能强行让它退出。
 storage 无法 kill 一例：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># ps aux
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># ps aux
 USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
 root           1  0.0  0.0   1104     4 ?        Ss   14:43   0:00 /sbin/docker-init -- /bin/bash -c /root/nebula-cluster/scripts/run-storage.sh
 root           7  0.0  0.0   3976  3136 ?        S    14:43   0:00 /bin/bash /root/nebula-cluster/scripts/run-storage.sh
@@ -36,7 +46,7 @@ root        3904  0.0  0.0  13580  8840 ?        Ds   15:06   0:00 sshd: root@pt
 root        3915  0.0  0.0   4240  3512 pts/0    Ss   15:06   0:00 -bash
 root        3925  0.0  0.0   5896  2896 pts/0    R+   15:08   0:00 ps aux
 </code></pre></div><p>节点看起来似乎 hang 住了，查看日志，我们发现：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">3485 I1207 15:06:29.026923    77 MetaClient.cpp:3034] Load leader ok
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">3485 I1207 15:06:29.026923    77 MetaClient.cpp:3034] Load leader ok
 3486 I1207 15:06:29.356928    43 StorageDaemon.cpp:181] Signal 15(Terminated) received, stopping this server
 3487 I1207 15:06:29.357704    43 NebulaStore.cpp:218] Stop the raft service...
 3488 I1207 15:06:29.358178    43 RaftexService.cpp:125] Stopping the raftex service on port 9780
@@ -65,7 +75,7 @@ root        3925  0.0  0.0   5896  2896 pts/0    R+   15:08   0:00 ps aux
 15:33:26 进程再次收到<code>kill -9</code>信号进程才退出。
 注意到这样日志：3506 I1207 15:06:29.476013 43 NebulaStore.cpp:39] Waiting for the raft service stop&hellip;，难道是 raft service 卡住了？
 翻下代码 NebulaStore.cpp：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">NebulaStore<span style="color:#f92672">::~</span>NebulaStore() {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">NebulaStore<span style="color:#f92672">::~</span>NebulaStore() {
   LOG(INFO) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Cut off the relationship with meta client&#34;</span>;
   options_.partMan_.reset();
   raftService_<span style="color:#f92672">-&gt;</span>stop();
@@ -83,7 +93,7 @@ root        3925  0.0  0.0   5896  2896 pts/0    R+   15:08   0:00 ps aux
 由于我们用 Mozilla RR 把实例的运行过程录下来了，
 所以开 RR debug，
 continue 直接让把我们带到 SIGTERM 的位置，现场如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 [New Thread 25.168]
 --Type &lt;RET&gt; for more, q to quit, c to continue without paging--c
  
@@ -106,7 +116,7 @@ Thread 3 received signal SIGTERM, Terminated.
 #12 0x000000000496829e in folly::EventBase::runInEventBaseThread(folly::Function&lt;void ()&gt;) ()
 #13 0x00000000045a922b in apache::thrift::HandlerCallbackBase::sendReply(folly::IOBufQueue) ()
 </code></pre></div><p>SIGTERM 断点的地方看不到什么有用的信息，继续 continue，在我们给 NebulaStore.cpp 设置的断点中断下来了：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) c
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) c
 Continuing.
  
 Thread 3 hit Breakpoint 1, nebula::kvstore::NebulaStore::~NebulaStore (this=0x250910837400, __in_chrg=&lt;optimized out&gt;) at /root/src/nebula/src/kvstore/NebulaStore.cpp:40
@@ -127,7 +137,7 @@ ThriftServer 显然是在等待另一个线程的退出。
 还是通过堆栈，我们在每次 storage 卡死的时候都能看到一个似乎是在跑 appendLog 任务的 thrift worker 线程，
 这个 worker 运行的 appendLog 任务卡死可能是 storage 无法退出的本质原因。
 第一次收到 SIGTERM，我们观察到此时系统中的 Thrift executor 大概有 40 个左右：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 3 received signal SIGTERM, Terminated.
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 3 received signal SIGTERM, Terminated.
 [Switching to Thread 25.43]
 0x0000000070000002 in syscall_traced ()
 (rr) info threads
@@ -181,7 +191,7 @@ ThriftServer 显然是在等待另一个线程的退出。
   47   Thread 25.71 (IOThreadPool4)    0x0000000070000002 in syscall_traced ()
   48   Thread 25.72 (IOThreadPool5)    0x0000000070000002 in syscall_traced ()
 </code></pre></div><p>第二次只剩下三个：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 Thread 1 received signal SIGTERM, Terminated.
 [Switching to Thread 25.25]
 __pthread_clockjoin_ex (threadid=11519218898688, thread_return=0x0, clockid=&lt;optimized out&gt;, abstime=&lt;optimized out&gt;, block=&lt;optimized out&gt;) at pthread_join_common.c:145
@@ -209,7 +219,7 @@ __pthread_clockjoin_ex (threadid=11519218898688, thread_return=0x0, clockid=&lt;
   56   Thread 25.80 (nebula-bgworker)  0x0000000070000002 in syscall_traced ()
   57   Thread 25.81 (nebula-bgworker)  0x0000000070000002 in syscall_traced ()
 </code></pre></div><p>检查 thread 3，看到一个非常好玩的堆栈：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) bt
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) bt
 #0  0x0000000070000002 in syscall_traced ()
 #1  0x0000250910a18725 in _raw_syscall () at /root/src/rr/src/preload/raw_syscall.S:120
 #2  0x0000250910a144ff in traced_raw_syscall (call=call@entry=0x7f3c1c8fd970) at /root/src/rr/src/preload/syscallbuf.c:278
@@ -309,7 +319,7 @@ F&gt;, F&amp;&amp;) [with F = nebula::raftex::cpp2::RaftexServiceSvIf::async_tm_
 信号处理的 handler 被调度到这个 worker 所在的线程上执行，
 这个信号处理程序都干了些啥呢？
 他调用 StorageDaemon.cpp 中的 signalHandler() 停止 StorageServer：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">signalHandler</span>(<span style="color:#66d9ef">int</span> sig) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">signalHandler</span>(<span style="color:#66d9ef">int</span> sig) {
   <span style="color:#66d9ef">switch</span> (sig) {
     <span style="color:#66d9ef">case</span> SIGINT:
     <span style="color:#66d9ef">case</span> SIGTERM:
@@ -326,7 +336,7 @@ F&gt;, F&amp;&amp;) [with F = nebula::raftex::cpp2::RaftexServiceSvIf::async_tm_
 StorageServer 会尝试停止他持有的 ThriftServer，
 ThriftServer 在停止前会等待他的所有 worker 结束，
 可以从以上堆栈的顶部的函数调用看出这点：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">#12 0x0000000004ed23e0 in std::condition_variable::wait(std::unique_lock&lt;std::mutex&gt;&amp;) ()
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">#12 0x0000000004ed23e0 in std::condition_variable::wait(std::unique_lock&lt;std::mutex&gt;&amp;) ()
 #13 0x00000000046d867b in apache::thrift::concurrency::ThreadManager::Impl::removeWorkerImpl(std::unique_lock&lt;std::mutex&gt;&amp;, unsigned long, bool) ()
 #14 0x00000000046d9c1b in apache::thrift::concurrency::ThreadManager::Impl::stopImpl(bool) ()
 #15 0x00000000046e09f9 in apache::thrift::concurrency::PriorityThreadManager::PriorityImpl::join() ()

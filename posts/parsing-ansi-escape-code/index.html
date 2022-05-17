@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>ANSI 转义码(ANSI escape code)解析 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/parsing-ansi-escape-code/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -34,7 +44,7 @@
 <a href="https://en.wikipedia.org/wiki/ANSI_escape_code#SGR">ANSI 转义码的 wiki</a>基本覆盖了这个标准的核心内容，
 部分<code>terminal</code>模拟器可能使用了标准以外的转义序列，可以参考<a href="https://vt100.net/docs/vt510-rm/chapter4.html">VT510 Video Terminal Programmer Information</a>。</p>
 <p>根据 ANSI 转义序列规范实现的 ANSI 转义码解析 demo（该 demo 只用来演示说民工，并未完成所有 ANSI 转义序列的解析）：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e"># coding: utf-8</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e"># coding: utf-8</span>
 
 <span style="color:#f92672">import</span> sys
 
@@ -57,11 +67,11 @@ val <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;<
         self<span style="color:#f92672">.</span>data <span style="color:#f92672">=</span> data
         self<span style="color:#f92672">.</span>sz <span style="color:#f92672">=</span> len(data)
         self<span style="color:#f92672">.</span>pos <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
-        self<span style="color:#f92672">.</span>ch <span style="color:#f92672">=</span> None
+        self<span style="color:#f92672">.</span>ch <span style="color:#f92672">=</span> <span style="color:#66d9ef">None</span>
         self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">eat_digit</span>(self):
-        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">is</span> None:
+        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">is</span> <span style="color:#66d9ef">None</span>:
             <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74">&#39;ch is None&#39;</span>)
 
         v <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;</span>
@@ -75,7 +85,7 @@ val <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;<
         <span style="color:#66d9ef">return</span> v
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">eat_ctrl_string</span>(self):
-        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">is</span> None:
+        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">is</span> <span style="color:#66d9ef">None</span>:
             <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">Exception</span>(<span style="color:#e6db74">&#39;ch is None&#39;</span>)
 
         ctrls <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;</span>
@@ -93,15 +103,15 @@ val <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;<
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">next_ch</span>(self):
         <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>pos <span style="color:#f92672">&gt;=</span> self<span style="color:#f92672">.</span>sz:
-            <span style="color:#66d9ef">return</span> False
+            <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">False</span>
 
         self<span style="color:#f92672">.</span>ch <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>data[self<span style="color:#f92672">.</span>pos]
         self<span style="color:#f92672">.</span>pos <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
-        <span style="color:#66d9ef">return</span> True
+        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">True</span>
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">peek_next_ch</span>(self):
         <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>pos <span style="color:#f92672">&gt;=</span> self<span style="color:#f92672">.</span>sz:
-            <span style="color:#66d9ef">return</span> None
+            <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">None</span>
 
         ch <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>data[self<span style="color:#f92672">.</span>pos]
         <span style="color:#75715e"># print(&#34;peek next: %c&#34; % (ch))</span>
@@ -129,7 +139,7 @@ val <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;<
                     <span style="color:#75715e"># print(&#39;\nOperating System Command: %s&#39; % (ctrls))</span>
                     self<span style="color:#f92672">.</span>status <span style="color:#f92672">=</span> STATUS_NORMAL
                 <span style="color:#66d9ef">else</span>:
-                    <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;ESC, ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
+                    print(<span style="color:#e6db74">&#39;ESC, ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
                     <span style="color:#66d9ef">break</span>
             <span style="color:#66d9ef">elif</span> self<span style="color:#f92672">.</span>status <span style="color:#f92672">==</span> STATUS_CSI:
                 <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>ch <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;?&#39;</span>:
@@ -179,13 +189,13 @@ val <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;<
                         <span style="color:#75715e"># print(&#39;CSI %s; %s %c&#39; % (v, u, o))</span>
                     <span style="color:#66d9ef">else</span>:
                         <span style="color:#75715e"># TODO</span>
-                        <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;CSI n: </span><span style="color:#e6db74">%s</span><span style="color:#e6db74">, ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (v, self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
+                        print(<span style="color:#e6db74">&#39;CSI n: </span><span style="color:#e6db74">%s</span><span style="color:#e6db74">, ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (v, self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
                         <span style="color:#66d9ef">break</span>
 
                     <span style="color:#75715e"># print(&#39;csi ch: %c, v: %s&#39; % (ch, v))</span>
                     <span style="color:#75715e"># break</span>
             <span style="color:#66d9ef">else</span>:
-                <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
+                print(<span style="color:#e6db74">&#39;ch: </span><span style="color:#e6db74">%c</span><span style="color:#e6db74">, v: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">%</span> (self<span style="color:#f92672">.</span>ch, ord(self<span style="color:#f92672">.</span>ch)))
                 <span style="color:#66d9ef">break</span>
 
 parser <span style="color:#f92672">=</span> VTParser(data)

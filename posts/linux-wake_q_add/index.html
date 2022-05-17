@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>Linux 中的 wake_q_add() 函数 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/linux-wake_q_add/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -23,7 +33,7 @@
   </header>
   <p><code>wake_q_add()</code>是 <a href="https://elixir.bootlin.com/linux/latest/source/kernel/sched/core.c#L450">Linux 内代码中的一个函数</a>，
 它尝试将一个系统进程放置到等待唤醒的队列中：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">bool</span> <span style="color:#a6e22e">__wake_q_add</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head, <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>task)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">bool</span> <span style="color:#a6e22e">__wake_q_add</span>(<span style="color:#66d9ef">struct</span> wake_q_head <span style="color:#f92672">*</span>head, <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>task)
 {
 	<span style="color:#66d9ef">struct</span> wake_q_node <span style="color:#f92672">*</span>node <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>task<span style="color:#f92672">-&gt;</span>wake_q;
 
@@ -110,7 +120,7 @@
 	}
 }
 </code></pre></div><p>它的原形定义在 <a href="https://elixir.bootlin.com/linux/latest/source/include/linux/sched/wake_q.h">wake_q.h</a> 中：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* SPDX-License-Identifier: GPL-2.0 */</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* SPDX-License-Identifier: GPL-2.0 */</span>
 <span style="color:#75715e">#ifndef _LINUX_SCHED_WAKE_Q_H
 </span><span style="color:#75715e">#define _LINUX_SCHED_WAKE_Q_H
 </span><span style="color:#75715e"></span>

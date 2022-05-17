@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>获取系统 CPU 数量 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/get-sys-cpus/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -35,7 +45,7 @@ Go 则会自动调用<code>runtime.GOMAXPROCS()</code>获取可以 CPU 信息，
 所以 lxcfs 就能解决所有问题了吗？
 显然事情没这么简单，通过简单的测试，可以发现即便配置了伪造的<code>/proc/cpuinfo</code>，
 Java、Go 依然获取了错误的 CPU 信息。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-Java" data-lang="Java"><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Docker</span> <span style="color:#f92672">{</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-Java" data-lang="Java"><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Docker</span> <span style="color:#f92672">{</span>
 
   <span style="color:#66d9ef">public</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">main</span><span style="color:#f92672">(</span>String<span style="color:#f92672">[]</span> args<span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
 
@@ -48,7 +58,7 @@ Java、Go 依然获取了错误的 CPU 信息。</p>
     <span style="color:#75715e">// System.out.format(&#34;Max memory: %d bytes\n&#34;, maxMemory);
 </span><span style="color:#75715e"></span>  <span style="color:#f92672">}</span>
 <span style="color:#f92672">}</span>
-</code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+</code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
 
 <span style="color:#f92672">import</span> (
     <span style="color:#e6db74">&#34;fmt&#34;</span>
@@ -60,7 +70,7 @@ Java、Go 依然获取了错误的 CPU 信息。</p>
 }
 </code></pre></div><p>通过 strace，可以发现 Java 和 Go 分别使用了不同的方法来获取 CPU 信息。
 先来看看 Java 是如何获取 CPU 信息的：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># java Docker
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># java Docker
 Number of processors: 40
 
 # strace -ff java Docker
@@ -76,7 +86,7 @@ Number of processors: 40
 另外 Java 还调用了<code>sched_getaffinity()</code>这个系统调用，这个调用同样可以获取系统的 CPU 信息。
 执行 strace 的时候一定要加<code>-ff</code>参数，因为这些调用不是在 Java 的祝进程中产生的。</p>
 <p>再看 Go 如何获取 CPU 信息：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># ./ncpu
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># ./ncpu
 cpus: 40
 
 # strace -ff ./ncpu 

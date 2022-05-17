@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>SIGPIPE 引发的悲剧 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/sigpipe-tragedy/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -30,7 +40,7 @@
 这种情况下，马上想到的就是 strace attach 上去观察。
 让同事 kill 一个其他节点上的服务，
 strace 跟踪的进程也挂了，查看 strace 的输出：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">[pid 22772] tgkill(22314, 22772, SIGPIPE &lt;unfinished ...&gt;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">[pid 22772] tgkill(22314, 22772, SIGPIPE &lt;unfinished ...&gt;
 [pid 22325] &lt;... write resumed&gt; )       = 42
 [pid 22326] &lt;... write resumed&gt; )       = 335
 [pid 22772] &lt;... tgkill resumed&gt; )      = 0
@@ -63,7 +73,7 @@ strace 跟踪的进程也挂了，查看 strace 的输出：</p>
 <code>SIGPIPE</code>信号通常是往 broken pipe 或者关闭的 socket 写数据时触发的。
 哪里的操作触发了服务的<code>SIGPIPE</code>呢。
 我们把线程<code>22772</code>的 strace 结果过滤出来做进一步分析：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">[pid 22772] &lt;... close resumed&gt; )       = 0
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">[pid 22772] &lt;... close resumed&gt; )       = 0
 [pid 22772] write(2, &#34;2021-02-05 20:06:14.345637 W | r&#34;..., 126 &lt;unfinished ...&gt;
 [pid 22772] &lt;... write resumed&gt; )       = -1 EPIPE (Broken pipe)
 [pid 22772] --- SIGPIPE {si_signo=SIGPIPE, si_code=SI_USER, si_pid=22314, si_uid=1000} ---
@@ -96,19 +106,19 @@ strace 跟踪的进程也挂了，查看 strace 的输出：</p>
 [pid 22772] --- SIGPIPE {si_signo=SIGPIPE, si_code=SI_TKILL, si_pid=22314, si_uid=1000} ---
 [pid 22772] +++ killed by SIGPIPE +++
 </code></pre></div><p>可以看到最近的一个<code>write()</code>系统调用是:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">[pid 22772] write(2, &#34;2021-02-05 20:06:14.345637 W | r&#34;..., 126 &lt;unfinished ...&gt;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">[pid 22772] write(2, &#34;2021-02-05 20:06:14.345637 W | r&#34;..., 126 &lt;unfinished ...&gt;
 </code></pre></div><p>往<code>stderr</code>写数据的时候报错了？
 不能啊，服务用<code>nohup</code>起的，
 按理<code>stderr</code>和<code>stdout</code>都被重定向到<code>nohup.out</code>上了。
 跑到进程的<code>proc</code>目录检查一下，
 发现<code>stderr</code>和<code>stdout</code>真的指向两条管道-_-！：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">...
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">...
 l-wx------. 1 admin admin 64 Feb  5 19:58 1 -&gt; pipe:[203861356]
 ...
 l-wx------. 1 admin admin 64 Feb  5 19:58 2 -&gt; pipe:[203861357]
 ...
 </code></pre></div><p>所以 nohup 这是什么情况？翻出<a href="https://github.com/openbsd/src/blob/master/usr.bin/nohup/nohup.c">nohup 代码</a>来确认下，发现，nohup 还真有特例：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">int</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">int</span>
 <span style="color:#a6e22e">main</span>(<span style="color:#66d9ef">int</span> argc, <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>argv[])
 {
 ...

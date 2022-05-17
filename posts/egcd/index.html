@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>扩展欧几里德算法及其应用 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/egcd/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -29,12 +39,12 @@ x， y 可以用扩展欧几里德算法来计算。
 其中 d = gcd(a, b)，且 ax + by = d。</p>
 <p>令 c = a % b，当 c = 0 时，易知 egcd(a, b) = b, 0, 1。
 当 c != 0，那么此时有 gcd(a, b) = gcd(b, c) = d。
-我们记录 d, x&rsquo;, y&rsquo; = egcd(b, c)，其中 x&rsquo;b + y&rsquo;c = d。
+我们记录 d, x', y' = egcd(b, c)，其中 x&rsquo;b + y&rsquo;c = d。
 记录 k = [a / b]，那么有 c = a - kb，所以有
-x&rsquo;b + y&rsquo;(a - kb) = d，整理后可得 y&rsquo;a + (x&rsquo; - ky&rsquo;)b = d，
-可知有 x = y&rsquo;, y = x&rsquo; - ky&rsquo; 使 ax + by = d。
+x&rsquo;b + y'(a - kb) = d，整理后可得 y&rsquo;a + (x' - ky')b = d，
+可知有 x = y', y = x' - ky' 使 ax + by = d。
 算法的实现如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
 
 <span style="color:#f92672">import</span> <span style="color:#e6db74">&#34;fmt&#34;</span>
 
@@ -83,11 +93,11 @@ x&rsquo;b + y&rsquo;(a - kb) = d，整理后可得 y&rsquo;a + (x&rsquo; - ky&rs
 <code>S = k^-1 (Hash(m) + dA * R) mod p</code>，这个过程中所得的 <code>(R, S)</code>即为椭圆曲线的数字签名。
 其中<code>Hash(m)</code>是消息<code>m</code>的哈希，
 算法通过以下等式来验证一个签名：</p>
-<pre><code class="language-txgt" data-lang="txgt">P = S^-1 * Hash(m) * G + S^-1 * R * Qa
+<pre tabindex="0"><code class="language-txgt" data-lang="txgt">P = S^-1 * Hash(m) * G + S^-1 * R * Qa
 </code></pre><p>这个公示利用公开的消息签名<code>（R，S）</code>和公钥<code>Qa</code>计算出椭圆曲线上的一个点<code>P</code>，如果<code>P</code>点的 x 轴坐标等于<code>R</code>，那么这个签名就是有效的。
 如何验证这个等式呢？
 由<code>S = k^-1 (Hash(m) + dA * R) </code>可导出</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">SP = (k^-1 (Hash(m) + dA * R))P =&gt; 
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">SP = (k^-1 (Hash(m) + dA * R))P =&gt; 
 P = (k^-1 (Hash(m) + dA * R)) * P *S^-1
   = k^-1 * Hash(m) * P * S^-1 + Qa * R * S^-1
   = Hash(m) * G * S^-1 + Qa * R * S^-1

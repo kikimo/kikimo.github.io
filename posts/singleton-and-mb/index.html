@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>单例模式和内存屏障 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/singleton-and-mb/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -27,7 +37,7 @@
 这篇文章主要讲并发场景下使用加载的单例模式的实现。</p>
 <h2 id="1-非线程安全的单例实现">1. 非线程安全的单例实现</h2>
 <p>我们先考虑非线程安全的单例模式的实现</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span>
 <span style="color:#66d9ef">struct</span> singleton_t {
@@ -54,7 +64,7 @@
 当多个线程同时调用<code>getInstance()</code>函数时，
 <code>INSTANCE</code>可呢个会被初始化多次，对此我们考虑使用锁来保障线程安全。</p>
 <h2 id="2-线程安全的单例实现">2. 线程安全的单例实现</h2>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;pthread.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span>
@@ -96,7 +106,7 @@ pthread_mutex_t lock;
 可以考虑做两次判断，第一次判断如果<code>INSTANCE != NULL</code>，我们可以直接返回了，
 否则我们就先加锁，再判断一次<code>INSTANCE</code>变量，如果仍然为空我们才执行初始化操作，
 这就是经典的<strong>double check</strong>操作。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;pthread.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span>
@@ -133,7 +143,7 @@ pthread_mutex_t lock;
     <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
 }
 </code></pre></div><p>但是这个版本的代码还有个明显的问题，我们看这两行代码：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">            INSTANCE <span style="color:#f92672">=</span> malloc(<span style="color:#66d9ef">sizeof</span>(<span style="color:#f92672">*</span>INSTANCE));
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">            INSTANCE <span style="color:#f92672">=</span> malloc(<span style="color:#66d9ef">sizeof</span>(<span style="color:#f92672">*</span>INSTANCE));
             INSTANCE<span style="color:#f92672">-&gt;</span>val <span style="color:#f92672">=</span> <span style="color:#ae81ff">8848</span>;
 </code></pre></div><p><code>malloc()</code>执行完毕后，
 <code>INSTANCE</code>变量已经非空，
@@ -142,7 +152,7 @@ pthread_mutex_t lock;
 修复这个问题的一个思路是，
 我们先完成<code>malloc()</code>分配对象的初始化后再把这个值赋给<code>INSTANCE</code>变量，
 这可以通过一个临时变量来完成，修改后的代码如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;pthread.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span>
@@ -182,12 +192,12 @@ pthread_mutex_t lock;
 </code></pre></div><p>所以万事大吉了吗现在？
 事情显然没那么简单，以上代码还是会受到并发问题的困扰!
 在多核并发的场景下，由于缓存可见性问题，某个线程可能看到的结果是：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">            INSTANCE <span style="color:#f92672">=</span> tmp;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">            INSTANCE <span style="color:#f92672">=</span> tmp;
             tmp<span style="color:#f92672">-&gt;</span>val <span style="color:#f92672">=</span> <span style="color:#ae81ff">8848</span>;
 </code></pre></div><p>也就是先给<code>INSTANCE</code>赋值再执行初始化操作。
 要解决这个问题就得搬出内存屏障这个东西。
 我们需要在这两行代码之前插入一个写屏障:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">rmb</span>() {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">rmb</span>() {
     <span style="color:#66d9ef">asm</span> <span style="color:#66d9ef">volatile</span>(<span style="color:#e6db74">&#34;sfence&#34;</span><span style="color:#f92672">:::</span>);
 }
 ...
@@ -198,7 +208,7 @@ pthread_mutex_t lock;
 </code></pre></div><p>写屏障可以保证<code>INSTANCE = tmp;</code>语句执行前所有的写操作相关的缓存得到更新。
 又：<strong>内存屏障都是成对出现的</strong>，我们加了写屏障，还有其他地方也需要加读屏障以保证读取到正确的缓存数据，
 关于读屏障放置的位置，我认为有两个地方都可以：或者放在代码开始处，或者放在<code>INSTANCE</code>变量返回前，最终代码如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">wmb</span>() {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">wmb</span>() {
     <span style="color:#66d9ef">asm</span> <span style="color:#66d9ef">volatile</span>(<span style="color:#e6db74">&#34;sfence&#34;</span><span style="color:#f92672">:::</span>);
 }
 
@@ -243,7 +253,7 @@ MESI 协议解决了 CPU 之间的缓存一致性问题，
 <p><img src="/images/mb/store_buffer.png" alt="store buffer with store forwarding"></p>
 <p><code>store buffer</code>导致的一个问题是其他进程可能会读取到错误的旧数据。
 例如假设有变量<code>a = 0, b = 0</code>，线程 A 执行一下代码：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">a <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">a <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
 b <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>;
 </code></pre></div><p><code>a</code>变量不在线程的缓存中，线程 A 首先执行<code>invalidate</code>操作，不等它执行完毕它就直接写入<code>store buffer</code>，
 线程 A 继续执行<code>b = 2</code>，变量<code>b</code>在线程 A 的缓存中，其他线程可能在看到<code>b = 2</code>后仍然读取到<code>a = 0</code>。

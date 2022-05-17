@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>关于业务规则 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.89.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/business-rules/">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>关于业务规则</h1>
+    <time datetime="2020-02-23T15:03:24&#43;08:00">February 23, 2020</time>
+  </header>
+  <p><strong>Clean Architecture Chapter 20 Business Rules 笔记</strong></p>
+<p>业务规则就是能一组能创造价值（帮公司赚钱、省钱）的流程。
+业务规则可能由人或计算机软件来协助完成。
+业务规则经常依赖某些数据，这些数据称为业务数据。
+业务规则和业务数据是密不可分的，它们经常被封装到对象中，也是就是我们常说的业务实体（Business Entity）。</p>
+<h2 id="业务实体">业务实体</h2>
+<p>实体是对特定业务规则及其业务数据的封装。
+实体内部通常存有业务数据，或者可以通过实体便捷的访问到业务数据。
+实体方法用于实现相关业务规则。</p>
+<h2 id="用例">用例</h2>
+<p>不是所有的业务规则都能封装在业务实体中。</p>
+<p>Some business rules make or save money for the business by defining and constraining the way that an automated system operates.
+These rules would not be used in a manual environment, because they make sense only as part of an automated system.</p>
+<p>放贷应用：</p>
+<ol>
+<li>收集验证用户姓名、联系信息</li>
+<li>收集用户评分</li>
+<li>根据评分结果决定用户贷款</li>
+</ol>
+
+</article>
+
+
+
+</html>

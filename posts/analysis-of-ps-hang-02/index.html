@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>ps 指令 hang 死原因分析（二） | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/analysis-of-ps-hang-02/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -23,7 +33,7 @@
   </header>
   <p><a href="https://www.coderatwork.cn/posts/analysis-of-ps-hang-01/">上一篇</a>关于 ps 指令 hang 死原因的分析我们提到<a href="https://lore.kernel.org/patchwork/patch/1018850/">内核读写锁的补丁</a>，
 作者在这个补丁里提到读写锁导致进程死锁的一种情况：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">From: Xie Yongji &lt;xieyongji@baidu.com&gt;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">From: Xie Yongji &lt;xieyongji@baidu.com&gt;
 
 Our system encountered a problem recently, the khungtaskd detected
 some process hang on mmap_sem. But the odd thing was that one task which
@@ -109,7 +119,7 @@ Thread 3 在 Thread 1 进入 while 循环之前执行了<code>waiter-&gt;task = 
 如此一来 Thread 1 在 while 循环里面的<code>if (!waiter.task)</code>测试应该是true，
 while 循环就终止了 Thread 1 接着又进入 running 状态了。
 所以，正确的代码执行顺序应该是<code>waiter-&gt;task = NULL</code>在<code>if (!waiter.task)</code>语句之后执行，如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 1                                  Thread 2      Thread 3
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 1                                  Thread 2      Thread 3
                                                         down_write();
 rwsem_down_read_failed()
  raw_spin_lock_irq(&amp;sem-&gt;wait_lock);

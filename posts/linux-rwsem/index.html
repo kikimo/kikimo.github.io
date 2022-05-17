@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>Linux 内核读写锁 rwsem 分析 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.89.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/linux-rwsem/">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>Linux 内核读写锁 rwsem 分析</h1>
+    <time datetime="2020-02-16T14:56:06&#43;08:00">February 16, 2020</time>
+  </header>
+  <p><code>rwsem</code> 是 Linux 内核中的读写锁，
+它应该是读写信号量的缩写（read-write semaphore）。
+<code>rwsem</code>的特点是读者之间不互斥，写者既和读者互斥也和其他写者互斥。
+<code>rwsem</code> 的操作接口定义在 <code>include/linux/rwsem.h</code> 文件中，
+<code>rwsem</code>的结构体定义为<code>struct rw_semaphore</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/* All arch specific implementations share the same struct */</span>
+<span style="color:#66d9ef">struct</span> rw_semaphore {
+    RH_KABI_REPLACE(<span style="color:#66d9ef">long</span>        count,
+            atomic_long_t   count)
+    raw_spinlock_t  wait_lock;
+<span style="color:#75715e">#if defined(CONFIG_RWSEM_SPIN_ON_OWNER) &amp;&amp; !defined(__GENKSYMS__)
+</span><span style="color:#75715e"></span>    <span style="color:#66d9ef">struct</span> optimistic_spin_queue osq; <span style="color:#75715e">/* spinner MCS lock */</span>
+    <span style="color:#66d9ef">struct</span> slist_head   wait_list;
+    <span style="color:#75715e">/*
+</span><span style="color:#75715e">     * Write owner. Used as a speculative check to see
+</span><span style="color:#75715e">     * if the owner is running on the cpu.
+</span><span style="color:#75715e">     */</span>
+    <span style="color:#66d9ef">struct</span> task_struct  <span style="color:#f92672">*</span>owner;
+<span style="color:#75715e">#else
+</span><span style="color:#75715e"></span>    <span style="color:#66d9ef">struct</span> list_head    wait_list;
+<span style="color:#75715e">#endif
+</span><span style="color:#75715e">#ifdef CONFIG_DEBUG_LOCK_ALLOC
+</span><span style="color:#75715e"></span>    <span style="color:#66d9ef">struct</span> lockdep_map  dep_map;
+<span style="color:#75715e">#endif
+</span><span style="color:#75715e"></span>};
+</code></pre></div><p>核心操作接口为：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/*
+</span><span style="color:#75715e"> * lock for reading
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">down_read</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem);
+
+<span style="color:#75715e">/*
+</span><span style="color:#75715e"> * trylock for reading -- returns 1 if successful, 0 if contention
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">down_read_trylock</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem);
+
+<span style="color:#75715e">/*
+</span><span style="color:#75715e"> * lock for writing
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">down_write</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem);
+
+<span style="color:#75715e">/*
+</span><span style="color:#75715e"> * trylock for writing -- returns 1 if successful, 0 if contention
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">down_write_trylock</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem);
+
+<span style="color:#75715e">/*
+</span><span style="color:#75715e"> * release a read lock
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">up_read</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem);
+
+<span style="color:#75715e">/*
+</span><span style="color:#75715e"> * release a write lock
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">up_write</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem);
+
+<span style="color:#75715e">/*
+</span><span style="color:#75715e"> * downgrade write lock to read lock
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">downgrade_write</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem);
+</code></pre></div><p>接口的实现代码<code>kernel/rwsem.c</code>文件中，
+分析<code>down_read()</code>的实现：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/*
+</span><span style="color:#75715e"> * lock for reading
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">void</span> __sched <span style="color:#a6e22e">down_read</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem)
+{
+    might_sleep();
+    rwsem_acquire_read(<span style="color:#f92672">&amp;</span>sem<span style="color:#f92672">-&gt;</span>dep_map, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>, _RET_IP_);
+
+    LOCK_CONTENDED(sem, __down_read_trylock, __down_read);
+    rwsem_set_reader_owned(sem);
+}
+</code></pre></div><p><code>down_read()</code>核心在于<code>LOCK_CONTENDED(sem, __down_read_trylock, __down_read);</code>，
+其他跟语句可以先忽略。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">#define LOCK_CONTENDED(_lock, try, lock)            \
+</span><span style="color:#75715e">do {                                \
+</span><span style="color:#75715e">    if (!try(_lock)) {                  \
+</span><span style="color:#75715e">        lock_contended(&amp;(_lock)-&gt;dep_map, _RET_IP_);    \
+</span><span style="color:#75715e">        lock(_lock);                    \
+</span><span style="color:#75715e">    }                           \
+</span><span style="color:#75715e">    lock_acquired(&amp;(_lock)-&gt;dep_map, _RET_IP_);         \
+</span><span style="color:#75715e">} while (0)
+</span></code></pre></div><p><code>LOCK_CONTENDED</code>宏先调用<code>__down_read_trylock()</code>尝试获取读者锁，
+失败的话继续调用<code>__down_read()</code>。
+<code>__down_read_trylock()</code>的实现跟平台相关，
+我们看 x86 平台下的代码，代码路径在<code>arch/x86/include/asm/rwsem.h</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/*
+</span><span style="color:#75715e"> * trylock for reading -- returns 1 if successful, 0 if contention
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">__down_read_trylock</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem)
+{
+    <span style="color:#66d9ef">long</span> result, tmp;
+    <span style="color:#66d9ef">asm</span> <span style="color:#66d9ef">volatile</span>(<span style="color:#e6db74">&#34;# beginning __down_read_trylock</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#e6db74">&#34;  mov          %0,%1</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#e6db74">&#34;1:</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#e6db74">&#34;  mov          %1,%2</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#e6db74">&#34;  add          %3,%2</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#e6db74">&#34;  jle      2f</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             LOCK_PREFIX <span style="color:#e6db74">&#34;  cmpxchg  %2,%0</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#e6db74">&#34;  jnz      1b</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#e6db74">&#34;2:</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#e6db74">&#34;# ending __down_read_trylock</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;+m&#34;</span> (sem<span style="color:#f92672">-&gt;</span>count), <span style="color:#e6db74">&#34;=&amp;a&#34;</span> (result), <span style="color:#e6db74">&#34;=&amp;r&#34;</span> (tmp)
+             <span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;i&#34;</span> (RWSEM_ACTIVE_READ_BIAS)
+             <span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;memory&#34;</span>, <span style="color:#e6db74">&#34;cc&#34;</span>);
+    <span style="color:#66d9ef">return</span> result <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">?</span> <span style="color:#ae81ff">1</span> <span style="color:#f92672">:</span> <span style="color:#ae81ff">0</span>;
+}
+</code></pre></div><p><code>__down_read_trylock()</code>用内联汇编实现，
+核心是 x86 的<code>cmpxchg</code>指令，
+这段代码可以翻译如下伪代码来：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">__down_read_trylock</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem)
+{
+    <span style="color:#66d9ef">long</span> result, tmp;
+
+    result <span style="color:#f92672">=</span> sem<span style="color:#f92672">-&gt;</span>count;
+    tmp <span style="color:#f92672">=</span> sem<span style="color:#f92672">-&gt;</span>count <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>;
+    <span style="color:#66d9ef">if</span> (tmp <span style="color:#f92672">&lt;=</span> <span style="color:#ae81ff">0</span>) {
+        <span style="color:#66d9ef">goto</span> end;
+    }
+
+    <span style="color:#66d9ef">if</span> (result <span style="color:#f92672">==</span> sem<span style="color:#f92672">-&gt;</span>count) {
+        sem<span style="color:#f92672">-&gt;</span>count <span style="color:#f92672">=</span> tmp;
+    }
+
+end:
+    <span style="color:#66d9ef">return</span> resutl <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span><span style="color:#f92672">?</span> <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span> <span style="color:#ae81ff">0</span>;
+}
+</code></pre></div><p><code>__down_read_trylock()</code>调用失败时会继续调用<code>__down_read()</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/*
+</span><span style="color:#75715e"> * lock for reading
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">__down_read</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem)
+{
+    <span style="color:#66d9ef">asm</span> <span style="color:#66d9ef">volatile</span>(<span style="color:#e6db74">&#34;# beginning down_read</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             LOCK_PREFIX _ASM_INC <span style="color:#e6db74">&#34;(%1)</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#75715e">/* adds 0x00000001 */</span>
+             <span style="color:#e6db74">&#34;  jns        1f</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#e6db74">&#34;  call call_rwsem_down_read_failed</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#e6db74">&#34;1:</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#e6db74">&#34;# ending down_read</span><span style="color:#ae81ff">\n\t</span><span style="color:#e6db74">&#34;</span>
+             <span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;+m&#34;</span> (sem<span style="color:#f92672">-&gt;</span>count)
+             <span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;a&#34;</span> (sem)
+             <span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;memory&#34;</span>, <span style="color:#e6db74">&#34;cc&#34;</span>);
+}
+</code></pre></div><p><code>call_rwsem_down_read_failed()</code>调用<code>rwsem_down_read_failed()</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#75715e">/*
+</span><span style="color:#75715e"> * Wait for the read lock to be granted
+</span><span style="color:#75715e"> */</span>
+__visible
+<span style="color:#66d9ef">struct</span> rw_semaphore __sched <span style="color:#f92672">*</span><span style="color:#a6e22e">rwsem_down_read_failed</span>(<span style="color:#66d9ef">struct</span> rw_semaphore <span style="color:#f92672">*</span>sem)
+{
+    <span style="color:#66d9ef">long</span> count, adjustment <span style="color:#f92672">=</span> <span style="color:#f92672">-</span>RWSEM_ACTIVE_READ_BIAS;
+    <span style="color:#66d9ef">struct</span> rwsem_waiter waiter;
+    <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>tsk <span style="color:#f92672">=</span> current;
+    WAKE_Q(wake_q);
+
+    <span style="color:#75715e">/* set up my own style of waitqueue */</span>
+    waiter.task <span style="color:#f92672">=</span> tsk;
+    waiter.type <span style="color:#f92672">=</span> RWSEM_WAITING_FOR_READ;
+
+    raw_spin_lock_irq(<span style="color:#f92672">&amp;</span>sem<span style="color:#f92672">-&gt;</span>wait_lock);
+    <span style="color:#66d9ef">if</span> (slist_empty(<span style="color:#f92672">&amp;</span>sem<span style="color:#f92672">-&gt;</span>wait_list))
+        adjustment <span style="color:#f92672">+=</span> RWSEM_WAITING_BIAS;
+    slist_add_tail(<span style="color:#f92672">&amp;</span>waiter.list, <span style="color:#f92672">&amp;</span>sem<span style="color:#f92672">-&gt;</span>wait_list);
+
+    <span style="color:#75715e">/* we&#39;re now waiting on the lock, but no longer actively locking */</span>
+    count <span style="color:#f92672">=</span> atomic_long_add_return(adjustment, <span style="color:#f92672">&amp;</span>sem<span style="color:#f92672">-&gt;</span>count);
+
+    <span style="color:#75715e">/*
+</span><span style="color:#75715e">     * If there are no active locks, wake the front queued process(es).
+</span><span style="color:#75715e">     *
+</span><span style="color:#75715e">     * If there are no writers and we are first in the queue,
+</span><span style="color:#75715e">     * wake our own waiter to join the existing active readers !
+</span><span style="color:#75715e">     */</span>
+    <span style="color:#66d9ef">if</span> (count <span style="color:#f92672">==</span> RWSEM_WAITING_BIAS <span style="color:#f92672">||</span>
+        (count <span style="color:#f92672">&gt;</span> RWSEM_WAITING_BIAS <span style="color:#f92672">&amp;&amp;</span>
+         adjustment <span style="color:#f92672">!=</span> <span style="color:#f92672">-</span>RWSEM_ACTIVE_READ_BIAS))
+        __rwsem_mark_wake(sem, RWSEM_WAKE_ANY, <span style="color:#f92672">&amp;</span>wake_q);
+
+    raw_spin_unlock_irq(<span style="color:#f92672">&amp;</span>sem<span style="color:#f92672">-&gt;</span>wait_lock);
+    wake_up_q(<span style="color:#f92672">&amp;</span>wake_q);
+
+    <span style="color:#75715e">/* wait to be given the lock */</span>
+    <span style="color:#66d9ef">while</span> (true) {
+        set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+        <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>waiter.task)
+            <span style="color:#66d9ef">break</span>;
+        schedule();
+    }
+
+    __set_task_state(tsk, TASK_RUNNING);
+    <span style="color:#66d9ef">return</span> sem;
+}
+</code></pre></div>
+</article>
+
+
+
+</html>

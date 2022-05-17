@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>Calico IP Migration 失败导致 calico-node 服务启动问题排查 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.63.2" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/calico-ip-migration/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -26,14 +36,14 @@
 发现 新建的 pod 始终分配不到 IP。
 检查发现 calico-kube-controller 服务一直在不停的重启，
 而 Node 节点上的 calico-node 服务一直处于 init：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">alex@jenny:~/k8s/certs$ kubectl  -n kube-system get pod
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">alex@jenny:~/k8s/certs$ kubectl  -n kube-system get pod
 NAME                                      READY   STATUS     RESTARTS   AGE
 calico-kube-controllers-99bd8767b-dx6c9   0/1     Error      <span style="color:#ae81ff">2</span>          17s
 calico-node-7lz54                         0/1     Init:0/3   <span style="color:#ae81ff">0</span>          30m
 </code></pre></div><p>这应该是导致 calico-kube-controller 不停重启的原因了：
 calico-node 启动失败导致 calico-kube-controller 分配不到 IP 进而不停的重启。
 检查 calico-node 的详情发现 pod 卡在一个 init container upgrade-ipam 上：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">alex@jenny:~/k8s/certs$ kubectl  -n kube-system describe pod  calico-node-kz8ft
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">alex@jenny:~/k8s/certs$ kubectl  -n kube-system describe pod  calico-node-kz8ft
 Name:                 calico-node-kz8ft
 Namespace:            kube-system
 Priority:             <span style="color:#ae81ff">2000001000</span>
@@ -209,7 +219,7 @@ Events:
   Normal  Started    36m   kubelet, jenny     Started container upgrade-ipam
 </code></pre></div><p>init container 是 pod 在启动阶段可以指定运行的一些任务容器，他们跑完就结束了，等他们跑完才会跑 pod 的 container。
 检查 upgrade-ipam 这个容器到底在干嘛：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">
 </code></pre></div>
 </article>
 

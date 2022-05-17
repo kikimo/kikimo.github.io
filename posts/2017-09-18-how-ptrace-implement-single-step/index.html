@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>ptrace 如何实现单步跟进 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/2017-09-18-how-ptrace-implement-single-step/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -27,7 +37,7 @@
 它可以用来实现调试器，例如 gdb 调试器便是基于 <code>ptrace()</code> 实现的。
 以 Linux 4.10.17 版本的代码为例，我们来分析 <code>ptrace()</code> 函数单步跟进功能的实现。
 <code>ptrace()</code> 函数的定义如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">1114</span> <span style="color:#a6e22e">SYSCALL_DEFINE4</span>(ptrace, <span style="color:#66d9ef">long</span>, request, <span style="color:#66d9ef">long</span>, pid, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span>, addr,
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">1114</span> <span style="color:#a6e22e">SYSCALL_DEFINE4</span>(ptrace, <span style="color:#66d9ef">long</span>, request, <span style="color:#66d9ef">long</span>, pid, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span>, addr,
 <span style="color:#ae81ff">1115</span>                 <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span>, data)
 <span style="color:#ae81ff">1116</span> {
 <span style="color:#ae81ff">1117</span>         <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child;
@@ -48,7 +58,7 @@
 我们要分析的单步执行功能就是一个平台相关的操作，
 所以接下来要去看 x86 平台上 <code>arch_ptrace()</code> 函数的实现。
 x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">766</span> <span style="color:#66d9ef">long</span> <span style="color:#a6e22e">arch_ptrace</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">long</span> request,
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">766</span> <span style="color:#66d9ef">long</span> <span style="color:#a6e22e">arch_ptrace</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">long</span> request,
  <span style="color:#ae81ff">767</span>                  <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> addr, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> data)
  <span style="color:#ae81ff">768</span> {
  <span style="color:#ae81ff">769</span>         <span style="color:#66d9ef">int</span> ret;
@@ -65,7 +75,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 </code></pre></div><p>这个文件中大部分代码和我们要分析单步跟进功能没关系，
 第 876 行对<code>ptrace_request()</code> 函数的调用才是我们要关注的，
 <code>ptrace_request()</code> 函数这文件 kernel/ptrace.c 中：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">876</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">ptrace_request</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">long</span> request,
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">876</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">ptrace_request</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">long</span> request,
  <span style="color:#ae81ff">877</span>                    <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> addr, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> data)
  <span style="color:#ae81ff">878</span> {
  <span style="color:#ae81ff">879</span>         <span style="color:#66d9ef">bool</span> seized <span style="color:#f92672">=</span> child<span style="color:#f92672">-&gt;</span>ptrace <span style="color:#f92672">&amp;</span> PT_SEIZED;
@@ -97,7 +107,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 <span style="color:#ae81ff">1093</span> }
 </code></pre></div><p>我们可以看到, 单步跟进请求会触发 <code>ptrace_resume()</code> 函数的执行，
 跳过去看同一文件下的 <code>ptrace_resume()</code> 函数：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">773</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">ptrace_resume</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">long</span> request,
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">773</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">ptrace_resume</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">long</span> request,
  <span style="color:#ae81ff">774</span>                          <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> data)
  <span style="color:#ae81ff">775</span> {
  <span style="color:#ae81ff">776</span>         <span style="color:#66d9ef">bool</span> need_siglock;
@@ -133,19 +143,19 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
  <span style="color:#ae81ff">827</span> }
 </code></pre></div><p><code>is_singlestep()</code> 看起来像是用来判断是否为单步执行的测试，
 来看 kernel/ptrace.c 中的宏定义 <code>is_singlestep()</code>：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"> <span style="color:#ae81ff">755</span> <span style="color:#960050;background-color:#1e0010">#</span>ifdef PTRACE_SINGLESTEP
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"> <span style="color:#ae81ff">755</span> <span style="color:#960050;background-color:#1e0010">#</span>ifdef PTRACE_SINGLESTEP
  <span style="color:#ae81ff">756</span> <span style="color:#960050;background-color:#1e0010">#</span>define is_singlestep(request)          ((request) <span style="color:#f92672">==</span> PTRACE_SINGLESTEP)
  <span style="color:#ae81ff">757</span> <span style="color:#960050;background-color:#1e0010">#</span><span style="color:#66d9ef">else</span>
  <span style="color:#ae81ff">758</span> <span style="color:#960050;background-color:#1e0010">#</span>define is_singlestep(request)          <span style="color:#ae81ff">0</span>
  <span style="color:#ae81ff">759</span> <span style="color:#960050;background-color:#1e0010">#</span>endif
 </code></pre></div><p><code>is_singlestep()</code> 用来判断是不是 <code>PTRACE_SINGLESTEP</code> 请求，
 如果是则进入 ./arch/x86/kernel/step.c 文件下的 <code>user_enable_single_step()</code> 函数中：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">211</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">user_enable_single_step</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">211</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">user_enable_single_step</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child)
 <span style="color:#ae81ff">212</span> {
 <span style="color:#ae81ff">213</span>         enable_step(child, <span style="color:#ae81ff">0</span>);
 <span style="color:#ae81ff">214</span> }
 </code></pre></div><p><code>enable_step()</code> 函数：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">193</span> <span style="color:#75715e">/*
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">193</span> <span style="color:#75715e">/*
 </span><span style="color:#75715e">194  * Enable single or block step.
 </span><span style="color:#75715e">195  */</span>
 <span style="color:#ae81ff">196</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> enable_step(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child, <span style="color:#66d9ef">bool</span> block)
@@ -163,7 +173,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 <span style="color:#ae81ff">208</span>                 set_task_blockstep(child, false);
 <span style="color:#ae81ff">209</span> }
 </code></pre></div><p><code>enable_single_step()</code> 函数:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">109</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">enable_single_step</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">109</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">enable_single_step</span>(<span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>child)
 <span style="color:#ae81ff">110</span> {
 <span style="color:#ae81ff">111</span>         <span style="color:#66d9ef">struct</span> pt_regs <span style="color:#f92672">*</span>regs <span style="color:#f92672">=</span> task_pt_regs(child);
 <span style="color:#ae81ff">112</span>         <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">long</span> oflags;
@@ -223,7 +233,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 到这里，我们已经能明白 <code>ptrace()</code> 单步执行的实现原理了。
 <code>ptrace()</code> 在单步执行结束后会回复原来的 Trap 标志位，
 具体操作是在 ./arch/x86/kernel/step.c 中的 <code>handle_signal()</code> 函数中：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#ae81ff">701</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"><span style="color:#ae81ff">701</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span>
 <span style="color:#ae81ff">702</span> <span style="color:#a6e22e">handle_signal</span>(<span style="color:#66d9ef">struct</span> ksignal <span style="color:#f92672">*</span>ksig, <span style="color:#66d9ef">struct</span> pt_regs <span style="color:#f92672">*</span>regs)
 <span style="color:#ae81ff">703</span> {
 <span style="color:#ae81ff">704</span>         <span style="color:#66d9ef">bool</span> stepping, failed;
@@ -268,7 +278,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 这应该是系统调用结束前调用 <code>handle_signal()</code> 清除掉的。
 通过 TF 标志为判断的方法行不通，后来在翻内核代码的过程中发现
 ./arch/x86/include/uapi/asm/debugreg.h 文件中有一个 <code>DR_STEP</code> 宏定义:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"> <span style="color:#ae81ff">20</span> <span style="color:#960050;background-color:#1e0010">#</span>define DR_TRAP0        (<span style="color:#ae81ff">0x1</span>)           <span style="color:#75715e">/* db0 */</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-C" data-lang="C"> <span style="color:#ae81ff">20</span> <span style="color:#960050;background-color:#1e0010">#</span>define DR_TRAP0        (<span style="color:#ae81ff">0x1</span>)           <span style="color:#75715e">/* db0 */</span>
  <span style="color:#ae81ff">21</span> <span style="color:#960050;background-color:#1e0010">#</span>define DR_TRAP1        (<span style="color:#ae81ff">0x2</span>)           <span style="color:#75715e">/* db1 */</span>
  <span style="color:#ae81ff">22</span> <span style="color:#960050;background-color:#1e0010">#</span>define DR_TRAP2        (<span style="color:#ae81ff">0x4</span>)           <span style="color:#75715e">/* db2 */</span>
  <span style="color:#ae81ff">23</span> <span style="color:#960050;background-color:#1e0010">#</span>define DR_TRAP3        (<span style="color:#ae81ff">0x8</span>)           <span style="color:#75715e">/* db3 */</span>
@@ -279,7 +289,7 @@ x86 的 <code>arch_ptrace()</code> 函数在文件 arch/x86/kernel/ptrace.c 中�
 <code>DR_STEP</code> 的注释 &ldquo;single-step&rdquo; 似乎表明这个宏和 <code>ptrace()</code>单步执行有关。
 之前倒是没注意到 x86 的调试寄存器和指令单步执行可能有关，
 继续搜了 kernel 代码中对 <code>DR_STEP</code> 的引用：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">C symbol: DR_STEP
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">C symbol: DR_STEP
 
   File            Function              Line
 <span style="color:#ae81ff">0</span> debugreg.h      &lt;global&gt;               <span style="color:#ae81ff">26</span> <span style="color:#75715e">#define DR_STEP (0x4000)</span>

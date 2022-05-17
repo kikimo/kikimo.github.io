@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>Nebula Raft 死锁问题分析 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/raft-deadlock/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -26,7 +36,7 @@
 然后开插边压测程序，同时不停的制造 leader change 的场景，
 通常十分钟以内就能看到至少一个 storage 节点变成离线状态，
 但是节点对应的进程却还活着的：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(root@nebula) [(none)]&gt; show hosts;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(root@nebula) [(none)]&gt; show hosts;
 +-----------------+-------+-----------+--------------+----------------------+------------------------+
 | Host            | Port  | Status    | Leader count | Leader distribution  | Partition distribution |
 +-----------------+-------+-----------+--------------+----------------------+------------------------+
@@ -45,10 +55,10 @@
 Got 6 rows (time spent 1094/12349 us)
  
 Wed, 03 Nov 2021 11:23:48 CST
-</code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># ps aux | grep 33299 | grep -v grep
+</code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># ps aux | grep 33299 | grep -v grep
 root     2470607  184  0.0 1385496 159800 ?      Ssl  10:55  59:11 /data/src/wwl/nebula/build/bin/nebula-storaged --flagfile /data/src/wwl/test/etc/nebula-storaged.conf --pid_file /data/src/wwl/test/pids/nebula-storaged.pid.4 --meta_server_addrs 192.168.15.11:9559 --heartbeat_interval_secs 1 --raft_heartbeat_interval_secs 1 --minloglevel 3 --log_dir /data/src/wwl/test/logs/storaged.4 --local_ip 192.168.15.11 --port 33299 --ws_http_port 53553 --ws_h2_port 46147 --data_path /data/src/wwl/test/data/storaged.4
 </code></pre></div><p>通过 pstack 查看进程的堆栈观察到这个 storage 实例中的某个线程 2470643 卡在一个条件变量上一直不动了：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 37 (Thread 0x7fc8d23fd700 (LWP 2470643) &#34;executor-pri3-3&#34;):
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 37 (Thread 0x7fc8d23fd700 (LWP 2470643) &#34;executor-pri3-3&#34;):
 ...
 #11 0x00007fc8e0f159fd in clone () from /lib64/libc.so.6
 Thread 36 (Thread 0x7fc8d24fe700 (LWP 2470642) &#34;executor-pri3-2&#34;):
@@ -60,7 +70,7 @@ Thread 36 (Thread 0x7fc8d24fe700 (LWP 2470642) &#34;executor-pri3-2&#34;):
 #5  0x0000000003d9cde0 in nebula::raftex::RaftPart::&lt;lambda(auto:132&amp;&amp;)&gt;::operator()&lt;folly::Try&lt;std::vector&lt;std::pair&lt;long unsigned int, nebula::raftex::cpp2::AskForVoteResponse&gt; &gt; &gt; &gt;(folly::Try&lt;std::vector&lt;std::pair&lt;unsigned long, nebula::raftex::cpp2::AskForVoteResponse&gt;, std::allocator&lt;std::pair&lt;unsigned long, nebula::raftex::cpp2::AskForVoteResponse&gt; &gt; &gt; &gt; &amp;&amp;) (__closure=0x7fc8c4c11320, t=...) at /root/nebula-workspace/nebula/src/kvstore/raftex/RaftPart.cpp:1123
 #6  0x0000000003db1421 in folly::Future&lt;std::vector&lt;std::pair&lt;unsigned long, nebula::raftex::cpp2::AskForVoteResponse&gt;, std::allocator&lt;std::pair&lt;unsigned long, nebula::raftex::cpp2::AskForVoteResponse&gt; &gt; &gt; &gt;::&lt;lambda(folly::Executor::KeepAlive&lt;folly::Executor&gt;&amp;&amp;, folly::Try&lt;std::vector&lt;std::pair&lt;long unsigned int, nebula::raftex::cpp2::AskForVoteResponse&gt;, std::allocator&lt;std::pair&lt;long unsigned int, nebula::raftex::cpp2::AskForVoteResponse&gt; &gt; &gt; &gt;&amp;&amp;)&gt;::operator()(folly::Executor::KeepAlive&lt;folly::Executor&gt; &amp;&amp;, folly::Try&lt;std::vector&lt;std::pair&lt;unsigned long, nebula::raftex::cpp2::AskForVoteResponse&gt;, std::allocator&lt;std::pair&lt;unsigned long, nebula::raftex::cpp2::AskForVoteResponse&gt; &gt; &gt; &gt; &amp;&amp;) (__closure=0x7fc8c4c11320, t=...) at /data/src/wwl/nebula/build/third-party/install/include/folly/futures/Future-inl.h:947
 </code></pre></div><p>我们看 src/kvstore/raftex/Host.h:44 的具体代码，通过分析我们可以知道这个函数正在等待当前所有的 append log 请求结束，也就是 44 行对应的 noMoreRequestCV_.wait() 调用，它一直在等待 requestOnGoing_ 变为 false：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">reset</span>() {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">reset</span>() {
   std<span style="color:#f92672">::</span>unique_lock<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>mutex<span style="color:#f92672">&gt;</span> g(lock_);
   noMoreRequestCV_.wait(g, [<span style="color:#66d9ef">this</span>] { <span style="color:#66d9ef">return</span> <span style="color:#f92672">!</span>requestOnGoing_; });
   logIdToSend_ <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
@@ -74,7 +84,7 @@ Thread 36 (Thread 0x7fc8d24fe700 (LWP 2470642) &#34;executor-pri3-2&#34;):
 </code></pre></div><p>如果我们继续看堆栈上的前一个调用，可以发现 Host.reset() 调用前，
 RaftPart::handleElectionResponses() 在 1141 这行代码获取了 raftLock_ 这个锁，
 我们看 src/kvstore/raftex/RaftPart.cpp:1145 中的具体代码：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">bool</span> RaftPart<span style="color:#f92672">::</span>handleElectionResponses(<span style="color:#66d9ef">const</span> cpp2<span style="color:#f92672">::</span>AskForVoteRequest<span style="color:#f92672">&amp;</span> voteReq,
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">bool</span> RaftPart<span style="color:#f92672">::</span>handleElectionResponses(<span style="color:#66d9ef">const</span> cpp2<span style="color:#f92672">::</span>AskForVoteRequest<span style="color:#f92672">&amp;</span> voteReq,
                                        <span style="color:#66d9ef">const</span> ElectionResponses<span style="color:#f92672">&amp;</span> resps,
                                        <span style="color:#66d9ef">const</span> std<span style="color:#f92672">::</span>vector<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>Host<span style="color:#f92672">&gt;&gt;&amp;</span> hosts,
                                        TermID proposedTerm) {
@@ -102,7 +112,7 @@ RaftPart::handleElectionResponses() 在 1141 这行代码获取了 raftLock_ 这
     }
 ...
 </code></pre></div><p>进程不动，说明 requestOnGoing_ 一直都是 true 状态，通过 gdb attach 进去我们验证了这个猜测：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">0x00007fc8e11f0a35 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">0x00007fc8e11f0a35 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
 (gdb) up
 #1  0x0000000004ba7a3c in std::condition_variable::wait(std::unique_lock&lt;std::mutex&gt;&amp;) ()
 (gdb) up
@@ -119,7 +129,7 @@ $1 = true
 当 append log 请求都结束时，这个变量在 Host::appendLogsInternal() 函数中会被设置为 fasle。
 requestOnGoing_ 值一直不变，那么一个合理的猜测是某个 append log 请求卡住了。
 我们重点关注 Host::appendLogsInternal() 这个函数的实现细节：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">void</span> Host<span style="color:#f92672">::</span>appendLogsInternal(folly<span style="color:#f92672">::</span>EventBase<span style="color:#f92672">*</span> eb, std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>cpp2<span style="color:#f92672">::</span>AppendLogRequest<span style="color:#f92672">&gt;</span> req) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">void</span> Host<span style="color:#f92672">::</span>appendLogsInternal(folly<span style="color:#f92672">::</span>EventBase<span style="color:#f92672">*</span> eb, std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>cpp2<span style="color:#f92672">::</span>AppendLogRequest<span style="color:#f92672">&gt;</span> req) {
   <span style="color:#66d9ef">using</span> TransportException <span style="color:#f92672">=</span> apache<span style="color:#f92672">::</span>thrift<span style="color:#f92672">::</span>transport<span style="color:#f92672">::</span>TTransportException;
   <span style="color:#75715e">// long long microseconds = std::chrono::duration_cast&lt;std::chrono::microseconds&gt;(elapsed).count();
 </span><span style="color:#75715e"></span>  <span style="color:#66d9ef">auto</span> reqId <span style="color:#f92672">=</span> std<span style="color:#f92672">::</span>chrono<span style="color:#f92672">::</span>high_resolution_clock<span style="color:#f92672">::</span>now().time_since_epoch().count();
@@ -335,13 +345,13 @@ ErrorOr<span style="color:#f92672">&lt;</span>cpp2<span style="color:#f92672">::
 具体对应以上代码中的 167 行、181 行、254 行、282 行。
 重新跑测试，很快我们又观察到死锁的情况，通过死锁进程的日志，
 从打出的日志上我们看到 Host::appendLogsInternal() 确实卡住了：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">...
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">...
 append log req 1635908498110971639 done within thread 2470665
 append with req: 1635908526021106910, started within thread 2470665
 append log req 1635908526021106910 will run within thread 2470665
 </code></pre></div><p>Host::appendLogsInternal() 和 eb 运行的线程居然是一样的，
 都是 2470665，pstack 进去看 2470665 这个进程在干嘛：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 1 (Thread 0x7fc8c15ff700 (LWP 2470665) &#34;IOThreadPool9&#34;):
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 1 (Thread 0x7fc8c15ff700 (LWP 2470665) &#34;IOThreadPool9&#34;):
 #0  0x00007fc8e11f354d in __lll_lock_wait () from /lib64/libpthread.so.0
 #1  0x00007fc8e11eee9b in _L_lock_883 () from /lib64/libpthread.so.0
 #2  0x00007fc8e11eed68 in pthread_mutex_lock () from /lib64/libpthread.so.0
@@ -385,7 +395,7 @@ append log req 1635908526021106910 will run within thread 2470665
 </code></pre></div><p>卧槽，这哥们，folly 调度它去处理 heartbeat 请求，
 然后它卡在 /root/nebula-workspace/nebula/src/kvstore/raftex/RaftPart.cpp:1650 上了，
 1650 这行代码正要获取 raftLock_ 锁，raft 完美死锁了：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">void</span> RaftPart<span style="color:#f92672">::</span>processHeartbeatRequest(<span style="color:#66d9ef">const</span> cpp2<span style="color:#f92672">::</span>HeartbeatRequest<span style="color:#f92672">&amp;</span> req,
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">void</span> RaftPart<span style="color:#f92672">::</span>processHeartbeatRequest(<span style="color:#66d9ef">const</span> cpp2<span style="color:#f92672">::</span>HeartbeatRequest<span style="color:#f92672">&amp;</span> req,
                                        cpp2<span style="color:#f92672">::</span>HeartbeatResponse<span style="color:#f92672">&amp;</span> resp) {
   LOG_IF(INFO, FLAGS_trace_raft) <span style="color:#f92672">&lt;&lt;</span> idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Received heartbeat&#34;</span>
                                  <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;: GraphSpaceId = &#34;</span> <span style="color:#f92672">&lt;&lt;</span> req.get_space()

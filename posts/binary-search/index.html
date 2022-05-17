@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>二分搜索 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/binary-search/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -24,7 +34,7 @@
   <p>二分搜索指在有序列表中通过折半查找的方式寻找目标允许。
 对比顺序检索，二分搜索可以吧时间复杂度从 O(n) 优化到 O(nlogn)。
 来看二分搜索的示例代码：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">bsearch</span>(std<span style="color:#f92672">::</span>vector<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int</span><span style="color:#f92672">&gt;</span> <span style="color:#f92672">&amp;</span>a, <span style="color:#66d9ef">int</span> target) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">bsearch</span>(std<span style="color:#f92672">::</span>vector<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int</span><span style="color:#f92672">&gt;</span> <span style="color:#f92672">&amp;</span>a, <span style="color:#66d9ef">int</span> target) {
   <span style="color:#66d9ef">int</span> s <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>, e <span style="color:#f92672">=</span> a.size();
   <span style="color:#66d9ef">while</span> (s <span style="color:#f92672">&lt;</span> e) {
     <span style="color:#66d9ef">int</span> m <span style="color:#f92672">=</span> (s <span style="color:#f92672">+</span> e) <span style="color:#f92672">/</span> <span style="color:#ae81ff">2</span>;
@@ -53,7 +63,7 @@
 暨如果<code>s</code>和<code>e</code>的更新都是<code>s = m + 1</code>和<code>e = m</code>，
 当<code>a[m] &gt;= target</code>时我们更新<code>e = m</code></em>。
 这个操作实际上相当于一直把大于等于<code>target</code>的元素截断，实现代码如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">bisect_left</span>(std<span style="color:#f92672">::</span>vector<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int</span><span style="color:#f92672">&gt;</span> <span style="color:#f92672">&amp;</span>a, <span style="color:#66d9ef">int</span> target) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">bisect_left</span>(std<span style="color:#f92672">::</span>vector<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int</span><span style="color:#f92672">&gt;</span> <span style="color:#f92672">&amp;</span>a, <span style="color:#66d9ef">int</span> target) {
   <span style="color:#66d9ef">int</span> s <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>, e <span style="color:#f92672">=</span> a.size();
   <span style="color:#66d9ef">while</span> (s <span style="color:#f92672">&lt;</span> e) {
     <span style="color:#66d9ef">if</span> (a[m] <span style="color:#f92672">&gt;=</span> target) {
@@ -68,7 +78,7 @@
 </code></pre></div><p>如果我们的需求在改下：寻找数组中的插入位置，使得目标元素大于等于所有它之前的元素。
 我们依然可以用二分法，
 而实现方式只要改变上面一段代码中的判断符号即可，暨当<code>a[m] &gt; target</code>时我们设置<code>e = m</code>，</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">bisect_right</span>(std<span style="color:#f92672">::</span>vector<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int</span><span style="color:#f92672">&gt;</span> <span style="color:#f92672">&amp;</span>a, <span style="color:#66d9ef">int</span> target) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">bisect_right</span>(std<span style="color:#f92672">::</span>vector<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int</span><span style="color:#f92672">&gt;</span> <span style="color:#f92672">&amp;</span>a, <span style="color:#66d9ef">int</span> target) {
   <span style="color:#66d9ef">int</span> s <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>, e <span style="color:#f92672">=</span> a.size();
   <span style="color:#66d9ef">while</span> (s <span style="color:#f92672">&lt;</span> e) {
     <span style="color:#66d9ef">if</span> (a[m] <span style="color:#f92672">&gt;</span> target) {

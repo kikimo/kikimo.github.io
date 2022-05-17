@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>cron 僵尸进程问题分析 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/2018-04-08-analysis-of-a-zombie-process-problem/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -66,7 +76,7 @@ strace 显示 2582 进程在等待在 <code>read()</code> 系统调用。
 <p>可以看到 do_command.c 这个源码文件中有大量管道相关的操作，所以重点来分析这个文件。
 do_command.c 文件总共 571 行代码，一共就三个函数。
 其中重要的两个函数是</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">do_command</span>(entry <span style="color:#f92672">*</span> e, user <span style="color:#f92672">*</span> u);
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">do_command</span>(entry <span style="color:#f92672">*</span> e, user <span style="color:#f92672">*</span> u);
 <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">child_process</span>(entry <span style="color:#f92672">*</span> e, user <span style="color:#f92672">*</span> u);
 </code></pre></div><p>分析这两个函数代码的，可以看到
 <code>do_command()</code> 函数先从主 cron 进程 <code>fork()</code> 出一个 cron 子进程，
@@ -75,7 +85,7 @@ cron worker 接下来会执行 <code>child_process()</code> 函数。
 在 <code>child_process()</code> 函数中
 cron worker 通过显式的 <code>wait()</code> 调用来回收它子进程的返回值，
 这个可以从 93 - 98 和 535 - 553 行处的代码看出来：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">93</span>         <span style="color:#75715e">/* our parent is watching for our death by catching SIGCHLD.  we
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"> <span style="color:#ae81ff">93</span>         <span style="color:#75715e">/* our parent is watching for our death by catching SIGCHLD.  we
 </span><span style="color:#75715e"> 94          * do not care to watch for our children&#39;s deaths this way -- we
 </span><span style="color:#75715e"> 95          * use wait() explicitly.  so we have to reset the signal (which
 </span><span style="color:#75715e"> 96          * was inherited from the parent).
@@ -118,7 +128,7 @@ bash 僵尸进程会一直存在直到子进程执行结束将关闭管道，
 然后 bash 僵尸进程就消失了。</p>
 <p>但是还有一个问题没解决，任务进程的父进程为什么会变成 init 进程？
 通过检查 cron 中的定时任务指令，发现有如下形式的 cron 任务:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">/root/sleep.sh &amp;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">/root/sleep.sh &amp;
 </code></pre></div><p>怀疑跟 &amp; 符号有关，&amp; 符号会使相关指令进入后台执行，查看 bash 的文档，看到以下关于 &amp; 符号的详细描述：</p>
 <blockquote>
 <p>If a command is terminated by the control operator &amp;, the shell executes the command in  the  background  in  a subshell. The  shell does not wait for the command to finish, and the return status is 0.</p>
@@ -129,7 +139,7 @@ bash 不会等待这个 subshell 执行结束。
 这就导致一方面 shell 进程先退出执行，但是因为 cron worker 进程没有调用 <code>wait()</code> 而变成僵尸进程，
 另一方面 subshell 中执行的任务进程因为父进程变成僵尸进程，所以 init 进程就收养了它，它的父进程 id 变成 1。</p>
 <p>通过一个简单的 demo 我们来验证一下:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;unistd.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span>
 <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>()

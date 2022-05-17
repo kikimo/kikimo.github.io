@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>Nebula Raft 中的数据不一致问题 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/nebula-raft-inconsistency/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -30,7 +40,7 @@
 store1、store3 的数据是一致，
 但是这两个集合存在部分数据不一致的情况。
 从以下 WAL 的对比结果中我们可以发现，store1、store2 有 19 条 log 不一致：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">1c1
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">1c1
 &lt; /data/src/nebula-cluster/data/data/store1/nebula/1/wal/1
 ---
 &gt; /data/src/nebula-cluster/data/data/store2/nebula/1/wal/1
@@ -84,7 +94,7 @@ store1、store2 中不一致的数据条目是 18，
 具体的差异情况是 store1 中有 18 条数据 store2 没有，
 store2 中也有 18 条数据 store1 不存在，
 store2 又比 store1 多了一条数据。详情如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">comparing /Users/wenlinwu/src/toss_integration/data/store1/nebula/1/data to /Users/wenlinwu/src/toss_integration/data/store2/nebula/1/data
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">comparing /Users/wenlinwu/src/toss_integration/data/store1/nebula/1/data to /Users/wenlinwu/src/toss_integration/data/store2/nebula/1/data
 size mismatch: 489347, 489348
 /Users/wenlinwu/src/toss_integration/data/store2/nebula/1/data missing keys:
 b&#39;\x06\x01\x00\x00key-1-12197-340&#39;
@@ -136,7 +146,7 @@ diff 1-2: []
 </ol>
 <p>先说 Raft log match 的问题。
 以下是 RaftPart.cpp 中处理选举的请求的函数：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> RaftPart<span style="color:#f92672">::</span>processAskForVoteRequest(<span style="color:#66d9ef">const</span> cpp2<span style="color:#f92672">::</span>AskForVoteRequest<span style="color:#f92672">&amp;</span> req,
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> RaftPart<span style="color:#f92672">::</span>processAskForVoteRequest(<span style="color:#66d9ef">const</span> cpp2<span style="color:#f92672">::</span>AskForVoteRequest<span style="color:#f92672">&amp;</span> req,
                                         cpp2<span style="color:#f92672">::</span>AskForVoteResponse<span style="color:#f92672">&amp;</span> resp) {
   LOG(INFO) <span style="color:#f92672">&lt;&lt;</span> idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Received a VOTING request&#34;</span>
             <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;: space = &#34;</span> <span style="color:#f92672">&lt;&lt;</span> req.get_space() <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;, partition = &#34;</span> <span style="color:#f92672">&lt;&lt;</span> req.get_part()
@@ -225,7 +235,7 @@ diff 1-2: []
 这个不应该出现的 leader 不会重新初始化 Host peer 的 log 下标，
 又 Host.cpp 在判断 log match 上的逻辑不完备导致本来应该被 rollback 的 log 直接被 commit 了。
 从 Mozillar RR 的 replay 过程中我们观察到原本应当变成 Follower 的节点直接当选下一轮 leader 的整个过程：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) b 1308
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) b 1308
 Breakpoint 10 at 0x4077555: file /root/src/nebula/src/kvstore/raftex/RaftPart.cpp, line 1308.
 (rr) reverse-cont
 Continuing.
@@ -259,7 +269,7 @@ $29 = 82
 $30 = 81
 (rr)
 </code></pre></div><p>在这次调试中，我们观察到的 RocksDB 数据不一致情况如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">comparing /Users/wenlinwu/src/toss_integration/data/store1/nebula/1/data to /Users/wenlinwu/src/toss_integration/data/store2/nebula/1/data
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">comparing /Users/wenlinwu/src/toss_integration/data/store1/nebula/1/data to /Users/wenlinwu/src/toss_integration/data/store2/nebula/1/data
 size mismatch: 56093, 56091
 /Users/wenlinwu/src/toss_integration/data/store2/nebula/1/data missing keys:
 b&#39;\x06\x01\x00\x00key-0-320-317&#39;
@@ -332,10 +342,10 @@ b&#39;\x06\x01\x00\x00key-0-458-122&#39;
 b&#39;\x06\x01\x00\x00key-0-1012-309&#39;
 diff 4-5: []
 </code></pre></div><p>从 RocksDB 的比较数据中我们可以看到 store1 相对 store2 多了两条 key:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">b&#39;\x06\x01\x00\x00key-0-320-317&#39;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">b&#39;\x06\x01\x00\x00key-0-320-317&#39;
 b&#39;\x06\x01\x00\x00key-0-1467-266&#39;
 </code></pre></div><p>通过 diff store1 store2 的 wal 记录，我们发现 store1 和 store2 有两条 logsz  &gt; 0 的日志内容不一致：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># diff s0 s1
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># diff s0 s1
 1c1
 &lt; /data/src/nebula-cluster/data/data/store1/nebula/1/wal/1
 ---
@@ -357,10 +367,10 @@ b&#39;\x06\x01\x00\x00key-0-1467-266&#39;
 ---
 &gt; log index: 37482, term: 527, logsz: 0, cluster_id: 0, walfile:
 </code></pre></div><p>store1 多出的两条记录：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">&lt; log index: 12125, term: 84, logsz: 53, cluster_id: 0, walfile:
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">&lt; log index: 12125, term: 84, logsz: 53, cluster_id: 0, walfile:
 &lt; log index: 37482, term: 527, logsz: 55, cluster_id: 0, walfile:
 </code></pre></div><p>通过 rr 的过程回放，我们定位到 store1 写入 key: key-0-320-317 的瞬间：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">#0  nebula::kvstore::Part::commitLogs (this=0x7f6e87e17010, iter=..., wait=false) at /root/src/nebula/src/kvstore/Part.cpp:248
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">#0  nebula::kvstore::Part::commitLogs (this=0x7f6e87e17010, iter=..., wait=false) at /root/src/nebula/src/kvstore/Part.cpp:248
 #1  0x0000000004079ab9 in nebula::raftex::RaftPart::processAppendLogRequest (this=0x7f6e87e17010, req=..., resp=...) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:1556
 #2  0x00000000040c07b9 in nebula::raftex::RaftexService::appendLog (this=0x7f6eac5e0550, resp=..., req=...) at /root/src/nebula/src/kvstore/raftex/RaftexService.cpp:203
 #3  0x00000000041814ca in nebula::raftex::cpp2::RaftexServiceSvIf::&lt;lambda(nebula::raftex::cpp2::AppendLogResponse&amp;)&gt;::operator()(nebula::raftex::cpp2::AppendLogResponse &amp;) const (__closure=0x7f6eb4633590, _return=...)
@@ -416,7 +426,7 @@ $5 = 12125
 $6 = 84
 (rr)
 </code></pre></div><p>可以看到 key-0-320-317 对应的刚好是 index 12125, term 84 的 wal log。相应的我们可以在 store5 中看到  key-0-320-317  的 put 请求：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 5 hit Breakpoint 1, nebula::storage::PutProcessor::&lt;lambda(auto:146&amp;)&gt;::operator()&lt;const std::pair&lt;int const, std::vector&lt;nebula::KeyValue&gt; &gt; &gt;(const std::pair&lt;int const, std::vector&lt;nebula::KeyValue, std::allocator&lt;nebula::KeyValue&gt; &gt; &gt; &amp;) const (__closure=0x7f5e834d1590, value=...) at /root/src/nebula/src/storage/kv/PutProcessor.cpp:25
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 5 hit Breakpoint 1, nebula::storage::PutProcessor::&lt;lambda(auto:146&amp;)&gt;::operator()&lt;const std::pair&lt;int const, std::vector&lt;nebula::KeyValue&gt; &gt; &gt;(const std::pair&lt;int const, std::vector&lt;nebula::KeyValue, std::allocator&lt;nebula::KeyValue&gt; &gt; &gt; &amp;) const (__closure=0x7f5e834d1590, value=...) at /root/src/nebula/src/storage/kv/PutProcessor.cpp:25
 25            data.emplace_back(std::move(NebulaKeyUtils::kvKey(part, pair.key)), std::move(pair.value));
 (rr) p pair.key
 $1 = {static npos = 18446744073709551615, _M_dataplus = {&lt;std::allocator&lt;char&gt;&gt; = {&lt;__gnu_cxx::new_allocator&lt;char&gt;&gt; = {&lt;No data fields&gt;}, &lt;No data fields&gt;}, _M_p = 0x7f5e4cb27550 &#34;key-0-320-317&#34;}, _M_string_length = 13, {_M_local_buf = &#34;key-0-320-317\000\000&#34;,
@@ -448,7 +458,7 @@ $1 = {static npos = 18446744073709551615, _M_dataplus = {&lt;std::allocator&lt;c
 #19 0x00007f5e86a97293 in clone () at ../sysdeps/unix/sysv/linux/x86_64/clone.S:95
 (rr)
 </code></pre></div><p>现在问题是：为什么 store2 在 index 12125 处的日志对应的 term 是 83？这条日志怎么来？谁给 store2 发的这条日志？term 83 的 leader 是谁？翻一下 store2 的日志：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 5397 I1126 17:10:06.281394    32 RaftPart.cpp:1625] [Port: 9780, Space: 1, Part: 1] The current role is Follower. Will follow the new leader &#34;store5&#34;:9780 on term 82
  5398 I1126 17:10:06.281534    32 RaftPart.cpp:1459] [Port: 9780, Space: 1, Part: 1] Local is missing logs from id 12121. Need to catch up
  5399 I1126 17:10:06.706071    84 RaftPart.cpp:1625] [Port: 9780, Space: 1, Part: 1] The current role is Follower. Will follow the new leader &#34;store4&#34;:9780 on term 83
@@ -503,7 +513,7 @@ $1 = {static npos = 18446744073709551615, _M_dataplus = {&lt;std::allocator&lt;c
  5448 I1126 17:10:10.748713    63 RaftPart.cpp:1355] [Port: 9780, Space: 1, Part: 1] The partition will vote for the candidate &#34;store3&#34;:9780, isPreVote = 0
 </code></pre></div><p><img src="/images/raft-consist/log1.jpg" alt="storage-raft-logs1"></p>
 <p>可以看到 term 83 对应的 leader 是 store4。日志里还有一行：Local is missing logs from id 12121. Need to catch up. 把打印日志的这段代码 RaftPart.cpp:1459 抽出来看一下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> RaftPart<span style="color:#f92672">::</span>processAppendLogRequest(<span style="color:#66d9ef">const</span> cpp2<span style="color:#f92672">::</span>AppendLogRequest<span style="color:#f92672">&amp;</span> req,
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> RaftPart<span style="color:#f92672">::</span>processAppendLogRequest(<span style="color:#66d9ef">const</span> cpp2<span style="color:#f92672">::</span>AppendLogRequest<span style="color:#f92672">&amp;</span> req,
                                        cpp2<span style="color:#f92672">::</span>AppendLogResponse<span style="color:#f92672">&amp;</span> resp) {
   LOG_IF(INFO, FLAGS_trace_raft) <span style="color:#f92672">&lt;&lt;</span> idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;Received logAppend&#34;</span>
                                  <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;: GraphSpaceId = &#34;</span> <span style="color:#f92672">&lt;&lt;</span> req.get_space()
@@ -606,7 +616,7 @@ $1 = {static npos = 18446744073709551615, _M_dataplus = {&lt;std::allocator&lt;c
     }
   }
 </code></pre></div><p>通过 rr 回放 store2 的执行过程，并且在 RaftPart.cpp:1459 下断点，循环几次后我们准确定位到 index = 12121 时在 RaftPart.cpp:1459 这行打印的日志：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 10 hit Breakpoint 1, nebula::raftex::RaftPart::processAppendLogRequest (this=0x7f7fbf100010, req=..., resp=...) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:1459
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 10 hit Breakpoint 1, nebula::raftex::RaftPart::processAppendLogRequest (this=0x7f7fbf100010, req=..., resp=...) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:1459
 1459        LOG(INFO) &lt;&lt; idStr_ &lt;&lt; &#34;Local is missing logs from id &#34; &lt;&lt; lastLogId_ &lt;&lt; &#34;. Need to catch up&#34;;
 1: lastLogId_ = 10439
 (rr)
@@ -638,17 +648,17 @@ Thread 3 hit Breakpoint 1, nebula::raftex::RaftPart::processAppendLogRequest (th
 1: lastLogId_ = 12121
 (rr)
 </code></pre></div><p>看下当时发这个 appendLog 请求的 leader 是谁：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) p req.get_leader_addr()
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) p req.get_leader_addr()
 $8 = (const std::string &amp;) @0x7f7ff38d1870: {static npos = 18446744073709551615, _M_dataplus = {&lt;std::allocator&lt;char&gt;&gt; = {&lt;__gnu_cxx::new_allocator&lt;char&gt;&gt; = {&lt;No data fields&gt;}, &lt;No data fields&gt;}, _M_p = 0x7f7ff38d1880 &#34;store5&#34;}, _M_string_length = 6, {
     _M_local_buf = &#34;store5\000\000 \031\215\363\177\177\000&#34;, _M_allocated_capacity = 58709827875955}}
 (rr)
 </code></pre></div><p>竟然是 store5！store2 此时的 term 呢？</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) p term_
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) p term_
 $9 = 82
 </code></pre></div><p>store2 的 term 是 82……难道 12121 这个要多次踩点？看日志里面，有三行，好吧，继续 continue：</p>
 <p><img src="/images/raft-consist/log2.jpg" alt="raft-storage-logs2"></p>
 <p>在 continue 几次，定位到 term = 83 时这条日志打印的执行点：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 3 hit Breakpoint 1, nebula::raftex::RaftPart::processAppendLogRequest (this=0x7f7fbf100010, req=..., resp=...) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:1459
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 3 hit Breakpoint 1, nebula::raftex::RaftPart::processAppendLogRequest (this=0x7f7fbf100010, req=..., resp=...) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:1459
 1459        LOG(INFO) &lt;&lt; idStr_ &lt;&lt; &#34;Local is missing logs from id &#34; &lt;&lt; lastLogId_ &lt;&lt; &#34;. Need to catch up&#34;;
 1: lastLogId_ = 12420
 (rr) reverse-cont
@@ -665,7 +675,7 @@ $14 = 83
 </code></pre></div><p>这时候的 leader 居然是 store4！哦，不过没啥惊讶的，和 store2 的日志对的上。回到 store2 的日志上：</p>
 <p><img src="/images/raft-consist/log3.jpg" alt="raft-storage-logs3"></p>
 <p>打印这行日志的代码 RaftPart.cpp:1282：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 void RaftPart::processAskForVoteRequest(const cpp2::AskForVoteRequest&amp; req,
                                         cpp2::AskForVoteResponse&amp; resp) {
   LOG(INFO) &lt;&lt; idStr_ &lt;&lt; &#34;Received a VOTING request&#34;
@@ -710,7 +720,7 @@ store4 把错误的 12125 日志带进来，
 store5 成为 term 84 的 leader 后，
 Raft 没把这条 log revert 导致它被错误的 commit 上去）。
 我们接下来在 RaftPart:processAppendLogRequest() 上下断点已观察 12121 - 12125 这个 index 范围内 store2 的 raft append log 操作。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 3 hit Breakpoint 3, nebula::raftex::RaftPart::processAppendLogRequest (this=0x7f7fbf100010, req=..., resp=...) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:1434
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Thread 3 hit Breakpoint 3, nebula::raftex::RaftPart::processAppendLogRequest (this=0x7f7fbf100010, req=..., resp=...) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:1434
 1434      if (req.get_last_log_id_sent() &lt; committedLogId_ &amp;&amp; req.get_last_log_term_sent() &lt;= term_) {
 1: lastLogId_ = 12121
 (rr) p req
@@ -726,7 +736,7 @@ $35 = 83
 (rr) p req.get_log_str_list().size()
 $36 = 1
 </code></pre></div><p>store4 给 store2 发了一条长度 1 的 log，继续跟。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) c
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) c
 Continuing.
  
 Thread 3 hit Breakpoint 3, nebula::raftex::RaftPart::processAppendLogRequest (this=0x7f7fbf100010, req=..., resp=...) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:1434
@@ -742,7 +752,7 @@ $37 = (const nebula::raftex::cpp2::AppendLogRequest &amp;) @0x7f7ff38d1850: {sta
     leader_port = true, last_log_term_sent = true, last_log_id_sent = true, log_term = true, log_str_list = true}}
 (rr)
 </code></pre></div><p>连续 continue 几次，我们来到了 store2 lastLogIndex = 12124 这个关键点：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) c
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) c
 Continuing.
  
 Thread 3 hit Breakpoint 3, nebula::raftex::RaftPart::processAppendLogRequest (this=0x7f7fbf100010, req=..., resp=...) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:1434
@@ -761,7 +771,7 @@ Thread 3 hit Breakpoint 3, nebula::raftex::RaftPart::processAppendLogRequest (th
 <li>commitedLogIndex = 12123</li>
 <li>req.get_log_str_list().size() = 1—— appendLog 请求中 log 列表长度</li>
 </ol>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 (rr) n
 1483      LogID firstId = req.get_last_log_id_sent() + 1;
 1: lastLogId_ = 12124
@@ -792,7 +802,7 @@ $58 = 12125
 12125 这条本应该被 rollback 的 log 为什么被 commit？
 还是通过原来 appendLogs 的断点来跟踪。
 又经过几次 continue，我们来到了一个激动人心的地方：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Continuing.
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">Continuing.
  
 Thread 40 hit Breakpoint 3, nebula::raftex::RaftPart::processAppendLogRequest (this=0x7f7fbf100010, req=..., resp=...) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:1434
 1434      if (req.get_last_log_id_sent() &lt; committedLogId_ &amp;&amp; req.get_last_log_term_sent() &lt;= term_) {
@@ -816,7 +826,7 @@ Thread 40 hit Breakpoint 3, nebula::raftex::RaftPart::processAppendLogRequest (t
 <li>store5 发过来的请求的 last_log_term_sent = 83 （如果这表示的的是 index 12125 的 term 那问题就严重了，store5 上 index 12125 的 term 是 84 而不是 83）</li>
 </ol>
 <p>按照预期，store5 应该吧 store2 index = 12125 的这条日志 rollback，我们接下来就看看为什么没有 rollback，反而吧它 commit 了。继续跟踪：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) n
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) n
 1454      if (req.get_last_log_id_sent() == lastLogId_ &amp;&amp; req.get_last_log_term_sent() == lastLogTerm_) {
 1: lastLogId_ = 12125
 2: req = (const nebula::raftex::cpp2::AppendLogRequest &amp;) @0x7f7feb932850: {static __fbthrift_cpp2_gen_json = false, static __fbthrift_cpp2_gen_nimble = false, static __fbthrift_cpp2_gen_has_thrift_uri = false, static __fbthrift_cpp2_is_union = false, space = 1, part = 1,
@@ -837,7 +847,7 @@ $69 = 12125
 $70 = 83
 (rr)
 </code></pre></div><p>啊，我们几乎找到问题的直接原因了？store5 发过来的 log 信息是错的，查代码验证上面关于 log 字段的用法：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">// req.get_last_log_id_sent() &gt;= committedLogId_
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">// req.get_last_log_id_sent() &gt;= committedLogId_
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">if</span> (req.get_last_log_id_sent() <span style="color:#f92672">==</span> lastLogId_ <span style="color:#f92672">&amp;&amp;</span> req.get_last_log_term_sent() <span style="color:#f92672">==</span> lastLogTerm_) {
   <span style="color:#75715e">// nothing to do
 </span><span style="color:#75715e"></span>  <span style="color:#75715e">// just append log later
@@ -852,7 +862,7 @@ $70 = 83
   <span style="color:#66d9ef">if</span> (req.get_last_log_term_sent() <span style="color:#f92672">!=</span> reqLastLogTerm) {
     LOG(INFO) <span style="color:#f92672">&lt;&lt;</span> idStr_ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;The local log term is &#34;</span> <span style="color:#f92672">&lt;&lt;</span> reqLastLogTerm
 </code></pre></div><p>现在得去看 store5 为啥抽风发错误的信息。我们查了一遍 store5 的 raft wal log 记录：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">12115 log index: 12114, term: 75, logsz: 0, cluster_id: 0, walfile:
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">12115 log index: 12114, term: 75, logsz: 0, cluster_id: 0, walfile:
 12116 log index: 12115, term: 78, logsz: 0, cluster_id: 0, walfile:
 12117 log index: 12116, term: 78, logsz: 0, cluster_id: 0, walfile:
 12118 log index: 12117, term: 78, logsz: 0, cluster_id: 0, walfile:
@@ -875,7 +885,7 @@ $70 = 83
 我们现在切到 store5 的执行现场，
 在 RaftPart::replicateLogs() 这个函数上下断点，
 运气不错，一下子就定位到 index 12125 的 log 位置：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) c
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) c
 Continuing.
  
 Thread 5 hit Breakpoint 5, nebula::raftex::RaftPart::replicateLogs (this=0x7f5e4ed00010, eb=0x7f5e79b96f00, iter=..., currTerm=84, lastLogId=12125, committedId=12124, prevLogTerm=82, prevLogId=12124) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:753
@@ -887,7 +897,7 @@ $2 = 12125
 term 是多少呢？
 append log 的实际断点在 Host.cpp:appendLogs()中，
 我们在在 Host.cpp:141 处下个断点，几次 continue 后，逮到大鱼了：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 (rr) c
 Continuing.
 [Switching to Thread 25.71]
@@ -918,7 +928,7 @@ $27 = 12125
 <li>lastLogTermSent_ = 83</li>
 </ol>
 <p>针对 lastLogIdSent_ 和 lastLogTermSent_ 下两个硬件断点，然后反相执行，定位到这两个字段上一次变更的位置和上下文：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 (rr) watch lastLogIdSent_
 Hardware watchpoint 10: lastLogIdSent_
 (rr) watch lastLogTermSent_
@@ -957,7 +967,7 @@ rr 突然崩了……
 重启 rr，换个策略，
 给 committedLogId_ 下个硬件断点，
 continue 几次，捕捉到 committedLogId_ 被设置为 83 的那个点：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) c
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) c
 Continuing.
 [Switching to Thread 25.76]
  
@@ -979,7 +989,7 @@ nebula::raftex::Host::&lt;lambda(nebula::raftex::cpp2::AppendLogResponse&amp;&am
 187                   self-&gt;followerCommittedLogId_ = resp.get_committed_log_id();
 (rr)
 </code></pre></div><p>出问题的代码在 Host.cpp:186 行上：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> Host<span style="color:#f92672">::</span>appendLogsInternal(folly<span style="color:#f92672">::</span>EventBase<span style="color:#f92672">*</span> eb, std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>cpp2<span style="color:#f92672">::</span>AppendLogRequest<span style="color:#f92672">&gt;</span> req) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> Host<span style="color:#f92672">::</span>appendLogsInternal(folly<span style="color:#f92672">::</span>EventBase<span style="color:#f92672">*</span> eb, std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>cpp2<span style="color:#f92672">::</span>AppendLogRequest<span style="color:#f92672">&gt;</span> req) {
   <span style="color:#66d9ef">using</span> TransportException <span style="color:#f92672">=</span> apache<span style="color:#f92672">::</span>thrift<span style="color:#f92672">::</span>transport<span style="color:#f92672">::</span>TTransportException;
   sendAppendLogRequest(eb, req)
       .via(eb)
@@ -1039,7 +1049,7 @@ nebula::raftex::Host::&lt;lambda(nebula::raftex::cpp2::AppendLogResponse&amp;&am
           }
 ...
 </code></pre></div><p>我们在 appendLogsInternal() 上下了断点，然后通过 rr 反向执行定位到这个请求发起的时间点：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) reverse-cont
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) reverse-cont
 Continuing.
  
 Thread 44 hit Breakpoint 3, nebula::raftex::Host::appendLogsInternal (this=0x7f5e4ea3ad10, eb=0x7f5e79b96f00, req=...) at /root/src/nebula/src/kvstore/raftex/Host.cpp:158
@@ -1072,7 +1082,7 @@ store5 收到回应后根据 resp.get_last_log_term() 把 lastLogTermSent_ 设�
 <p>我们回到 store2 上，
 发现很有意思的事情—— raft 在处理请求的时候 resp 直接给设置了当前的 lastLogTerm_，
 而我们看到 store2 当前的 lastLogTerm_ 刚好是 83:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 (rr) l 1397
 1392                                     &lt;&lt; &#34;, local lastLogId = &#34; &lt;&lt; lastLogId_
 1393                                     &lt;&lt; &#34;, local lastLogTerm = &#34; &lt;&lt; lastLogTerm_
@@ -1098,7 +1108,7 @@ store5 收到回应后根据 resp.get_last_log_term() 把 lastLogTermSent_ 设�
 (rr) p lastLogTerm_
 $80 = 83
 </code></pre></div><p>作孽啊。再次观察 leader 发的 appendLog 请求：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) p req.get_last_log_term_sent()
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) p req.get_last_log_term_sent()
 $32 = 81
 (rr) p req.get_last_log_id_sent()
 $33 = 12122
@@ -1106,7 +1116,7 @@ $33 = 12122
 $34 = 12123
 (rr)
 </code></pre></div><p>leader 上的 log 情况呢：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) up
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">(rr) up
 #2  0x0000000004071423 in nebula::raftex::RaftPart::&lt;lambda(std::shared_ptr&lt;nebula::raftex::Host&gt;)&gt;::&lt;lambda()&gt;::operator()(void) const (
     __closure=0x7f5e8657e7d0) at /root/src/nebula/src/kvstore/raftex/RaftPart.cpp:785
 785                                     eb, currTerm, lastLogId, committedId, prevLogTerm, prevLogId);

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>架构整洁之道 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.89.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/dependency-rule/">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>架构整洁之道</h1>
+    <time datetime="2020-02-23T14:07:21&#43;08:00">February 23, 2020</time>
+  </header>
+  <p>良好的架构具有以下特点：</p>
+<ol>
+<li>Independent of frameworks. 架构不依赖于特定的框架。让框架回归工具属性，而不是让你的系统受制于框架。</li>
+<li>Testable. 测试可不依赖于任何外部组件，诸如：数据库、UI、web 服务器。</li>
+<li>Independent of the UI. 在不改变系统其它部分的情况下，灵活调整系统的 UI。</li>
+<li>Independent of the database. 业务逻辑不应当依赖于某款具体的数据库。</li>
+<li>Independent of any external agency. 系统的业务规则不应当依赖认为外部具体的技术细节。</li>
+</ol>
+<p>良好的架构本质上需要做好两个事情：</p>
+<ol>
+<li>架构分层</li>
+<li>处理好层次间的依赖</li>
+</ol>
+<p>架构的层次由内到外、由核心到次要依次可分为：企业业务规则、应用业务规则、接口适配层、框架和驱动层。
+层次间应当保证内层不依赖外层，只能让外层来依赖内层。</p>
+<blockquote>
+<p>Source code dependencies must point only inward, toward higher-level policies.</p>
+</blockquote>
+<h2 id="1-entities">1. Entities</h2>
+<h2 id="2-use-cases">2. Use Cases</h2>
+<h2 id="3-interface-adapters">3. Interface Adapters</h2>
+<h2 id="4-frameworks-and-drivers">4. Frameworks and Drivers</h2>
+<h2 id="5-crossing-boundaries">5. Crossing Boundaries</h2>
+
+</article>
+
+
+
+</html>

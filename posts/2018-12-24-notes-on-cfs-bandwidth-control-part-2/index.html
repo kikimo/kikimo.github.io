@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>CFS bandwidth control 笔记（二） | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/2018-12-24-notes-on-cfs-bandwidth-control-part-2/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -27,7 +37,7 @@
 </blockquote>
 <p>对于这个问题，<a href="https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt">CFS Bandwidth Control</a>
 中的<code>Hierarchical considerations</code>一节里对进程组的带宽控制有以下描述：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">The interface enforces that an individual entity&#39;s bandwidth is always
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">The interface enforces that an individual entity&#39;s bandwidth is always
 attainable, that is: max(c_i) &lt;= C. However, over-subscription in the
 aggregate case is explicitly allowed to enable work-conserving semantics
 within a hierarchy.
@@ -55,7 +65,7 @@ CFS 调度器主体代码在<code>kernel/sched/fair.c</code>文件中，
 通过<code>walk_tg_tree_from()</code>函数遍历整颗子树，
 然后调用<code>tg_throttle_down()</code>函数执行限流，
 这一点符合我们上面总结的 CFS 中<strong>父节点被限流子节点也被限流</strong>的特点。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">3605</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">throttle_cfs_rq</span>(<span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">3605</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">throttle_cfs_rq</span>(<span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq)
 <span style="color:#ae81ff">3606</span> {
 <span style="color:#ae81ff">3607</span>     <span style="color:#66d9ef">struct</span> rq <span style="color:#f92672">*</span>rq <span style="color:#f92672">=</span> rq_of(cfs_rq);
 <span style="color:#ae81ff">3608</span>     <span style="color:#66d9ef">struct</span> cfs_bandwidth <span style="color:#f92672">*</span>cfs_b <span style="color:#f92672">=</span> tg_cfs_bandwidth(cfs_rq<span style="color:#f92672">-&gt;</span>tg);
@@ -113,7 +123,7 @@ CFS 调度器主体代码在<code>kernel/sched/fair.c</code>文件中，
 我们找到了<code>check_cfs_rq_runtime()</code>这个函数，
 这个函数比较简单，它检测 task group 的带宽是否已经耗尽，
 如果是则调用<code>throttle_cfs_rq()</code>将 task group 限流。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">3974</span> <span style="color:#75715e">/* conditionally throttle active cfs_rq&#39;s from put_prev_entity() */</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">3974</span> <span style="color:#75715e">/* conditionally throttle active cfs_rq&#39;s from put_prev_entity() */</span>
 <span style="color:#ae81ff">3975</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">bool</span> check_cfs_rq_runtime(<span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq)
 <span style="color:#ae81ff">3976</span> {
 <span style="color:#ae81ff">3977</span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cfs_bandwidth_used())
@@ -144,7 +154,7 @@ CFS 中调度队列是一颗红黑树，
 每搜索到一个 task group 后<code>pick_next_task_fair()</code>
 都会调用<code>update_curr()</code>函数先更新他的 CPU 运行时间等数据，
 这些数据会直接影响后面<code>check_cfs_rq_runtime()</code>函数的限流检测。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">5271</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#ae81ff">5271</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>
 <span style="color:#ae81ff">5272</span> <span style="color:#a6e22e">pick_next_task_fair</span>(<span style="color:#66d9ef">struct</span> rq <span style="color:#f92672">*</span>rq, <span style="color:#66d9ef">struct</span> task_struct <span style="color:#f92672">*</span>prev)
 <span style="color:#ae81ff">5273</span> {
 <span style="color:#ae81ff">5274</span>     <span style="color:#66d9ef">struct</span> cfs_rq <span style="color:#f92672">*</span>cfs_rq <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>rq<span style="color:#f92672">-&gt;</span>cfs;

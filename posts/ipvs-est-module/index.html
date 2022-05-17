@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>ipvs 速率统计模块分析 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/ipvs-est-module/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -33,14 +43,14 @@
 <ol>
 <li>定时器清理函数</li>
 </ol>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">void</span> __net_exit <span style="color:#a6e22e">ip_vs_estimator_net_cleanup</span>(<span style="color:#66d9ef">struct</span> netns_ipvs <span style="color:#f92672">*</span>ipvs)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">void</span> __net_exit <span style="color:#a6e22e">ip_vs_estimator_net_cleanup</span>(<span style="color:#66d9ef">struct</span> netns_ipvs <span style="color:#f92672">*</span>ipvs)
 {
     del_timer_sync(<span style="color:#f92672">&amp;</span>ipvs<span style="color:#f92672">-&gt;</span>est_timer);
 }
 </code></pre></div><ol start="2">
 <li>定时器初始化函数</li>
 </ol>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">int</span> __net_init <span style="color:#a6e22e">ip_vs_estimator_net_init</span>(<span style="color:#66d9ef">struct</span> netns_ipvs <span style="color:#f92672">*</span>ipvs)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">int</span> __net_init <span style="color:#a6e22e">ip_vs_estimator_net_init</span>(<span style="color:#66d9ef">struct</span> netns_ipvs <span style="color:#f92672">*</span>ipvs)
 {
     INIT_LIST_HEAD(<span style="color:#f92672">&amp;</span>ipvs<span style="color:#f92672">-&gt;</span>est_list);
     spin_lock_init(<span style="color:#f92672">&amp;</span>ipvs<span style="color:#f92672">-&gt;</span>est_lock);
@@ -51,7 +61,7 @@
 </code></pre></div><ol start="3">
 <li>ipvs 统计数据读取函数</li>
 </ol>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">/* Get decoded rates */</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">/* Get decoded rates */</span>
 <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">ip_vs_read_estimator</span>(<span style="color:#66d9ef">struct</span> ip_vs_kstats <span style="color:#f92672">*</span>dst, <span style="color:#66d9ef">struct</span> ip_vs_stats <span style="color:#f92672">*</span>stats)
 {
     <span style="color:#66d9ef">struct</span> ip_vs_estimator <span style="color:#f92672">*</span>e <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>stats<span style="color:#f92672">-&gt;</span>est;
@@ -65,7 +75,7 @@
 </code></pre></div><ol start="4">
 <li>统计数据清零函数</li>
 </ol>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">ip_vs_zero_estimator</span>(<span style="color:#66d9ef">struct</span> ip_vs_stats <span style="color:#f92672">*</span>stats)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">ip_vs_zero_estimator</span>(<span style="color:#66d9ef">struct</span> ip_vs_stats <span style="color:#f92672">*</span>stats)
 {
     <span style="color:#66d9ef">struct</span> ip_vs_estimator <span style="color:#f92672">*</span>est <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>stats<span style="color:#f92672">-&gt;</span>est;
     <span style="color:#66d9ef">struct</span> ip_vs_kstats <span style="color:#f92672">*</span>k <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>stats<span style="color:#f92672">-&gt;</span>kstats;
@@ -85,7 +95,7 @@
 </code></pre></div><ol start="5">
 <li>把 ipvs 对象加入统计链表</li>
 </ol>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c">
 <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">ip_vs_start_estimator</span>(<span style="color:#66d9ef">struct</span> netns_ipvs <span style="color:#f92672">*</span>ipvs, <span style="color:#66d9ef">struct</span> ip_vs_stats <span style="color:#f92672">*</span>stats)
 {
     <span style="color:#66d9ef">struct</span> ip_vs_estimator <span style="color:#f92672">*</span>est <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>stats<span style="color:#f92672">-&gt;</span>est;
@@ -99,7 +109,7 @@
 </code></pre></div><ol start="6">
 <li>把 ipvs 对象从统计链表中删除</li>
 </ol>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">ip_vs_stop_estimator</span>(<span style="color:#66d9ef">struct</span> netns_ipvs <span style="color:#f92672">*</span>ipvs, <span style="color:#66d9ef">struct</span> ip_vs_stats <span style="color:#f92672">*</span>stats)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">ip_vs_stop_estimator</span>(<span style="color:#66d9ef">struct</span> netns_ipvs <span style="color:#f92672">*</span>ipvs, <span style="color:#66d9ef">struct</span> ip_vs_stats <span style="color:#f92672">*</span>stats)
 {
     <span style="color:#66d9ef">struct</span> ip_vs_estimator <span style="color:#f92672">*</span>est <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>stats<span style="color:#f92672">-&gt;</span>est;
 
@@ -110,7 +120,7 @@
 </code></pre></div><h2 id="ipvs-数据统计代码">ipvs 数据统计代码</h2>
 <p>执行 ipvs 数据统计的主要有两个函数，<code>estimation_timer()</code>和<code>ip_vs_read_cpu_stats()</code>。
 <code>ip_vs_read_cpu_stats()</code>分别统计每个 CPU 上的信息，</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">/*
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">/*
 </span><span style="color:#75715e"> * Make a summary from each cpu
 </span><span style="color:#75715e"> */</span>
 <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">ip_vs_read_cpu_stats</span>(<span style="color:#66d9ef">struct</span> ip_vs_kstats <span style="color:#f92672">*</span>sum,
@@ -159,16 +169,16 @@
 我们在代码中会看到对数据左移九位和左移四位的操作，
 这是因为统计单位分别为<code>2^10</code>和<code>2^4</code>的缘故。
 再看具体的速率统计公式：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">avgrate = avgrate * 1/4 + rate * 3/4
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">avgrate = avgrate * 1/4 + rate * 3/4
 </code></pre></div><p>其中 avgrate 是八秒内的速率统计（参看参考 1，其实我没搞明白这个八秒是怎么来的），
 这个公式看起来和代码不太一致，其实把公式延展一下就可以看出他们是等价的，以连接速率 e-&gt;cps 的统计为例：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">e-&gt;cps += ((s64)rate - (s64)e-&gt;cps) &gt;&gt; 2
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">e-&gt;cps += ((s64)rate - (s64)e-&gt;cps) &gt;&gt; 2
 
 等价于：
 
 e-&gt;cps = e-&gt;cps + (rate - e-&gt;cps) / 4 = rate * 1/4 + rate * 3/4
 </code></pre></div><p>以上 rate 就是我们前文提到的八秒内的速率 avgrate。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">estimation_timer</span>(<span style="color:#66d9ef">struct</span> timer_list <span style="color:#f92672">*</span>t)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">estimation_timer</span>(<span style="color:#66d9ef">struct</span> timer_list <span style="color:#f92672">*</span>t)
 {
     <span style="color:#66d9ef">struct</span> ip_vs_estimator <span style="color:#f92672">*</span>e;
     <span style="color:#66d9ef">struct</span> ip_vs_stats <span style="color:#f92672">*</span>s;

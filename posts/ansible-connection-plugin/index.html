@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>编写 Ansible Connection 插件 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/ansible-connection-plugin/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -36,7 +46,7 @@ Ansible 的发行版自带丰富的连接插件，如默认使用的 ssh 连接�
 所有的连接插件都需要继承基类 ansible.plugins.connection.ConnectionBase，
 然后实现这个基类中定义的抽象方法，其中包括我们上面提到的三个核心通信接口，
 我们来看 ConnectionBase 中的抽象方法定义：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python">
 <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">ensure_connect</span>(func):
     <span style="color:#a6e22e">@wraps</span>(func)
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">wrapped</span>(self, <span style="color:#f92672">*</span>args, <span style="color:#f92672">**</span>kwargs):
@@ -61,7 +71,7 @@ Ansible 的发行版自带丰富的连接插件，如默认使用的 ssh 连接�
 
     <span style="color:#a6e22e">@ensure_connect</span>
     <span style="color:#a6e22e">@abstractmethod</span>
-    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">exec_command</span>(self, cmd, in_data<span style="color:#f92672">=</span>None, sudoable<span style="color:#f92672">=</span>True):
+    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">exec_command</span>(self, cmd, in_data<span style="color:#f92672">=</span><span style="color:#66d9ef">None</span>, sudoable<span style="color:#f92672">=</span><span style="color:#66d9ef">True</span>):
         <span style="color:#e6db74">&#34;&#34;&#34;Run a command on the remote host.
 </span><span style="color:#e6db74">
 </span><span style="color:#e6db74">        :arg cmd: byte string containing the command
@@ -159,13 +169,13 @@ agent 使用 Go 实现，它本质上是一个 HTTP 服务，提供<code>/exec</
 agent 的代码本身比较简单，我们就不深入了。
 但是 jsternberg/ansible-agent 的 Connection 插件因为 Ansbile 版本更新的原因，目前已经无法运行了，
 通过简单的修改，我们让它可以运行起来：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#f92672">from</span> __future__ <span style="color:#f92672">import</span> (absolute_import, division, print_function)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#f92672">from</span> __future__ <span style="color:#f92672">import</span> (absolute_import, division, print_function)
 
 <span style="color:#f92672">from</span> StringIO <span style="color:#f92672">import</span> StringIO
 <span style="color:#f92672">import</span> requests<span style="color:#f92672">,</span> json
 __metaclass__ <span style="color:#f92672">=</span> type
 
-<span style="color:#f92672">import</span> ansible.constants <span style="color:#f92672">as</span> C
+<span style="color:#f92672">import</span> ansible.constants <span style="color:#66d9ef">as</span> C
 <span style="color:#f92672">from</span> ansible.errors <span style="color:#f92672">import</span> AnsibleError, AnsibleConnectionFailure
 <span style="color:#f92672">from</span> ansible.module_utils.six <span style="color:#f92672">import</span> text_type, binary_type
 <span style="color:#f92672">from</span> ansible.module_utils._text <span style="color:#f92672">import</span> to_bytes, to_native, to_text
@@ -178,17 +188,17 @@ display <span style="color:#f92672">=</span> Display()
     <span style="color:#e6db74">&#39;&#39;&#39; Local based connections &#39;&#39;&#39;</span>
 
     transport <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;local&#39;</span>
-    has_pipelining <span style="color:#f92672">=</span> True
+    has_pipelining <span style="color:#f92672">=</span> <span style="color:#66d9ef">True</span>
 
     <span style="color:#66d9ef">def</span> __init__(self, <span style="color:#f92672">*</span>args, <span style="color:#f92672">**</span>kwargs):
         super(Connection, self)<span style="color:#f92672">.</span>__init__(<span style="color:#f92672">*</span>args, <span style="color:#f92672">**</span>kwargs)
-        self<span style="color:#f92672">.</span>cwd <span style="color:#f92672">=</span> None
+        self<span style="color:#f92672">.</span>cwd <span style="color:#f92672">=</span> <span style="color:#66d9ef">None</span>
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_connect</span>(self):
         <span style="color:#e6db74">&#39;&#39;&#39; connect to the local host; nothing to do here &#39;&#39;&#39;</span>
         <span style="color:#66d9ef">return</span> self
 
-    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">exec_command</span>(self, cmd, in_data<span style="color:#f92672">=</span>None, sudoable<span style="color:#f92672">=</span>True):
+    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">exec_command</span>(self, cmd, in_data<span style="color:#f92672">=</span><span style="color:#66d9ef">None</span>, sudoable<span style="color:#f92672">=</span><span style="color:#66d9ef">True</span>):
         addr <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_play_context<span style="color:#f92672">.</span>remote_addr
         <span style="color:#66d9ef">if</span> isinstance(cmd, (text_type, binary_type)):
             cmd <span style="color:#f92672">=</span> to_bytes(cmd)
@@ -199,9 +209,9 @@ display <span style="color:#f92672">=</span> Display()
         <span style="color:#66d9ef">if</span> in_data:
             files[<span style="color:#e6db74">&#39;stdin&#39;</span>] <span style="color:#f92672">=</span> StringIO(in_data)
 
-        resp <span style="color:#f92672">=</span> requests<span style="color:#f92672">.</span>post(<span style="color:#e6db74">&#39;http://{}:8700/exec&#39;</span><span style="color:#f92672">.</span>format(addr), data<span style="color:#f92672">=</span>{<span style="color:#e6db74">&#39;command&#39;</span>: cmd}, files<span style="color:#f92672">=</span>files)
+        resp <span style="color:#f92672">=</span> requests<span style="color:#f92672">.</span>post(<span style="color:#e6db74">&#39;http://</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">:8700/exec&#39;</span><span style="color:#f92672">.</span>format(addr), data<span style="color:#f92672">=</span>{<span style="color:#e6db74">&#39;command&#39;</span>: cmd}, files<span style="color:#f92672">=</span>files)
         <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> resp<span style="color:#f92672">.</span>ok:
-            <span style="color:#66d9ef">raise</span> AnsibleConnectionFailure(<span style="color:#e6db74">&#39;Failed to exec command on {}: {}&#39;</span><span style="color:#f92672">.</span>format(addr, resp<span style="color:#f92672">.</span>reason))
+            <span style="color:#66d9ef">raise</span> AnsibleConnectionFailure(<span style="color:#e6db74">&#39;Failed to exec command on </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">: </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(addr, resp<span style="color:#f92672">.</span>reason))
 
         data <span style="color:#f92672">=</span> resp<span style="color:#f92672">.</span>json()
         <span style="color:#66d9ef">return</span> data[<span style="color:#e6db74">&#39;status&#39;</span>], data[<span style="color:#e6db74">&#39;stdout&#39;</span>], data[<span style="color:#e6db74">&#39;stderr&#39;</span>]
@@ -209,21 +219,21 @@ display <span style="color:#f92672">=</span> Display()
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">put_file</span>(self, in_path, out_path):
         <span style="color:#66d9ef">with</span> open(in_path) <span style="color:#66d9ef">as</span> fp:
             remote_addr <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_play_context<span style="color:#f92672">.</span>remote_addr
-            resp <span style="color:#f92672">=</span> requests<span style="color:#f92672">.</span>put(<span style="color:#e6db74">&#39;http://{}:8700/upload&#39;</span><span style="color:#f92672">.</span>format(remote_addr), data<span style="color:#f92672">=</span>{<span style="color:#e6db74">&#39;dest&#39;</span>: out_path}, files<span style="color:#f92672">=</span>{<span style="color:#e6db74">&#39;src&#39;</span>: fp})
+            resp <span style="color:#f92672">=</span> requests<span style="color:#f92672">.</span>put(<span style="color:#e6db74">&#39;http://</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">:8700/upload&#39;</span><span style="color:#f92672">.</span>format(remote_addr), data<span style="color:#f92672">=</span>{<span style="color:#e6db74">&#39;dest&#39;</span>: out_path}, files<span style="color:#f92672">=</span>{<span style="color:#e6db74">&#39;src&#39;</span>: fp})
 
             <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> resp<span style="color:#f92672">.</span>ok:
-                <span style="color:#66d9ef">raise</span> AnsibleConnectionFailure(<span style="color:#e6db74">&#39;Failed to upload file: {}&#39;</span><span style="color:#f92672">.</span>format(resp<span style="color:#f92672">.</span>reason))
+                <span style="color:#66d9ef">raise</span> AnsibleConnectionFailure(<span style="color:#e6db74">&#39;Failed to upload file: </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(resp<span style="color:#f92672">.</span>reason))
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">fetch_file</span>(self, in_path, out_path):
         <span style="color:#e6db74">&#39;&#39;&#39; fetch a file from local to local -- for compatibility &#39;&#39;&#39;</span>
         super(Connection, self)<span style="color:#f92672">.</span>fetch_file(in_path, out_path)
 
-        display<span style="color:#f92672">.</span>vvv(<span style="color:#e6db74">u</span><span style="color:#e6db74">&#34;FETCH {0} TO {1}&#34;</span><span style="color:#f92672">.</span>format(in_path, out_path), host<span style="color:#f92672">=</span>self<span style="color:#f92672">.</span>_play_context<span style="color:#f92672">.</span>remote_addr)
+        display<span style="color:#f92672">.</span>vvv(<span style="color:#e6db74">u</span><span style="color:#e6db74">&#34;FETCH </span><span style="color:#e6db74">{0}</span><span style="color:#e6db74"> TO </span><span style="color:#e6db74">{1}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(in_path, out_path), host<span style="color:#f92672">=</span>self<span style="color:#f92672">.</span>_play_context<span style="color:#f92672">.</span>remote_addr)
         self<span style="color:#f92672">.</span>put_file(in_path, out_path)
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">close</span>(self):
         <span style="color:#e6db74">&#39;&#39;&#39; terminate the connection; nothing to do here &#39;&#39;&#39;</span>
-        self<span style="color:#f92672">.</span>_connected <span style="color:#f92672">=</span> False
+        self<span style="color:#f92672">.</span>_connected <span style="color:#f92672">=</span> <span style="color:#66d9ef">False</span>
 
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">fetch_file</span>(self, in_path, out_path):
         <span style="color:#66d9ef">raise</span> AnsibleError(<span style="color:#e6db74">&#34;not unimplemented&#34;</span>)
@@ -231,11 +241,11 @@ display <span style="color:#f92672">=</span> Display()
     <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">close</span>(self):
         <span style="color:#66d9ef">pass</span>
 </code></pre></div><p>我们使用 requests 库直接调用 agent 的 HTTP 接口，这在 Mac 下可能会产生如下错误：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">TASK <span style="color:#f92672">[</span>Test credstash lookup plugin -- get the password with a context defined here<span style="color:#f92672">]</span> ***********************************************************************************************************************************************************************************************
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">TASK <span style="color:#f92672">[</span>Test credstash lookup plugin -- get the password with a context defined here<span style="color:#f92672">]</span> ***********************************************************************************************************************************************************************************************
 objc<span style="color:#f92672">[</span>6763<span style="color:#f92672">]</span>: +<span style="color:#f92672">[</span>__NSPlaceholderDate initialize<span style="color:#f92672">]</span> may have been in progress in another thread when fork<span style="color:#f92672">()</span> was called.
 objc<span style="color:#f92672">[</span>6763<span style="color:#f92672">]</span>: +<span style="color:#f92672">[</span>__NSPlaceholderDate initialize<span style="color:#f92672">]</span> may have been in progress in another thread when fork<span style="color:#f92672">()</span> was called. We cannot safely call it or ignore it in the fork<span style="color:#f92672">()</span> child process. Crashing instead. Set a breakpoint on objc_initializeAfterForkError to debug.
 </code></pre></div><p>通过设置环境变量可以解决这一问题：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">export OBJC_DISABLE_INITIALIZE_FORK_SAFETY<span style="color:#f92672">=</span>YES
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">export OBJC_DISABLE_INITIALIZE_FORK_SAFETY<span style="color:#f92672">=</span>YES
 </code></pre></div><p>具体可以看这个<a href="https://github.com/ansible/ansible/issues/31869">Ansible issue</a></p>
 
 </article>

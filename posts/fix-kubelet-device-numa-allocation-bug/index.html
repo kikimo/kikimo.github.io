@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>修复一个 kubelet numa 节点设备分配的 bug | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/fix-kubelet-device-numa-allocation-bug/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -27,7 +37,7 @@ topology manager 支持多种分配策略，其中一种叫 single numa node pol
 然而我们发现某些场景下，虽然选择的是 single numa node policy，
 但是 kublet 分配的设备却可能跨越多个 numa 节点。
 通过排查我们发现这个问题的根源在于 devicemanager 中设备分配的实现算法上，具体问题代码在<code>pkg/kubelet/cm/devicemanager/manager.go:filterByAffinity()</code></p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">m</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">ManagerImpl</span>) <span style="color:#a6e22e">filterByAffinity</span>(<span style="color:#a6e22e">podUID</span>, <span style="color:#a6e22e">contName</span>, <span style="color:#a6e22e">resource</span> <span style="color:#66d9ef">string</span>, <span style="color:#a6e22e">available</span> <span style="color:#a6e22e">sets</span>.<span style="color:#a6e22e">String</span>) (<span style="color:#a6e22e">sets</span>.<span style="color:#a6e22e">String</span>, <span style="color:#a6e22e">sets</span>.<span style="color:#a6e22e">String</span>, <span style="color:#a6e22e">sets</span>.<span style="color:#a6e22e">String</span>) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">m</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">ManagerImpl</span>) <span style="color:#a6e22e">filterByAffinity</span>(<span style="color:#a6e22e">podUID</span>, <span style="color:#a6e22e">contName</span>, <span style="color:#a6e22e">resource</span> <span style="color:#66d9ef">string</span>, <span style="color:#a6e22e">available</span> <span style="color:#a6e22e">sets</span>.<span style="color:#a6e22e">String</span>) (<span style="color:#a6e22e">sets</span>.<span style="color:#a6e22e">String</span>, <span style="color:#a6e22e">sets</span>.<span style="color:#a6e22e">String</span>, <span style="color:#a6e22e">sets</span>.<span style="color:#a6e22e">String</span>) {
 	<span style="color:#75715e">// If alignment information is not available, just pass the available list back.
 </span><span style="color:#75715e"></span>	<span style="color:#a6e22e">hint</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">m</span>.<span style="color:#a6e22e">topologyAffinityStore</span>.<span style="color:#a6e22e">GetAffinity</span>(<span style="color:#a6e22e">podUID</span>, <span style="color:#a6e22e">contName</span>)
 	<span style="color:#66d9ef">if</span> !<span style="color:#a6e22e">m</span>.<span style="color:#a6e22e">deviceHasTopologyAlignment</span>(<span style="color:#a6e22e">resource</span>) <span style="color:#f92672">||</span> <span style="color:#a6e22e">hint</span>.<span style="color:#a6e22e">NUMANodeAffinity</span> <span style="color:#f92672">==</span> <span style="color:#66d9ef">nil</span> {
@@ -108,7 +118,7 @@ topology manager 支持多种分配策略，其中一种叫 single numa node pol
 那么根据后面的迭代语句中的逻辑，dev1 就会被归类到非亲和性的设备集合里。
 那为什么<code>nodes</code>中 numa 节点的顺序是怎么确定的呢？
 我们看<code>nodes</code>列表是怎么构造的：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">	<span style="color:#75715e">// Get a flat list of all of the nodes associated with available devices.
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">	<span style="color:#75715e">// Get a flat list of all of the nodes associated with available devices.
 </span><span style="color:#75715e"></span>	<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">nodes</span> []<span style="color:#66d9ef">int</span>
 	<span style="color:#66d9ef">for</span> <span style="color:#a6e22e">node</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">perNodeDevices</span> {
 		<span style="color:#a6e22e">nodes</span> = append(<span style="color:#a6e22e">nodes</span>, <span style="color:#a6e22e">node</span>)
@@ -132,7 +142,7 @@ dev2 又会被划到非亲和性设备集里。
 所以只是简单的根据 numa 节点上关联的设备来排序不足以修复这个问题。
 要修复这个问题的本质在于 numa 节点的的排序上：如果一个 numa 节点在<code>hint.NUMANodeAffinity</code>集合里，
 那么他应该比不在这个集合里的 numa 节点排得靠前，具体的 fix 如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
 	<span style="color:#75715e">// Sort the list of nodes by:
 </span><span style="color:#75715e"></span>	<span style="color:#75715e">// 1) Nodes contained in the &#39;hint&#39;s affinity set
 </span><span style="color:#75715e"></span>	<span style="color:#75715e">// 2) Nodes not contained in the &#39;hint&#39;s affinity set

@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>RPC Pipeline | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/rpc-pipeline/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -30,7 +40,7 @@
 RPC 回应可以放到异步回调里处理。</p>
 <p>以 Go RPC 为例，我们来开如何实现一个 RPC Pipeline。
 首先需要一个客户端，就以最简单的 echo server 当例子：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">server</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">server</span>
 
 <span style="color:#66d9ef">type</span> <span style="color:#a6e22e">HelloService</span> <span style="color:#66d9ef">struct</span> {}
 
@@ -62,7 +72,7 @@ RPC 回应可以放到异步回调里处理。</p>
 我们将在客户端实现 RPC Pipeline。
 在实现 RPC Pipeline 之前，
 我们先实现常见的 RPC 同步客户端，也就是需要等待服务端回应再发起下个请求：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">runSyncClient</span>(<span style="color:#a6e22e">loop</span> <span style="color:#66d9ef">int</span>) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">runSyncClient</span>(<span style="color:#a6e22e">loop</span> <span style="color:#66d9ef">int</span>) {
     <span style="color:#a6e22e">client</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">rpc</span>.<span style="color:#a6e22e">Dial</span>(<span style="color:#e6db74">&#34;tcp&#34;</span>, <span style="color:#e6db74">&#34;localhost:8848&#34;</span>)
     <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
         <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">Fatalf</span>(<span style="color:#e6db74">&#34;dialing: %+v&#34;</span>, <span style="color:#a6e22e">err</span>)
@@ -81,7 +91,7 @@ RPC 回应可以放到异步回调里处理。</p>
 </code></pre></div><p><code>client.Call()</code>一直阻塞指导服务端返回结国。
 要实现 Pipeline 只需要把<code>client.Call()</code>替换成<code>cleint.Go()</code>，
 然后在启一个 goroutine 去异步处理<code>client.Go()</code>返回的结果：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">runPiplineClient</span>(<span style="color:#a6e22e">loop</span> <span style="color:#66d9ef">int</span>) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">runPiplineClient</span>(<span style="color:#a6e22e">loop</span> <span style="color:#66d9ef">int</span>) {
     <span style="color:#a6e22e">client</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">rpc</span>.<span style="color:#a6e22e">Dial</span>(<span style="color:#e6db74">&#34;tcp&#34;</span>, <span style="color:#e6db74">&#34;localhost:8848&#34;</span>)
     <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
         <span style="color:#a6e22e">glog</span>.<span style="color:#a6e22e">Fatalf</span>(<span style="color:#e6db74">&#34;dialing: %+v&#34;</span>, <span style="color:#a6e22e">err</span>)
@@ -102,7 +112,7 @@ RPC 回应可以放到异步回调里处理。</p>
     <span style="color:#a6e22e">wg</span>.<span style="color:#a6e22e">Wait</span>()
 }
 </code></pre></div><p>对比两种实现的执行效率，执行 524288 次 RPC 调用的时间消耗分别如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">// pipeline
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">// pipeline
 real    0m22.410s
 user    0m10.519s
 sys     0m44.574s
@@ -116,7 +126,7 @@ sys     0m47.499s
 <p>注意到我们 Pipeline 发送数据用的是同一个 goroutine，
 如果启动多个 goroutine 并法调 RPC 呢？
 再改一版客户端代码：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// not as good as pipeline and for rpcs like apache Thrift concurrent
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// not as good as pipeline and for rpcs like apache Thrift concurrent
 </span><span style="color:#75715e">// write to client might not work beacause theire clients are not thread
 </span><span style="color:#75715e">// safe
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">runConncurrentClient</span>() {
@@ -144,7 +154,7 @@ sys     0m47.499s
 }
 </code></pre></div><p>同样还是测试 524288 次 RPC 调用，我们发现对比单个 Goroutine 的 Pipeline 实现，
 并发请求的效率反而各方面之指标都明显变差了：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">// and for concurrent clients:
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">// and for concurrent clients:
 real    0m28.981s
 user    0m14.819s
 sys     1m17.591s

@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>kube-router 服务就绪慢问题分析 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/trouble-shooting-kube-router/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -37,7 +47,7 @@
 <p><img src="/images/kr/first_update.png" alt="kr_conn"></p>
 <p>通过跟踪 kube-router 代码，
 我们发现当前场景下 kube-router 的第一条路由 update 消息的发送是通过一个定时器触发的（vendor/github.com/osrg/gobgp/pkg/server/server.go）：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#ae81ff">1486</span>                                 <span style="color:#75715e">// RFC 4724 4.1
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#ae81ff">1486</span>                                 <span style="color:#75715e">// RFC 4724 4.1
 </span><span style="color:#75715e"></span><span style="color:#ae81ff">1487</span>                                 <span style="color:#75715e">// Once the session between the Restarting Speaker and the Receiving
 </span><span style="color:#75715e"></span><span style="color:#ae81ff">1488</span>                                 <span style="color:#75715e">// Speaker is re-established, ...snip... it MUST defer route
 </span><span style="color:#75715e"></span><span style="color:#ae81ff">1489</span>                                 <span style="color:#75715e">// selection for an address family until it either (a) receives the
@@ -85,7 +95,7 @@
 而<code>deferral</code>变量的赋值则是<code>deferral := peer.fsm.pConf.GracefulRestart.Config.DeferralTime</code>，
 通过简单的检索，
 可以发现<code>peer.fsm.pConf.GracefulRestart.Config.DeferralTime</code>参数是由 kube-router 的命令行参数控制：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">--bgp-graceful-restart-deferral-time duration   BGP Graceful restart deferral time according to RFC4724 4.1, maximum 18h. (default 6m0s)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">--bgp-graceful-restart-deferral-time duration   BGP Graceful restart deferral time according to RFC4724 4.1, maximum 18h. (default 6m0s)
 </code></pre></div><p>这个参数默认配置是六分钟，
 而我们抓包分析观察到的服务就绪延迟也刚好是六分钟。
 通过测试，
@@ -120,7 +130,7 @@ EOR 本质上就是一条空的 BGP update 消息，
 为什么 kube-router 还是掉进 b 这个分支呢？
 仍然在以上代码的基础上分析，
 可知对 a 情况的判断实际上是用了以下函数：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#ae81ff">1494</span>                                 <span style="color:#a6e22e">allEnd</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">func</span>() <span style="color:#66d9ef">bool</span> {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#ae81ff">1494</span>                                 <span style="color:#a6e22e">allEnd</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">func</span>() <span style="color:#66d9ef">bool</span> {
 <span style="color:#ae81ff">1495</span>                                         <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">s</span>.<span style="color:#a6e22e">neighborMap</span> {
 <span style="color:#ae81ff">1496</span>                                                 <span style="color:#66d9ef">if</span> !<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">recvedAllEOR</span>() {
 <span style="color:#ae81ff">1497</span>                                                         <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">false</span>
@@ -129,7 +139,7 @@ EOR 本质上就是一条空的 BGP update 消息，
 <span style="color:#ae81ff">1500</span>                                         <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">true</span>
 <span style="color:#ae81ff">1501</span>                                 }()
 </code></pre></div><p>核心的点是 p.recvedAllEOR() 这个函数，vendor/github.com/osrg/gobgp/pkg/server/peer.go:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#ae81ff">191</span> <span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">peer</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">peer</span>) <span style="color:#a6e22e">recvedAllEOR</span>() <span style="color:#66d9ef">bool</span> {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#ae81ff">191</span> <span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">peer</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">peer</span>) <span style="color:#a6e22e">recvedAllEOR</span>() <span style="color:#66d9ef">bool</span> {
 <span style="color:#ae81ff">192</span>         <span style="color:#a6e22e">peer</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">lock</span>.<span style="color:#a6e22e">RLock</span>()
 <span style="color:#ae81ff">193</span>         <span style="color:#66d9ef">defer</span> <span style="color:#a6e22e">peer</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">lock</span>.<span style="color:#a6e22e">RUnlock</span>()
 <span style="color:#ae81ff">194</span>         <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">a</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">peer</span>.<span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">pConf</span>.<span style="color:#a6e22e">AfiSafis</span> {
@@ -141,7 +151,7 @@ EOR 本质上就是一条空的 BGP update 消息，
 <span style="color:#ae81ff">200</span> }
 </code></pre></div><p>peer.fsm.pConf.AfiSafis 是 BGP 地址族信息相关的配置，
 我们在 vendor/github.com/osrg/gobgp/pkg/server/fsm.go 可以看到相应的设置代码：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
 <span style="color:#ae81ff">1331</span>                     <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">pConf</span>.<span style="color:#a6e22e">GracefulRestart</span>.<span style="color:#a6e22e">Config</span>.<span style="color:#a6e22e">Enabled</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">ok</span> {
 <span style="color:#ae81ff">1332</span>                         <span style="color:#a6e22e">state</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">fsm</span>.<span style="color:#a6e22e">pConf</span>.<span style="color:#a6e22e">GracefulRestart</span>.<span style="color:#a6e22e">State</span>
 <span style="color:#ae81ff">1333</span>                         <span style="color:#a6e22e">state</span>.<span style="color:#a6e22e">Enabled</span> = <span style="color:#66d9ef">true</span>
@@ -164,7 +174,7 @@ peer 端的 AfiSafi 由 kube-router 配置，
 kube-router 默认给配置了 ipv4 和 ipv6 两个地址族，
 而且两个地址族默认 Enabled 配置都是 true，
 pkg/controllers/routing/bgp_peers.go：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
 <span style="color:#ae81ff">112</span>             <span style="color:#a6e22e">n</span>.<span style="color:#a6e22e">AfiSafis</span> = []<span style="color:#f92672">*</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">AfiSafi</span>{
 <span style="color:#ae81ff">113</span>                 {
 <span style="color:#ae81ff">114</span>                     <span style="color:#a6e22e">Config</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gobgpapi</span>.<span style="color:#a6e22e">AfiSafiConfig</span>{

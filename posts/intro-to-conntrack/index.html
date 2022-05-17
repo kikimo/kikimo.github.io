@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>conntrack 模块简介 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/intro-to-conntrack/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -32,43 +42,43 @@ conntrack 维护一张连接表——conntrack table。
 conntrack 就在 conntrack table 中添加一条连接记录。
 可以用 Linux 中的 conntrack 指令查看 conntrack table，
 conntrack table 表项中记录的格式如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">tcp      6 48 SYN_SENT src=192.168.199.132 dst=172.217.24.14 sport=58074 dport=443 [UNREPLIED] src=172.217.24.14 dst=192.168.199.132 sport=443 dport=58074 mark=0 use=1
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">tcp      6 48 SYN_SENT src=192.168.199.132 dst=172.217.24.14 sport=58074 dport=443 [UNREPLIED] src=172.217.24.14 dst=192.168.199.132 sport=443 dport=58074 mark=0 use=1
 </code></pre></div><p>表项字段说明：</p>
 <table>
 <thead>
 <tr>
 <th>序号</th>
-<th align="center">说明</th>
+<th style="text-align:center">说明</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>1</td>
-<td align="center">协议名称</td>
+<td style="text-align:center">协议名称</td>
 </tr>
 <tr>
 <td>2</td>
-<td align="center">协议号</td>
+<td style="text-align:center">协议号</td>
 </tr>
 <tr>
 <td>3</td>
-<td align="center">连接 ttl（单位秒）</td>
+<td style="text-align:center">连接 ttl（单位秒）</td>
 </tr>
 <tr>
 <td>4</td>
-<td align="center">连接状态（ESTABLISHED、TIME_WAIT、SYN_SENT&hellip;）</td>
+<td style="text-align:center">连接状态（ESTABLISHED、TIME_WAIT、SYN_SENT&hellip;）</td>
 </tr>
 <tr>
 <td>5</td>
-<td align="center">发送端的源 IP 地址、目的 IP 地址、源端口、目的端口</td>
+<td style="text-align:center">发送端的源 IP 地址、目的 IP 地址、源端口、目的端口</td>
 </tr>
 <tr>
 <td>6</td>
-<td align="center">[UNREPLIED] 告诉我们还未受到回应报文，当连接建立后该字段会被删除</td>
+<td style="text-align:center">[UNREPLIED] 告诉我们还未受到回应报文，当连接建立后该字段会被删除</td>
 </tr>
 <tr>
 <td>7</td>
-<td align="center">期望收到的回应报文中的源 IP 地址、目的 IP 地址、源端口、目的端口</td>
+<td style="text-align:center">期望收到的回应报文中的源 IP 地址、目的 IP 地址、源端口、目的端口</td>
 </tr>
 </tbody>
 </table>
@@ -85,9 +95,9 @@ Guest 通过 Host 节点上的网桥以 NAT 的方式实现对外的网络通信
 其中 Guest 节点的 IP 地址为：192.168.199.132，
 Host 节点访问 Internet 的 IP 地址为：192.168.199.132。
 我们在 Guest 节点上访问百度的主页：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">curl https://www.baidu.com
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">curl https://www.baidu.com
 </code></pre></div><p>然后在 Host 节点上查看 conntrack table：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">tcp      6 8 CLOSE src=192.168.122.148 dst=180.101.49.12 sport=40212 dport=443 src=180.101.49.12 dst=192.168.199.132 sport=443 dport=40212 [ASSURED] mark=0 use=1
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">tcp      6 8 CLOSE src=192.168.122.148 dst=180.101.49.12 sport=40212 dport=443 src=180.101.49.12 dst=192.168.199.132 sport=443 dport=40212 [ASSURED] mark=0 use=1
 </code></pre></div><p>可以看到被 NAT 修改后的 conntrack 表项，
 其中返回报文的目的地址被修改为 192.168.199.132 也就是运行了NAT 协议的 Host IP 地址。</p>
 <hr>

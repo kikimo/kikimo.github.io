@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>Docker 性能优化 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/docker-perf-optimization/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -22,7 +32,7 @@
     <time datetime="2020-10-13T13:31:07&#43;08:00">October 13, 2020</time>
   </header>
   <p>Docker 在生产环境跑了一段时间后我们发现 dockerd 进程占用了不少 CPU 资源：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># pidstat  -u -p 4265 1
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># pidstat  -u -p 4265 1
 Linux *.x86_64 (*) 	*/*/2020 	_x86_64_	(* CPU)
 
 07:05:44 PM   UID       PID    %usr %system  %guest    %CPU   CPU  Command
@@ -37,7 +47,7 @@ Linux *.x86_64 (*) 	*/*/2020 	_x86_64_	(* CPU)
 07:05:53 PM     0      4265   21.00    5.00    0.00   26.00    38  dockerd
 ...
 </code></pre></div><p>通过 perf 我们观察到 dockerd 的 CPU 大部分消耗在 sha256 哈希值计算、json 解码以及 gc 操作上：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ perf top -p 4265
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">$ perf top -p 4265
 ...
   14.22%  dockerd-ce  [.] crypto/sha256.block
    7.24%  dockerd-ce  [.] encoding/json.stateInString
@@ -62,9 +72,9 @@ Linux *.x86_64 (*) 	*/*/2020 	_x86_64_	(* CPU)
 <p><code>getImagesJSON()</code>是谁调用的呢？通过<code>ss</code>查看读写<code>docker.sock</code>的进程，我们看到主要的嫌疑在<code>kubelet</code>上。
 查看<code>kubelet</code>我们发现至少有两处地方在定时轮询 docker 的<code>getImagesJSON()</code>接口。
 一处在<code>kubelet</code>定时更新节点状态的代码中，频率默认为 10s，由<code>--node-status-update-frequency</code>参数控制</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">kubelet</span><span style="color:#f92672">/</span><span style="color:#a6e22e">kubelet</span>.<span style="color:#66d9ef">go</span>:<span style="color:#a6e22e">Run</span>(): <span style="color:#e6db74">`go wait.Until(kl.syncNodeStatus, kl.nodeStatusUpdateFrequency, wait.NeverStop)`</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">kubelet</span><span style="color:#f92672">/</span><span style="color:#a6e22e">kubelet</span>.<span style="color:#66d9ef">go</span>:<span style="color:#a6e22e">Run</span>(): <span style="color:#e6db74">`go wait.Until(kl.syncNodeStatus, kl.nodeStatusUpdateFrequency, wait.NeverStop)`</span>
 </code></pre></div><p>另一处在<code>kubelet</code>的镜像 GC 代码中，频率是写死的每 30s 一次：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">pkg</span><span style="color:#f92672">/</span><span style="color:#a6e22e">kubelet</span><span style="color:#f92672">/</span><span style="color:#a6e22e">images</span><span style="color:#f92672">/</span><span style="color:#a6e22e">image_gc_manager</span>.<span style="color:#66d9ef">go</span>:<span style="color:#a6e22e">realImageGCManager</span>.<span style="color:#a6e22e">Start</span>()
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">pkg</span><span style="color:#f92672">/</span><span style="color:#a6e22e">kubelet</span><span style="color:#f92672">/</span><span style="color:#a6e22e">images</span><span style="color:#f92672">/</span><span style="color:#a6e22e">image_gc_manager</span>.<span style="color:#66d9ef">go</span>:<span style="color:#a6e22e">realImageGCManager</span>.<span style="color:#a6e22e">Start</span>()
 
 <span style="color:#66d9ef">go</span> <span style="color:#a6e22e">wait</span>.<span style="color:#a6e22e">Until</span>(<span style="color:#66d9ef">func</span>() {
 	<span style="color:#a6e22e">images</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">im</span>.<span style="color:#a6e22e">runtime</span>.<span style="color:#a6e22e">ListImages</span>()

@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>ps 指令 hang 死原因分析（一） | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/analysis-of-ps-hang-01/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -27,7 +37,7 @@
 重新登陆机器执行<code>ps aux</code>又挂住没法操作了。
 只能再登陆机器，
 跑<code>strace ps aux</code>观察，又卡住了：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># strace ps aux
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># strace ps aux
 stat(&#34;/proc/180944&#34;, {st_mode=S_IFDIR|0555, st_size=0, ...}) = 0
 open(&#34;/proc/180944/stat&#34;, O_RDONLY)     = 6
 read(6, &#34;180944 (ps) D 1 180804 31034 0 -&#34;..., 2048) = 330
@@ -57,7 +67,7 @@ read(6,
 再登陆机器，执行<code>top</code>指令，谢天谢地，<code>top</code>没 hang 死，
 搜索<code>ps</code>指令，看到<code>ps</code>进程处于<code>D</code>（uninterruptible sleep）状态，
 <code>cat /proc/181134/cmdline</code>命令也是：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">...
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">...
    PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND
  38042 root      20   0  155328   1900   1484 D   0.0  0.0   0:00.09 ps
  38111 root      20   0  154624   5352   4036 S   0.0  0.0   0:00.22 sshd
@@ -69,7 +79,7 @@ read(6,
 ...
 </code></pre></div><p><strong>不过这里有一点比较奇怪的是：<code>ps</code>和<code>cat</code>会进入<code>D</code>状态，但是<code>strace</code>只是进入<code>S</code>（sleep）状态，它还能 kill，why？</strong></p>
 <p>检查<code>cat</code> 进程的堆栈，发现进程挂在内核中一个函数<code>call_rwsem_down_read_failed()</code>上：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># cat /proc/38042/stack
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># cat /proc/38042/stack
 [&lt;ffffffff81331ad8&gt;] call_rwsem_down_read_failed+0x18/0x30
 [&lt;ffffffff812739d2&gt;] proc_pid_cmdline_read+0xb2/0x560
 [&lt;ffffffff81200b9c&gt;] vfs_read+0x9c/0x170
@@ -80,7 +90,7 @@ read(6,
 看到一个 <a href="https://lkml.org/lkml/2018/2/20/576">2018 年出的内核补丁</a>，
 主题是 <strong>[PATCH] fs: proc: use down_read_killable in proc_pid_cmdline_read()</strong>，
 看起来高度相关，</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">From	Yang Shi &lt;&gt;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">From	Yang Shi &lt;&gt;
 Subject	[PATCH] fs: proc: use down_read_killable in proc_pid_cmdline_read()
 Date	Wed, 21 Feb 2018 03:49:29 +0800
 share
@@ -146,7 +156,7 @@ index 9298324..44b6f8f 100644
 <code>mm-&gt;mmap_sem</code>应该是个信号量，可能是这个信号量异常导致<code>ps</code>，<code>cat</code>指令都死锁了。
 真正导致死锁的应该不是<code>ps</code>, <code>cat</code>指令，它们应该是受害者，
 查看系统日志，发现有 Java 进程 hang 死的日志：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">{timestamp} {hostname} kernel: INFO: task java:181134 blocked for more than 120 seconds.
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">{timestamp} {hostname} kernel: INFO: task java:181134 blocked for more than 120 seconds.
 {timestamp} {hostname} kernel: &#34;echo 0 &gt; /proc/sys/kernel/hung_task_timeout_secs&#34; disables this message.
 {timestamp} {hostname} kernel: java            D ffff881269bd7c00     0 181134      1 0x00000084
 {timestamp} {hostname} kernel: ffff881269bd7bd8 0000000000000082 ffff882037e04f10 ffff881269bd7fd8
@@ -172,7 +182,7 @@ index 9298324..44b6f8f 100644
 估计当前版本的内核存在死锁的 bug，
 google 发现<a href="https://bugs.centos.org/view.php?id=15252">centos 官方的 bug 记录</a>，发现问题高度类似：
 其中有个回复提及到修复补丁：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">this issue seam is the resem wakeup loss, would be fix by patch below:
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">this issue seam is the resem wakeup loss, would be fix by patch below:
 Wed Mar 20 2019 Jan Stancek &lt;jstancek@redhat.com&gt; [3.10.0-957.12.1.el7]
 - [kernel] locking/rwsem: Fix (possible) missed wakeup (Waiman Long) [1690323 1547078]
 - [kernel] futex: Fix (possible) missed wakeup (Waiman Long) [1690323 1547078]

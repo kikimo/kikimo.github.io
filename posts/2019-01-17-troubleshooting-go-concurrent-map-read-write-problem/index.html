@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>go Map 并发读写问题处理 | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/2019-01-17-troubleshooting-go-concurrent-map-read-write-problem/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -23,7 +33,7 @@
   </header>
   <p>几个月前碰到一起线上 go 应用崩溃问题，
 查看日志，注意到其中有一条信息：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">fatal error: concurrent map read and map write
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">fatal error: concurrent map read and map write
 </code></pre></div><p>回去查了下，代码里面确实有<code>Map</code>的并发读写，
 但是涉及到<code>Map</code>相关的操作都用<code>sync.RWMutex</code>做了读写保护，
 我把代码拉出来仔细看了一个晚上，愣是没看出啥问题。
@@ -47,7 +57,7 @@
 然而今天却又看到了一堆的告警。
 一开始是几个<code>fmt.Printf</code>的告警，顺手改掉了，
 然后看到一个让我虎躯一震的静态检查告警：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">XXX passes lock by value
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">XXX passes lock by value
 </code></pre></div><p>仔细检查代码，发现在那个地方，有个结构体参数传值，
 结构体中有一个<code>sync.RWMutex</code>字段，
 其他地方也有涉及到这个结构体的参数传递，但传的是结构体指针，
@@ -58,7 +68,7 @@
 <a href="https://medium.com/golangspec/detect-locks-passed-by-value-in-go-efb4ac9a3f2b">Detect locks passed by value in Go
 </a>
 这篇文章有很生动的介绍，其中有段示例代码演示了代码中如何引入这个问题并导致程序死锁的：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
 <span style="color:#f92672">import</span> <span style="color:#e6db74">&#34;sync&#34;</span>
 <span style="color:#66d9ef">type</span> <span style="color:#a6e22e">T</span> <span style="color:#66d9ef">struct</span> {
     <span style="color:#a6e22e">lock</span> <span style="color:#a6e22e">sync</span>.<span style="color:#a6e22e">Mutex</span>

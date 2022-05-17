@@ -2,12 +2,22 @@
 <html lang="en-us">
 <title>Nebula Storage 疯了（一） | kikimo</title>
 <meta charset="utf-8">
-<meta name="generator" content="Hugo 0.68.3" />
+<meta name="generator" content="Hugo 0.89.3" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="canonical" href="https://coderatwork.cn/posts/nebula-storage-crazy/">
-<link rel="alternate" type="application/rss+xml" href="" title="kikimo">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
 <link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
 <link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
 
 <header class="dark">
   <a href="https://coderatwork.cn/">kikimo</a>
@@ -29,7 +39,7 @@
 <p>这个问题概括而言就是：
 在 storage balance data 的时候如果触发 leader change 那么集群中至少会发现有一个节点进入一种疯狂的状态——CPU 飙升到 3000+%，
 pstack 显示有大量线程在获取 RWSpinlock。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># pidstat -p 14 -u 1
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># pidstat -p 14 -u 1
 Linux 5.4.0-91-generic (store1)     01/11/22    _x86_64_    (128 CPU)
  
 10:25:23      UID       PID    %usr %system  %guest   %wait    %CPU   CPU  Command
@@ -44,7 +54,7 @@ Linux 5.4.0-91-generic (store1)     01/11/22    _x86_64_    (128 CPU)
 Average:        0        14 3875.57 1018.43    0.00    0.00 4894.00     -  nebula-storaged
 </code></pre></div><p>猜测主要问题应该就在 spinlock 上。
 观察 pstack 中的堆栈，所有的 spinlock 似乎都是 RaftexService.cpp:165 这样代码调用的：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 thread: 0, lwp: 22, type: 0
 #0  0x000000000352adeb in folly::RWSpinLock::try_lock_shared()+107 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RWSpinLock.h:281
 #1  0x000000000352ac41 in folly::RWSpinLock::lock_shared()+34 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at RWSpinLock.h:210
@@ -62,7 +72,7 @@ thread: 0, lwp: 22, type: 0
 #13 0x00007f9149c84609 in start_thread()+216 in /lib/x86_64-linux-gnu/libpthread.so.0 at pthread_create.c:477
 #14 0x00007f9149bab293 in __GI___clone!()+66 in /lib/x86_64-linux-gnu/libc.so.6 at clone.S:95
 </code></pre></div><p>检查 RaftexService.cpp:165 附近的代码：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>RaftPart<span style="color:#f92672">&gt;</span> RaftexService<span style="color:#f92672">::</span>findPart(GraphSpaceID spaceId, PartitionID partId) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>RaftPart<span style="color:#f92672">&gt;</span> RaftexService<span style="color:#f92672">::</span>findPart(GraphSpaceID spaceId, PartitionID partId) {
   folly<span style="color:#f92672">::</span>RWSpinLock<span style="color:#f92672">::</span>ReadHolder rh(partsLock_);
   <span style="color:#66d9ef">auto</span> it <span style="color:#f92672">=</span> parts_.find(std<span style="color:#f92672">::</span>make_pair(spaceId, partId));
   <span style="color:#66d9ef">if</span> (it <span style="color:#f92672">==</span> parts_.end()) {
@@ -78,7 +88,7 @@ thread: 0, lwp: 22, type: 0
 </code></pre></div><p>获取读锁阻塞了，
 那应该是哪个地方拿了写锁没有释放？
 列出所有使用 partsLock 的代码片段：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> RaftexService<span style="color:#f92672">::</span>stop() {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> RaftexService<span style="color:#f92672">::</span>stop() {
   <span style="color:#66d9ef">int</span> expected <span style="color:#f92672">=</span> STATUS_RUNNING;
   <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>status_.compare_exchange_strong(expected, STATUS_NOT_RUNNING)) {
     <span style="color:#66d9ef">return</span>;
@@ -96,7 +106,7 @@ thread: 0, lwp: 22, type: 0
   }
   server_<span style="color:#f92672">-&gt;</span>stop();
 }
-</code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> RaftexService<span style="color:#f92672">::</span>addPartition(std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>RaftPart<span style="color:#f92672">&gt;</span> part) {
+</code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> RaftexService<span style="color:#f92672">::</span>addPartition(std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>RaftPart<span style="color:#f92672">&gt;</span> part) {
   <span style="color:#75715e">// todo(doodle): If we need to start both listener and normal replica on same
 </span><span style="color:#75715e"></span>  <span style="color:#75715e">// hosts, this class need to be aware of type.
 </span><span style="color:#75715e"></span>  folly<span style="color:#f92672">::</span>RWSpinLock<span style="color:#f92672">::</span>WriteHolder wh(partsLock_);
@@ -125,7 +135,7 @@ std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&l
 }
 </code></pre></div><p>合理猜测 void RaftexService::stop() 或者 void RaftexService::removePartition(std::shared_ptr<!-- raw HTML omitted --> part) 中的 part→stop() 调用卡住了，
 pstack 记录了 removePartition() 的一个调用堆栈：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 thread: 0, lwp: 23, type: 0
 #0  0x00007f9149c8b376 in __pthread_cond_wait()+534 in /lib/x86_64-linux-gnu/libpthread.so.0 at futex-internal.h:183
 #1  0x00000000057d8f60 in std::condition_variable::wait(std::unique_lock&lt;std::mutex&gt;&amp;)!()+15 in /root/src/balance-fix-nebula/build/bin/nebula-storaged
@@ -147,7 +157,7 @@ thread: 0, lwp: 23, type: 0
 #17 0x00007f9149c84609 in start_thread()+216 in /lib/x86_64-linux-gnu/libpthread.so.0 at pthread_create.c:477
 #18 0x00007f9149bab293 in __GI___clone!()+66 in /lib/x86_64-linux-gnu/libc.so.6 at clone.S:95
 </code></pre></div><p>storage 应该是卡在 Host.cpp:42 这行代码上了，拉出来看下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> Host<span style="color:#f92672">::</span>waitForStop() {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> Host<span style="color:#f92672">::</span>waitForStop() {
   std<span style="color:#f92672">::</span>unique_lock<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>mutex<span style="color:#f92672">&gt;</span> g(lock_);
  
   CHECK(stopped_);
@@ -171,7 +181,7 @@ thread: 0, lwp: 23, type: 0
 之前是因为 worker thread 拿着 raftLock_ 在等待 requestOnGoing_ == false 导致的死锁，
 如果它拿着另一个锁比如 partsLock_ 在等待 requestOnGoing_ == false 是否也可能导致死锁？
 仔细看以上的堆栈：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">thread: 0, lwp: 23, type: 0
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">thread: 0, lwp: 23, type: 0
 #0  0x00007f9149c8b376 in __pthread_cond_wait()+534 in /lib/x86_64-linux-gnu/libpthread.so.0 at futex-internal.h:183
 #1  0x00000000057d8f60 in std::condition_variable::wait(std::unique_lock&lt;std::mutex&gt;&amp;)!()+15 in /root/src/balance-fix-nebula/build/bin/nebula-storaged
 #2  0x000000000488d056 in std::condition_variable::wait&lt;nebula::raftex::Host::waitForStop()::&lt;lambda()&gt; &gt;()+59 in /root/src/balance-fix-nebula/build/bin/nebula-storaged at condition_variable:101
@@ -182,7 +192,7 @@ thread: 0, lwp: 23, type: 0
 </code></pre></div><p>从线程 23 的调用栈上可以看出，
 它正好拿着 partsLock 这个 spinlock 在等待 requestOnGoing == false（RaftService.cpp:161）。
 除了 partsLock，从调用栈上可以看到 NebulaStore.cpp:438 也拿着个锁：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> NebulaStore<span style="color:#f92672">::</span>removePart(GraphSpaceID spaceId, PartitionID partId) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> NebulaStore<span style="color:#f92672">::</span>removePart(GraphSpaceID spaceId, PartitionID partId) {
   folly<span style="color:#f92672">::</span>RWSpinLock<span style="color:#f92672">::</span>WriteHolder wh(<span style="color:#f92672">&amp;</span>lock_);
   <span style="color:#66d9ef">auto</span> spaceIt <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span><span style="color:#f92672">-&gt;</span>spaces_.find(spaceId);
   <span style="color:#66d9ef">if</span> (spaceIt <span style="color:#f92672">!=</span> <span style="color:#66d9ef">this</span><span style="color:#f92672">-&gt;</span>spaces_.end()) {
@@ -209,7 +219,7 @@ thread: 0, lwp: 23, type: 0
 上万能的 printf 调试大法。
 requestOnGoing = false 这条语句本质上是在 Host.cpp 中的 appendLogsInternal()中执行的，
 我们就在 appendLogsInternal() 中把回调运行的线程 pid 打印出来：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> Host<span style="color:#f92672">::</span>appendLogsInternal(folly<span style="color:#f92672">::</span>EventBase<span style="color:#f92672">*</span> eb, std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>cpp2<span style="color:#f92672">::</span>AppendLogRequest<span style="color:#f92672">&gt;</span> req) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> Host<span style="color:#f92672">::</span>appendLogsInternal(folly<span style="color:#f92672">::</span>EventBase<span style="color:#f92672">*</span> eb, std<span style="color:#f92672">::</span>shared_ptr<span style="color:#f92672">&lt;</span>cpp2<span style="color:#f92672">::</span>AppendLogRequest<span style="color:#f92672">&gt;</span> req) {
   <span style="color:#66d9ef">using</span> TransportException <span style="color:#f92672">=</span> apache<span style="color:#f92672">::</span>thrift<span style="color:#f92672">::</span>transport<span style="color:#f92672">::</span>TTransportException;
  
   <span style="color:#75715e">// long long microseconds =
@@ -362,7 +372,7 @@ requestOnGoing = false 这条语句本质上是在 Host.cpp 中的 appendLogsInt
       });
 }
 </code></pre></div><p>run again, storage 很快又扑街了：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 (root@nebula) [ttos_3p3r]&gt; show hosts
 +----------+------+-----------+--------------+----------------------+------------------------+
 | Host     | Port | Status    | Leader count | Leader distribution  | Partition distribution |
@@ -380,7 +390,7 @@ Tue, 11 Jan 2022 12:21:45 CST
  
 (root@nebula) [ttos_3p3r]&gt;
 </code></pre></div><p>查看 store1 的日志：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># tail storaged-stderr.log
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt"># tail storaged-stderr.log
 append log req 1641874628611367114 will run within thread 71
 append log req 1641874628611367114 done within thread 71
 append with req: 1641874628614040712, started within thread 71
@@ -392,7 +402,7 @@ append log req 1641874628616965551 done within thread 71
 append with req: 1641874628619785706, started within thread 71
 append log req 1641874628619785706 will run within thread 71
 </code></pre></div><p>应该是卡在线程 71 上了，gdb attach 上去看这家伙在干嘛，呵呵呵，果然不出所料，partsLock_ 搞出一个死循环了：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-txt" data-lang="txt">
 (gdb) bt
 #0  0x00007f8ad6e2289b in sched_yield () at ../sysdeps/unix/syscall-template.S:78
 #1  0x00000000030eeb00 in __gthread_yield () at /usr/include/x86_64-linux-gnu/c++/9/bits/gthr-default.h:693
