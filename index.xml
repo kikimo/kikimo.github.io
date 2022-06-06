@@ -6,7 +6,18 @@
     <description>Recent content on kikimo</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Tue, 17 May 2022 21:00:15 +0800</lastBuildDate><atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sun, 05 Jun 2022 17:48:04 +0800</lastBuildDate><atom:link href="https://coderatwork.cn/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Paxos 极简介绍</title>
+      <link>https://coderatwork.cn/posts/intro-to-paxos/</link>
+      <pubDate>Sun, 05 Jun 2022 17:48:04 +0800</pubDate>
+      
+      <guid>https://coderatwork.cn/posts/intro-to-paxos/</guid>
+      <description>Paxos 算法描述多个节点参与，对某个值达成一致的算法：
+ 一旦达成共识，结果不可推翻 只要有过半数节点参与即可达成共识 参与的节点可以习得已经达成的共识  Paxos 算法中定义了三种角色：proposer、acceptor、learner。 由 proposer 发起提议（proposal）， acceptor 决定是否接受 proposer， learner 可以习得达成的共识。
+如何决定达成共识？ 如果只有一个 acceptor， 那么达成共识是一件很容易的事情——我们总是 acceptor 接受收到的第一个 proposal 即可。 但这就存在单点故障的风险。 所以系统需要设置多个 acceptor 来防止单点故障。 对于多个 acceptor 的场景， 达成共识的最简单方式就是通过多数派投票来达成共识。 只要有过半数的节点同意，我们就可以达成共识。 但这同样存在问题： 一个集群包含三个 acceptor， 且这三个 acceptor 分别接收了三个不同的 proposal， 这时候就形成一个死局了。 所以必须允许 proposer 多次提交 proposal。 paxos 的给每个 proposer 一个全局唯一且单调递增的计数器， 每次提交 proposal 都关联一个的计数编号 n， 同一个 proposer 保证给每个 proposal 赋以一个本地唯一的编号， 但可以和其他 proposer 设置的编号重复。 这样就可以让 proposer 多次提交 proposal。 但是 paxos 不能允许 proposer 随心所欲的提交 proposal。 如果当前以已经达成共识， proposer 却通过递增 n 提交了一个新的 proposal，就可能导致已达成的共识被推翻。 如何解决这个问题？ 在共识已经达成的情况下， 倘若每个 proposer 提交的 proposal 都是已达成的共识就能保证已达成的共识不会被推翻。 如何让每个 proposer 提交的 proposal 都是已达成的共识？ 我们结合归纳法来找出保证共识不被推翻的条件。 假设 paxos 已达成共识 (proposal, m)， m 为 proposal 关联的编号。 我们尝试归纳证明 n &amp;gt; m 提交的了一样的 proposal。 假设 [m, n - 1] 编号范围内提交的是一样的 proposal。 一个 proposal 被接受的前提是有过半数的 acceptor 接受它， 既然该 proposal 已被接受，那么必然存在超过半数的节点上存在这个 proposal 且这个 proposal 的编号范围在 [m, n-1] 之间。 这推论之所以成立的原因是：</description>
+    </item>
+    
     <item>
       <title>Raft Stale Read 问题分析</title>
       <link>https://coderatwork.cn/posts/raft-stale-read/</link>
@@ -133,17 +144,6 @@ int bsearch(std::vector&amp;lt;int&amp;gt; &amp;amp;a, int target) { int s = 0, 
     </item>
     
     <item>
-      <title>Nebula Raft 中的选举死循环</title>
-      <link>https://coderatwork.cn/posts/raft-election-deadlock/</link>
-      <pubDate>Wed, 17 Nov 2021 21:53:29 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/raft-election-deadlock/</guid>
-      <description>在测试 Raft 的时候发现，stoage 集群会出现无法选举 leader 的情况，如下图示：
-一个 7 节点的集群，我们停了三个节点，按道理剩下的四个节点应该能正常选出然后继续工作， 但是我们发现集群没法选主了，跑了一晚上都是 0 leader。 我们优化了下 case 可以比较快且稳定的把问题复现出来。怀疑是 term 没有 update 导致的。 先筛选出无法选主的四个节点：
-sh show.sh | grep storaged | grep -v T root 1840662 234 0.0 1464340 191056 ? Ssl 14:42 51:20 /root/src/nebula/build/bin/nebula-storaged &amp;ndash;flagfile /data/src/ntest/test/etc/nebula-storaged.conf &amp;ndash;pid_file /data/src/ntest/test/pids/nebula-storaged.pid.0 &amp;ndash;meta_server_addrs 192.168.15.12:9559 &amp;ndash;heartbeat_interval_secs 1 &amp;ndash;raft_heartbeat_interval_secs 1 &amp;ndash;wal_ttl 259200 &amp;ndash;clean_wal_interval_secs 259200 &amp;ndash;minloglevel 2 &amp;ndash;log_dir /data/src/ntest/test/logs/storaged.0 &amp;ndash;local_ip 192.168.15.12 &amp;ndash;port 54773 &amp;ndash;ws_http_port 55577 &amp;ndash;ws_h2_port 47925 &amp;ndash;data_path /data/src/ntest/test/data/storaged.0 root 1840954 960 0.</description>
-    </item>
-    
-    <item>
       <title>为什么 Raft 遇到 higher term 要 update 本地 term</title>
       <link>https://coderatwork.cn/posts/raft-update-local-term/</link>
       <pubDate>Wed, 17 Nov 2021 21:49:32 +0800</pubDate>
@@ -248,22 +248,6 @@ func (m *ManagerImpl) filterByAffinity(podUID, contName, resource string, availa
     </item>
     
     <item>
-      <title>Raft 笔记（四）——客户端</title>
-      <link>https://coderatwork.cn/posts/notes-on-raft-5/</link>
-      <pubDate>Sat, 23 Jan 2021 12:35:59 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/notes-on-raft-5/</guid>
-      <description>Raft 算法的核心是通过共识算法保障多个节点上日志序列的一致性， 然后把这些日志作为 DFA 的输入，从而在多台机器上得到相同的结果。 在实际应用中，我们需要考虑 Raft 如何具体查询或者变更数据的问题， 这就是这篇文章要讲的内容。
-Raft 通过客户端来查实现和服务端的交互。 客户端在初始化的时候会得到一个服务端的地址列表。 当需要和服务端通信的时候，Raft 可以查询任意一个服务端。 但是只有 Leader 可以对服务的请求作出回应， 如果客户端的查询对象不是 Leader， 它会在返回结果中告诉客户端那个节点才是 Leader。
-服务端什么时候告知客户端操作失败？ Index 位置的数据是其他元素？
-  如何处理重复请求
- clientID + reqSeqID + clientMap    如何保证读取到最新结果
- leader 更新最新的 commit：当选时，提交一个 noop 的 log entry 读取数据前，Leader 先发送 AppendEntries，确保数据是最新的    服务端如何确定 append log 失败？
- index，term log 不一致或者 lose quorum    如果服务端还在执行呢？
-  </description>
-    </item>
-    
-    <item>
       <title>Raft 笔记（三）——快照</title>
       <link>https://coderatwork.cn/posts/notes-on-raft-3/</link>
       <pubDate>Tue, 19 Jan 2021 21:51:01 +0800</pubDate>
@@ -299,20 +283,6 @@ Raft 算法由几个模块组成，分别是：
     </item>
     
     <item>
-      <title>Leetcode 题解——1-50</title>
-      <link>https://coderatwork.cn/posts/leetcode-1-50/</link>
-      <pubDate>Wed, 16 Dec 2020 19:55:11 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/leetcode-1-50/</guid>
-      <description>1. Two Sum 在给定的数组中寻找两个数使其和等于给定的某数，题目保证只有且只有一个解。
-题解：
- 使用字典存放数字出现的此时，便利数组中的每个元素，寻找对应的元素时期和等于给定的数。 上述方法使用了两趟便利，也可以使用一趟便利——即一遍存放字典一遍查找互补原数，效果是一样的。  2. Add Two Numbers 用链表反序存储两非负数字，输出两数之和的结果链表。
-题解：
-链表加法，需要注意处理长度不一致的情况。
-/** * Definition for singly-linked list. * type ListNode struct { * Val int * Next *ListNode * } */ func addTwoNumbers(l1 *ListNode, l2 *ListNode) *ListNode { head := &amp;amp;ListNode{} ptr := &amp;amp;head p1, p2 := l1, l2 for p1 != nil &amp;amp;&amp;amp; p2 != nil; p1, p2 = p1.Next, p2.Next { e := &amp;amp;ListNode{Val: p1.</description>
-    </item>
-    
-    <item>
       <title>NUMA 简介</title>
       <link>https://coderatwork.cn/posts/numa-intro/</link>
       <pubDate>Fri, 11 Dec 2020 09:43:50 +0800</pubDate>
@@ -335,16 +305,6 @@ NUMA 的一些疑问   numa 场景下页表的分配采用first touch原则—�
 1. 非线程安全的单例实现 我们先考虑非线程安全的单例模式的实现
 #include &amp;lt;stdio.h&amp;gt;#include &amp;lt;stdlib.h&amp;gt; struct singleton_t { int val; }; struct singleton_t *INSTANCE = NULL; struct singleton_t *getInstance() { if (INSTANCE == NULL) { INSTANCE = malloc(sizeof(*INSTANCE)); INSTANCE-&amp;gt;val = 8848; } return INSTANCE; } int main() { struct singleton_t *inst = getInstance(); printf(&amp;#34;hello: %p\n&amp;#34;, inst); return 0; } 以上代码的问题在于， 当多个线程同时调用getInstance()函数时， INSTANCE可呢个会被初始化多次，对此我们考虑使用锁来保障线程安全。
 2. 线程安全的单例实现 #include &amp;lt;stdio.h&amp;gt;#include &amp;lt;stdlib.h&amp;gt;#include &amp;lt;pthread.h&amp;gt; struct singleton_t { int val; }; struct singleton_t *INSTANCE = NULL; pthread_mutex_t lock; struct singleton_t *getInstance() { pthread_mutex_lock(&amp;amp;lock); // ignore error handling  if (INSTANCE == NULL) { INSTANCE = malloc(sizeof(*INSTANCE)); INSTANCE-&amp;gt;val = 8848; } pthread_mutex_unlock(&amp;amp;lock); return INSTANCE; } int main() { struct singleton_t *inst = NULL; if (pthread_mutex_init(&amp;amp;lock, NULL) !</description>
-    </item>
-    
-    <item>
-      <title>链表反转</title>
-      <link>https://coderatwork.cn/posts/reverse-list/</link>
-      <pubDate>Sat, 28 Nov 2020 19:53:33 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/reverse-list/</guid>
-      <description>很久很久很久以前， 在slashdot 上看到 Linus 关于使用二级指针删除单向链表的分享。 同样的二级指针操作技巧， 稍加思考也可以用在链表反转的操作上，可以让代码清晰简洁，具体实现如下：
-package main import &amp;#34;fmt&amp;#34; type Node struct { val int next *Node } func reverseList(head *Node) *Node{ var ptr, next *Node = nil, head for next != nil { nextp := &amp;amp;next.next tmp := next.next *nextp = ptr ptr = next next = tmp } return ptr } func printList(head *Node) { for ptr := head; ptr != nil; ptr = ptr.next { fmt.</description>
     </item>
     
     <item>
@@ -474,19 +434,6 @@ public class Docker { public static void main(String[] args) { Runtime runtime =
     </item>
     
     <item>
-      <title>内存屏障笔记</title>
-      <link>https://coderatwork.cn/posts/memory-barrier/</link>
-      <pubDate>Tue, 31 Mar 2020 20:34:43 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/memory-barrier/</guid>
-      <description>ii在多核的并发的场景下，程序可能会产生预期外的指令重排现象，例如原本的代码是：
-a = 1 b = 1 a = 2; b = 2; 实际执行效果可能会变成：
-while (b == 1) { } printf(&amp;#34;%d&amp;#34;, a) 防止这种指令重排的方法就是使用内存屏障。 这篇文章我们简要内存屏障的原理。 要理解内存屏障首先我们需要知道以上代码为什么会产生指令重排。 要理解指令重排的原因我们就需要理解现代多核计算机的设计架构。 （导致指令重排的原因有多重，如编译器重排等，我们这边只介绍和内存屏障有关的指令重排问题）。 现代多核 CPU 的设计中，每个 CPU 都有独立的缓存， 因此 CPU 之间需要保证缓存一致性， 目前这是通过缓存一致性协议 MESI 来完成的。
-store buffer 和 invalidate queue 带来新的问题。
- CPU 1 执行a = 1;发现 a 不在缓存中，于是在 store buffer 中设置a = 1，并发送 invalidate 消息 CPU 2 收到 invalidate 消息并存放到 invalidate queue 中 CPU 1 执行b = 2, b 在缓存中，直接修改缓存中的值 CPU 2 通过 MESI 协议或得 CPU 1 中变量 b 的值为 2 CPU 2 读取缓存中 a 变量的值，此时 a 的值尚未被 invalidate queue 中的数据刷新，print(&amp;quot;%d&amp;quot;, a)打印 1 CPU 2 刷新 invalidate queue 将 a 的值刷新为 2  </description>
-    </item>
-    
-    <item>
       <title>ps 指令 hang 死原因分析（二）</title>
       <link>https://coderatwork.cn/posts/analysis-of-ps-hang-02/</link>
       <pubDate>Tue, 31 Mar 2020 11:13:27 +0800</pubDate>
@@ -530,34 +477,6 @@ Linux 中 CPU 的使用统计被拆分成多个组成部分， 最常见的如 s
     </item>
     
     <item>
-      <title>关于业务规则</title>
-      <link>https://coderatwork.cn/posts/business-rules/</link>
-      <pubDate>Sun, 23 Feb 2020 15:03:24 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/business-rules/</guid>
-      <description>Clean Architecture Chapter 20 Business Rules 笔记
-业务规则就是能一组能创造价值（帮公司赚钱、省钱）的流程。 业务规则可能由人或计算机软件来协助完成。 业务规则经常依赖某些数据，这些数据称为业务数据。 业务规则和业务数据是密不可分的，它们经常被封装到对象中，也是就是我们常说的业务实体（Business Entity）。
-业务实体 实体是对特定业务规则及其业务数据的封装。 实体内部通常存有业务数据，或者可以通过实体便捷的访问到业务数据。 实体方法用于实现相关业务规则。
-用例 不是所有的业务规则都能封装在业务实体中。
-Some business rules make or save money for the business by defining and constraining the way that an automated system operates. These rules would not be used in a manual environment, because they make sense only as part of an automated system.
-放贷应用：
- 收集验证用户姓名、联系信息 收集用户评分 根据评分结果决定用户贷款  </description>
-    </item>
-    
-    <item>
-      <title>架构整洁之道</title>
-      <link>https://coderatwork.cn/posts/dependency-rule/</link>
-      <pubDate>Sun, 23 Feb 2020 14:07:21 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/dependency-rule/</guid>
-      <description>良好的架构具有以下特点：
- Independent of frameworks. 架构不依赖于特定的框架。让框架回归工具属性，而不是让你的系统受制于框架。 Testable. 测试可不依赖于任何外部组件，诸如：数据库、UI、web 服务器。 Independent of the UI. 在不改变系统其它部分的情况下，灵活调整系统的 UI。 Independent of the database. 业务逻辑不应当依赖于某款具体的数据库。 Independent of any external agency. 系统的业务规则不应当依赖认为外部具体的技术细节。  良好的架构本质上需要做好两个事情：
- 架构分层 处理好层次间的依赖  架构的层次由内到外、由核心到次要依次可分为：企业业务规则、应用业务规则、接口适配层、框架和驱动层。 层次间应当保证内层不依赖外层，只能让外层来依赖内层。
- Source code dependencies must point only inward, toward higher-level policies.
- 1. Entities 2. Use Cases 3. Interface Adapters 4. Frameworks and Drivers 5. Crossing Boundaries </description>
-    </item>
-    
-    <item>
       <title>Ansible vs Shell Script</title>
       <link>https://coderatwork.cn/posts/ansible-vs-shell-script/</link>
       <pubDate>Sat, 22 Feb 2020 20:23:31 +0800</pubDate>
@@ -594,16 +513,6 @@ $ ./inventory.py --list { &amp;#34;local&amp;#34;: [ &amp;#34;127.</description>
     </item>
     
     <item>
-      <title>Linux 内核读写锁 rwsem 分析</title>
-      <link>https://coderatwork.cn/posts/linux-rwsem/</link>
-      <pubDate>Sun, 16 Feb 2020 14:56:06 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/linux-rwsem/</guid>
-      <description>rwsem 是 Linux 内核中的读写锁， 它应该是读写信号量的缩写（read-write semaphore）。 rwsem的特点是读者之间不互斥，写者既和读者互斥也和其他写者互斥。 rwsem 的操作接口定义在 include/linux/rwsem.h 文件中， rwsem的结构体定义为struct rw_semaphore：
-/* All arch specific implementations share the same struct */ struct rw_semaphore { RH_KABI_REPLACE(long count, atomic_long_t count) raw_spinlock_t wait_lock; #if defined(CONFIG_RWSEM_SPIN_ON_OWNER) &amp;amp;&amp;amp; !defined(__GENKSYMS__)  struct optimistic_spin_queue osq; /* spinner MCS lock */ struct slist_head wait_list; /* * Write owner. Used as a speculative check to see * if the owner is running on the cpu. */ struct task_struct *owner; #else  struct list_head wait_list; #endif #ifdef CONFIG_DEBUG_LOCK_ALLOC  struct lockdep_map dep_map; #endif }; 核心操作接口为：</description>
-    </item>
-    
-    <item>
       <title>ANSI 转义码(ANSI escape code)解析</title>
       <link>https://coderatwork.cn/posts/parsing-ansi-escape-code/</link>
       <pubDate>Tue, 11 Feb 2020 22:54:39 +0800</pubDate>
@@ -628,16 +537,6 @@ $ ./inventory.py --list { &amp;#34;local&amp;#34;: [ &amp;#34;127.</description>
 (5-3)=(5+125) mod 128 (5-3) mod 128 = 2 (5 + 125) mod 128 = 2 模为什么取 128？ 128 是为了方便的计算负数的同余，同时，它还和变量的字长有关。 我们看模为 128 时，可以如何计算负数的余数，首先：
 -3 mod 128 = 128 - 3 所以问题可转化为如何快速计算 128 - 3，又：
 3 + (-3[反码]) + 1 = 128 128 - 3 = -3[反码] + 1 -3[反码] + 1就是前面提到的负数补码的计算方法， 模取128可以方便我们快速的计算负数的补码。 模取128另外一个原因和变量的字长有关，如果变量是8位， 那么它的某就应该是128，如果是16为，那就应该是32768，也就是变量的 MSB。</description>
-    </item>
-    
-    <item>
-      <title>Top 指令的一些用法</title>
-      <link>https://coderatwork.cn/posts/top/</link>
-      <pubDate>Tue, 04 Feb 2020 22:57:07 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/top/</guid>
-      <description>Linux Top 的命令操作是在太多，列举记录一些比较有用的操作：
-   操作 说明     L 搜索进程   c 显示进程完整命令    </description>
     </item>
     
     <item>
@@ -681,28 +580,6 @@ asm ( assembler template : output operands (optional) : input operands (optional
       <description>cmpxchg 是 intel CPU 指令集中的一条指令， 这条指令经常用来实现原子锁， 我们来看 intel 文档中对这条指令的介绍：
  Compares the value in the AL, AX, EAX, or RAX register with the first operand (destination operand). If the two values are equal, the second operand (source operand) is loaded into the destination operand. Otherwise, the destination operand is loaded into the AL, AX, EAX or RAX register. RAX register is available only in 64-bit mode.
   This instruction can be used with a LOCK prefix to allow the instruction to be executed atomically.</description>
-    </item>
-    
-    <item>
-      <title>迪米特法则(Law of Demeter)</title>
-      <link>https://coderatwork.cn/posts/law-of-demeter/</link>
-      <pubDate>Sun, 02 Feb 2020 16:44:02 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/law-of-demeter/</guid>
-      <description>迪米特法则又称最少知识原则， 主要是软件开发特别是面向对象开发中的一条设计准则。 他是低耦合的一种特例。 这条规则可以归纳为以下三点：
- 每个某块应当尽减少和其他某块的关联程度(Each unit should have only limited knowledge about other units: only units &amp;ldquo;closely&amp;rdquo; related to the current unit.) 每个模块应当只和他的“朋友”发生关联(Each unit should only talk to its friends; don&amp;rsquo;t talk to strangers.) 每个模块只和他的直接朋友关联(Only talk to your immediate friends.)   The Law of Demeter (LoD) or principle of least knowledge is a design guideline for developing software, particularly object-oriented programs. In its general form, the LoD is a specific case of loose coupling.</description>
-    </item>
-    
-    <item>
-      <title>Calico IP Migration 失败导致 calico-node 服务启动问题排查</title>
-      <link>https://coderatwork.cn/posts/calico-ip-migration/</link>
-      <pubDate>Sat, 01 Feb 2020 18:35:10 +0800</pubDate>
-      
-      <guid>https://coderatwork.cn/posts/calico-ip-migration/</guid>
-      <description>calico-node 启动时会尝试执行 IP migration 操作，这个步骤如果执行失败会导致 calico-node 启动失败。
-给 k8s 部署完 Calico， 发现 新建的 pod 始终分配不到 IP。 检查发现 calico-kube-controller 服务一直在不停的重启， 而 Node 节点上的 calico-node 服务一直处于 init：
-alex@jenny:~/k8s/certs$ kubectl -n kube-system get pod NAME READY STATUS RESTARTS AGE calico-kube-controllers-99bd8767b-dx6c9 0/1 Error 2 17s calico-node-7lz54 0/1 Init:0/3 0 30m 这应该是导致 calico-kube-controller 不停重启的原因了： calico-node 启动失败导致 calico-kube-controller 分配不到 IP 进而不停的重启。 检查 calico-node 的详情发现 pod 卡在一个 init container upgrade-ipam 上：
-alex@jenny:~/k8s/certs$ kubectl -n kube-system describe pod calico-node-kz8ft Name: calico-node-kz8ft Namespace: kube-system Priority: 2000001000 Priority Class Name: system-node-critical Node: jenny/192.</description>
     </item>
     
     <item>

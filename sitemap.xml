@@ -3,10 +3,13 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://coderatwork.cn/</loc>
-    <lastmod>2022-05-17T21:00:15+08:00</lastmod>
+    <lastmod>2022-06-05T17:48:04+08:00</lastmod>
+  </url><url>
+    <loc>https://coderatwork.cn/posts/intro-to-paxos/</loc>
+    <lastmod>2022-06-05T17:48:04+08:00</lastmod>
   </url><url>
     <loc>https://coderatwork.cn/posts/</loc>
-    <lastmod>2022-05-17T21:00:15+08:00</lastmod>
+    <lastmod>2022-06-05T17:48:04+08:00</lastmod>
   </url><url>
     <loc>https://coderatwork.cn/posts/raft-stale-read/</loc>
     <lastmod>2022-05-17T21:00:15+08:00</lastmod>
@@ -44,9 +47,6 @@
     <loc>https://coderatwork.cn/raft-deadlock/</loc>
     <lastmod>2021-11-17T21:59:08+08:00</lastmod>
   </url><url>
-    <loc>https://coderatwork.cn/posts/raft-election-deadlock/</loc>
-    <lastmod>2021-11-17T21:53:29+08:00</lastmod>
-  </url><url>
     <loc>https://coderatwork.cn/posts/raft-update-local-term/</loc>
     <lastmod>2021-11-17T21:49:32+08:00</lastmod>
   </url><url>
@@ -74,9 +74,6 @@
     <loc>https://coderatwork.cn/posts/survey-on-gpu-failure/</loc>
     <lastmod>2021-02-04T20:29:25+08:00</lastmod>
   </url><url>
-    <loc>https://coderatwork.cn/posts/notes-on-raft-5/</loc>
-    <lastmod>2021-01-23T12:35:59+08:00</lastmod>
-  </url><url>
     <loc>https://coderatwork.cn/posts/notes-on-raft-3/</loc>
     <lastmod>2021-01-19T21:51:01+08:00</lastmod>
   </url><url>
@@ -86,17 +83,11 @@
     <loc>https://coderatwork.cn/posts/notes-on-raft-1/</loc>
     <lastmod>2021-01-07T23:55:03+08:00</lastmod>
   </url><url>
-    <loc>https://coderatwork.cn/posts/leetcode-1-50/</loc>
-    <lastmod>2020-12-16T19:55:11+08:00</lastmod>
-  </url><url>
     <loc>https://coderatwork.cn/posts/numa-intro/</loc>
     <lastmod>2020-12-11T09:43:50+08:00</lastmod>
   </url><url>
     <loc>https://coderatwork.cn/posts/singleton-and-mb/</loc>
     <lastmod>2020-12-09T12:56:19+08:00</lastmod>
-  </url><url>
-    <loc>https://coderatwork.cn/posts/reverse-list/</loc>
-    <lastmod>2020-11-28T19:53:33+08:00</lastmod>
   </url><url>
     <loc>https://coderatwork.cn/posts/optimize-ai-reference-svc/</loc>
     <lastmod>2020-11-21T20:43:16+08:00</lastmod>
@@ -131,9 +122,6 @@
     <loc>https://coderatwork.cn/posts/principle-of-bpf/</loc>
     <lastmod>2020-10-11T22:16:53+08:00</lastmod>
   </url><url>
-    <loc>https://coderatwork.cn/posts/memory-barrier/</loc>
-    <lastmod>2020-03-31T20:34:43+08:00</lastmod>
-  </url><url>
     <loc>https://coderatwork.cn/posts/analysis-of-ps-hang-02/</loc>
     <lastmod>2020-03-31T11:13:27+08:00</lastmod>
   </url><url>
@@ -146,12 +134,6 @@
     <loc>https://coderatwork.cn/posts/cfs-data-structure/</loc>
     <lastmod>2020-03-21T16:20:23+08:00</lastmod>
   </url><url>
-    <loc>https://coderatwork.cn/posts/business-rules/</loc>
-    <lastmod>2020-02-23T15:03:24+08:00</lastmod>
-  </url><url>
-    <loc>https://coderatwork.cn/posts/dependency-rule/</loc>
-    <lastmod>2020-02-23T14:07:21+08:00</lastmod>
-  </url><url>
     <loc>https://coderatwork.cn/posts/ansible-vs-shell-script/</loc>
     <lastmod>2020-02-22T20:23:31+08:00</lastmod>
   </url><url>
@@ -161,17 +143,11 @@
     <loc>https://coderatwork.cn/posts/ansible-dynamic-inventory/</loc>
     <lastmod>2020-02-22T14:50:45+08:00</lastmod>
   </url><url>
-    <loc>https://coderatwork.cn/posts/linux-rwsem/</loc>
-    <lastmod>2020-02-16T14:56:06+08:00</lastmod>
-  </url><url>
     <loc>https://coderatwork.cn/posts/parsing-ansi-escape-code/</loc>
     <lastmod>2020-02-11T22:54:39+08:00</lastmod>
   </url><url>
     <loc>https://coderatwork.cn/posts/binary-form/</loc>
     <lastmod>2020-02-05T19:41:04+08:00</lastmod>
-  </url><url>
-    <loc>https://coderatwork.cn/posts/top/</loc>
-    <lastmod>2020-02-04T22:57:07+08:00</lastmod>
   </url><url>
     <loc>https://coderatwork.cn/posts/linux-wake_q_add/</loc>
     <lastmod>2020-02-04T11:14:56+08:00</lastmod>
@@ -184,12 +160,6 @@
   </url><url>
     <loc>https://coderatwork.cn/posts/linux-cmpxchg/</loc>
     <lastmod>2020-02-02T23:51:12+08:00</lastmod>
-  </url><url>
-    <loc>https://coderatwork.cn/posts/law-of-demeter/</loc>
-    <lastmod>2020-02-02T16:44:02+08:00</lastmod>
-  </url><url>
-    <loc>https://coderatwork.cn/posts/calico-ip-migration/</loc>
-    <lastmod>2020-02-01T18:35:10+08:00</lastmod>
   </url><url>
     <loc>https://coderatwork.cn/posts/icmp-and-ping/</loc>
     <lastmod>2020-02-01T14:55:06+08:00</lastmod>
