@@ -1,7 +1,7 @@
 ---
 title: "利用 ansible 部署 zookeeper 集群"
 date: 2020-02-22T19:30:32+08:00
-draft: false
+draft: true
 ---
 
 本文介绍如何利用 ansible 部署 zookeeper 集群。

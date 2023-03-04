@@ -1,7 +1,7 @@
 ---
 title: "编写 Ansible Connection 插件"
 date: 2020-03-26T09:21:41+08:00
-draft: false
+draft: true
 ---
 
 ## 1. Ansible Connection 插件

@@ -1,7 +1,7 @@
 ---
 title: "Ubuntu 20.04 中文输入法配置"
 date: 2020-10-17T19:30:34+08:00
-draft: false
+draft: true
 ---
 
 给新机器安装了 Ubuntu 20.04，安装了语言支持、选择 ibus 输入法并安装了 ibus-pinyin，

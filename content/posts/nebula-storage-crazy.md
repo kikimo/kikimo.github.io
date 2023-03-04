@@ -1,7 +1,7 @@
 ---
 title: "Nebula Storage 疯了（一）"
 date: 2022-01-11T21:05:11+08:00
-draft: false
+draft: true
 ---
 
 问题详情参考这两个 issue：

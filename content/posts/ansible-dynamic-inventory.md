@@ -1,7 +1,7 @@
 ---
 title: "Ansible Dynamic Inventory"
 date: 2020-02-22T14:50:45+08:00
-draft: false
+draft: true
 ---
 
 ansible 默认从静态 inventory 文件`/etc/ansible/hosts`读取节点信息。

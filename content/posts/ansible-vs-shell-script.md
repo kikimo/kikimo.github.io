@@ -1,7 +1,7 @@
 ---
 title: "Ansible vs Shell Script"
 date: 2020-02-22T20:23:31+08:00
-draft: false
+draft: true
 ---
 
 ansible 可以通过 playbook 用来完成节点的配置管理工作，如：基建部署、软件安装、服务管理等。

@@ -1,7 +1,7 @@
 ---
 title: "Nebula Raft 中的选举死锁"
 date: 2022-01-09T19:05:51+08:00
-draft: false
+draft: true
 ---
 
 最近碰到 Nebula storage 节点无法选举的问题，

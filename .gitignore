@@ -6,3 +6,4 @@ vendor
 *.swp
 rw.asm
 .hugo_build.lock
+.DS_Store

@@ -1,7 +1,7 @@
 ---
 title: "Nebula Raft 中的数据不一致问题"
 date: 2022-01-09T19:22:15+08:00
-draft: false
+draft: true
 ---
 
 最近发现一个 Nebula Raft 中数据不一致的问题。

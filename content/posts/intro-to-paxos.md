@@ -1,7 +1,7 @@
 ---
 title: "Paxos 极简介绍"
 date: 2022-06-05T17:48:04+08:00
-draft: false
+draft: true
 ---
 
 Paxos 算法描述多个节点参与，对某个值达成一致的算法：
