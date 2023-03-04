@@ -4,7 +4,7 @@ date: 2023-03-04T14:01:45+08:00
 draft: false
 ---
 
-Raft Leader 向 Follower 传输快照的时候，乱序的消息可以能会导致集群瘫痪，看一下例子：
+Raft Leader 向 Follower 传输快照的时候，乱序的消息可以能会导致集群瘫痪，看以下例子：
 
 ![out-of-order-snap](/images/out-of-order-snapshot.jpeg)
 

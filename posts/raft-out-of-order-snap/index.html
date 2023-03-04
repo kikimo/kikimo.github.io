@@ -31,7 +31,7 @@
     <h1>消息乱序对 Raft 快照的影响</h1>
     <time datetime="2023-03-04T14:01:45&#43;08:00">March 04, 2023</time>
   </header>
-  <p>Raft Leader 向 Follower 传输快照的时候，乱序的消息可以能会导致集群瘫痪，看一下例子：</p>
+  <p>Raft Leader 向 Follower 传输快照的时候，乱序的消息可以能会导致集群瘫痪，看以下例子：</p>
 <p><img src="/images/out-of-order-snapshot.jpeg" alt="out-of-order-snap"></p>
 <ol>
 <li>Leader 向 Follower 先后发送了 sendAppend(130, 132)(发送 index 在 [130, 132] 范围内的日志)和 sendAppend(133, 135) 两条 RPC</li>

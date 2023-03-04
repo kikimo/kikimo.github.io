@@ -13,7 +13,7 @@
       <pubDate>Sat, 04 Mar 2023 14:01:45 +0800</pubDate>
       
       <guid>https://coderatwork.cn/posts/raft-out-of-order-snap/</guid>
-      <description>Raft Leader 向 Follower 传输快照的时候，乱序的消息可以能会导致集群瘫痪，看一下例子：
+      <description>Raft Leader 向 Follower 传输快照的时候，乱序的消息可以能会导致集群瘫痪，看以下例子：
  Leader 向 Follower 先后发送了 sendAppend(130, 132)(发送 index 在 [130, 132] 范围内的日志)和 sendAppend(133, 135) 两条 RPC 这两条消息在网络传输中乱序了，导致 Follower 先收到 sendAppend(133, 135)，然后才收到 sendAppend(133, 135); Follower 收到 sendAppend(133, 135) 后 Reject 这条消息，然后又 Accept 了 sendAppend(130, 132) 的消息 Leader 在收到 Follower 的 Reject 回应前把日志压缩到 131 位置，收到 Follower Reject 消息触发 Leader 向 Follower 发送快照 Snap(131)(快照中的 lastAppliedIndex = 131)，并把 Follower 状态设置为等待快照接受状态 然后 Leader 收到 sendAppend(130, 132) 消息的 Accept 回应，把 Follower 的 matchIndex 跟新到 132 Follower 收到 snap(131) 更新了本地快照，并把重置日志信息——把最后一条日志设置为 131 之后 Follower 的给 Leader 回应的 commitIndex 都是 131 &amp;lt; 132(matchIndex)，Follower 无法从等待快照状态中恢复过来，再也收不到新的日志信息  解决方法：</description>
     </item>
     
