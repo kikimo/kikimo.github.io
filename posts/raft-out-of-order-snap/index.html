@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<title>消息乱序对 Raft 快照的影响 | kikimo</title>
+<meta charset="utf-8">
+<meta name="generator" content="Hugo 0.89.3" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://coderatwork.cn/posts/raft-out-of-order-snap/">
+<link rel="alternate" type="application/rss+xml" href=""
+  title="kikimo">
+<link rel="stylesheet" href="https://coderatwork.cn/css/theme.css">
+<link rel="stylesheet" href="https://coderatwork.cn/css/classes.css">
+<script>
+  var _hmt = _hmt || [];
+  (function () {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?d617bef42a247e4c16358da7b9abcb91";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
+  })();
+</script>
+
+<header class="dark">
+  <a href="https://coderatwork.cn/">kikimo</a>
+  <nav>
+    
+  </nav>
+</header>
+
+<article>
+  <header>
+    <h1>消息乱序对 Raft 快照的影响</h1>
+    <time datetime="2023-03-04T14:01:45&#43;08:00">March 04, 2023</time>
+  </header>
+  <p>Raft Leader 向 Follower 传输快照的时候，乱序的消息可以能会导致集群瘫痪，看一下例子：</p>
+<p><img src="/images/out-of-order-snapshot.jpeg" alt="out-of-order-snap"></p>
+<ol>
+<li>Leader 向 Follower 先后发送了 sendAppend(130, 132)(发送 index 在 [130, 132] 范围内的日志)和 sendAppend(133, 135) 两条 RPC</li>
+<li>这两条消息在网络传输中乱序了，导致 Follower 先收到 sendAppend(133, 135)，然后才收到 sendAppend(133, 135);</li>
+<li>Follower 收到 sendAppend(133, 135) 后 Reject 这条消息，然后又 Accept 了 sendAppend(130, 132) 的消息</li>
+<li>Leader 在收到 Follower 的 Reject 回应前把日志压缩到 131 位置，收到 Follower Reject 消息触发 Leader 向 Follower 发送快照 Snap(131)(快照中的 lastAppliedIndex = 131)，并把 Follower 状态设置为等待快照接受状态</li>
+<li>然后 Leader 收到 sendAppend(130, 132) 消息的 Accept 回应，把 Follower 的 matchIndex 跟新到 132</li>
+<li>Follower 收到 snap(131) 更新了本地快照，并把重置日志信息——把最后一条日志设置为 131</li>
+<li>之后 Follower 的给 Leader 回应的 commitIndex 都是 131 &lt; 132(matchIndex)，Follower 无法从等待快照状态中恢复过来，再也收不到新的日志信息</li>
+</ol>
+<p>解决方法：</p>
+<ol>
+<li>当 Follower 处于等待快照状态时 Leader 忽略所有 sendAppend 响应消息，这样就可以防止在以上步骤 5 中 Leader 更新了 Follower 的 matchIndex</li>
+<li>第二种方法稍微复杂一点：
+<ul>
+<li>当 Leader 收到 sendAppend 并且可以更新 matchIndex 时，如果监测到 Follower 处于等待快照状态中，则把 Follower 重置为正常的日志收发状态</li>
+<li>当 Follower 收到快照消息 snap(index) 的时候，如果快照有效，那么在更新快照的同时，保留本地 index + 1 的所有日志</li>
+</ul>
+</li>
+</ol>
+
+</article>
+
+
+
+</html>
